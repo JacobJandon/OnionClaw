@@ -12,7 +12,7 @@ Versioning follows [Semantic Versioning](https://semver.org).
 ### Added
 - 7 standalone scripts: `check_tor`, `renew`, `search`, `fetch`, `ask`, `check_engines`, `pipeline`
 - OpenClaw `SKILL.md` with full metadata: `requires.pip`, `version`, `author`, `license`, `repo`
-- `scripts/sync_sicry.py` — pull latest `sicry.py` from upstream SICRY™ repo
+- `sync_sicry.py` — pull latest `sicry.py` from upstream SICRY™ repo
 - `NOTICE` file (Apache 2.0 requirement — credits Robin OSINT and SICRY™)
 - `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`
 - GitHub Actions CI (Python 3.9–3.12, syntax checks all scripts)

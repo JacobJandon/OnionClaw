@@ -13,17 +13,17 @@ metadata:
       },
       "version": "1.0.0",
       "author": "JacobJandon",
-      "license": "Apache-2.0",
+      "license": "MIT",
       "repo": "https://github.com/JacobJandon/OnionClaw"
     }
   }
 ---
 
-# OnionClaw™ — Tor / Dark Web Access
+# OnionClaw — Tor / Dark Web Access
 
-**by JacobJandon** · Apache 2.0 License · [github.com/JacobJandon/OnionClaw](https://github.com/JacobJandon/OnionClaw)
+**by JacobJandon** · MIT License · [github.com/JacobJandon/OnionClaw](https://github.com/JacobJandon/OnionClaw)
 
-OnionClaw™ routes all requests through the Tor network. It searches 18 dark web search engines simultaneously, fetches .onion hidden service pages, rotates Tor circuits, and produces structured OSINT reports using the Robin investigation pipeline.
+OnionClaw routes all requests through the Tor network. It searches 18 dark web search engines simultaneously, fetches .onion hidden service pages, rotates Tor circuits, and produces structured OSINT reports using the Robin investigation pipeline.
 
 ## Setup (run once after install)
 
@@ -38,13 +38,10 @@ cp {baseDir}/.env.example {baseDir}/.env
 # Edit {baseDir}/.env — add LLM_PROVIDER + API key (optional; search and fetch work without one)
 ```
 
-Before any dark web operation, Tor must be running locally:
+Start Tor (required before any command):
 ```bash
-# Linux
-apt install tor && tor &
-
-# macOS
-brew install tor && tor &
+# Linux:  apt install tor && tor &
+# macOS:  brew install tor && tor &
 ```
 
 ---

@@ -1,18 +1,17 @@
-# OnionClaw™ 🧅
+# OnionClaw 🧅
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/JacobJandon/OnionClaw/blob/main/LICENSE)
-[![OpenClaw Skill](https://img.shields.io/badge/OpenClaw-skill-blue)](https://github.com/JacobJandon/OnionClaw/blob/main/SKILL.md)
-[![CI](https://github.com/JacobJandon/OnionClaw/actions/workflows/ci.yml/badge.svg)](https://github.com/JacobJandon/OnionClaw/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/JacobJandon/OnionClaw/blob/main/LICENSE)
+[![OpenClaw Skill](https://img.shields.io/badge/OpenClaw-skill-blueviolet)](https://github.com/JacobJandon/OnionClaw)
 
-**by [JacobJandon](https://github.com/JacobJandon)**
+**by JacobJandon**
 
 <p align="center">
-  <img src="OnionClawTransparent.png" alt="OnionClaw™ logo" width="200"/>
+  <img src="OnionClawTransparent.png" alt="OnionClaw logo" width="200"/>
 </p>
 
 > **OpenClaw skill + standalone tool** — full Tor / dark web access for AI agents
 
-OnionClaw™ gives AI agents full access to the Tor network and .onion hidden services. It runs as an [OpenClaw](https://github.com/openclaw/openclaw) skill (drop-in, zero config beyond a `.env` file) and also works standalone from any terminal.
+OnionClaw gives AI agents full access to the Tor network and .onion hidden services. It runs as an [OpenClaw](https://github.com/openclaw/openclaw) skill (drop-in, zero config beyond a `.env` file) and also works standalone from any terminal.
 
 Based on the [SICRY](https://github.com/JacobJandon/Sicry) engine — 18 dark web search engines, Robin OSINT pipeline, four LLM analysis modes.
 
@@ -31,7 +30,7 @@ python3 scripts/pipeline.py --query "acme.com data leak" --mode corporate
 
 ## Contents
 
-1. [What OnionClaw™ does](#what-onionclaw-does)
+1. [What OnionClaw does](#what-onionclaw-does)
 2. [Requirements](#requirements)
 3. [Install as OpenClaw skill](#install-as-openclaw-skill)
 4. [Standalone install](#standalone-install)
@@ -44,7 +43,7 @@ python3 scripts/pipeline.py --query "acme.com data leak" --mode corporate
 
 ---
 
-## What OnionClaw™ does
+## What OnionClaw does
 
 Seven commands expose the complete Tor OSINT toolkit:
 
@@ -105,7 +104,7 @@ pip install requests[socks] beautifulsoup4 python-dotenv stem
 
 ```bash
 # Option A — clone directly
-git clone https://github.com/JacobJandon/OnionClaw ~/.openclaw/skills/onionclaw
+git clone https://github.com/Ps3wb4n/OnionClaw ~/.openclaw/skills/onionclaw
 
 # Option B — copy local folder
 cp -r OnionClaw ~/.openclaw/skills/onionclaw
@@ -476,7 +475,7 @@ Dark web indexes fluctuate. Run `check_engines.py` to find alive engines, then u
 Set `LLM_PROVIDER` and an API key in `.env`. For no-key local operation: `LLM_PROVIDER=ollama` with a running Ollama instance. All five non-LLM scripts (`check_tor`, `renew`, `check_engines`, `search`, `fetch`) work without any key.
 
 **`ERROR: sicry.py not found`**
-`sicry.py` must be in the OnionClaw™ root (same folder as `SKILL.md`). It is included in this repo — do not delete or move it. If you cloned and it is missing, re-clone fresh.
+`sicry.py` must be in the OnionClaw root (same folder as `SKILL.md`). It is included in this repo — do not delete or move it. If you cloned and it is missing, re-clone fresh.
 
 ---
 
@@ -503,17 +502,19 @@ OnionClaw/
 ## Credits
 
 - Dark web search engine list and Robin OSINT pipeline from [Robin](https://github.com/apurvsinghgautam/robin) by [@apurvsinghgautam](https://github.com/apurvsinghgautam) — MIT licence
-- Core engine: [SICRY](https://github.com/JacobJandon/Sicry)
+- Core engine: [SICRY](https://github.com/Ps3wb4n/Sicry)
 - .onion address verification via [dark.fail](https://dark.fail)
 - Agent runtime: [OpenClaw](https://github.com/openclaw/openclaw)
 - Network anonymisation: [Tor Project](https://www.torproject.org/)
 
+---
 ## License
 
-Apache 2.0 License — Copyright 2026 JacobJandon
+MIT License — Copyright (c) 2026 JacobJandon
 
-The "OnionClaw™" name and logo are owned by JacobJandon. The Apache 2.0 licence applies to all source code in this repository. See [LICENSE](LICENSE) for details.
+"OnionClaw" and the OnionClaw logo are owned by JacobJandon.
+
+See [LICENSE](LICENSE) for full text.
 
 ---
-
 > Use responsibly and lawfully. For OSINT, security research, and threat intelligence purposes only.
