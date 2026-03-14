@@ -25,8 +25,12 @@ if os.path.exists(_env):
 
 try:
     import sicry
-except ImportError:
-    print("ERROR: sicry.py not found in", _skill_dir)
+except Exception as _e:
+    if "sicry" in str(_e).lower() or "No module named 'sicry'" in str(_e):
+        print("ERROR: sicry.py not found in", _skill_dir)
+    else:
+        print("ERROR: failed to import sicry:", _e)
+        print("       Run:  pip install requests[socks] beautifulsoup4 python-dotenv stem")
     sys.exit(1)
 
 parser = argparse.ArgumentParser(description="Search 18 dark web engines via Tor")
@@ -42,6 +46,15 @@ if args.engines:
 else:
     print(f"Engines : all 18")
 print()
+
+# Validate engine names before searching
+if args.engines:
+    known = {e["name"].lower() for e in getattr(sicry, "SEARCH_ENGINES", [])}
+    bad = [n for n in args.engines if n.lower() not in known] if known else []
+    if bad:
+        print(f"WARN: unknown engine name(s): {', '.join(bad)}")
+        valid = [e["name"] for e in getattr(sicry, "SEARCH_ENGINES", []) if e["name"].lower() in {x.lower() for x in args.engines}]
+        print(f"      Valid supplied engines: {valid or 'none — will search all'}")
 
 results = sicry.search(args.query, engines=args.engines, max_results=args.max)
 

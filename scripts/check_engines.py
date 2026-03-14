@@ -23,8 +23,12 @@ if os.path.exists(_env):
 
 try:
     import sicry
-except ImportError:
-    print("ERROR: sicry.py not found in", _skill_dir)
+except Exception as _e:
+    if "sicry" in str(_e).lower() or "No module named 'sicry'" in str(_e):
+        print("ERROR: sicry.py not found in", _skill_dir)
+    else:
+        print("ERROR: failed to import sicry:", _e)
+        print("       Run:  pip install requests[socks] beautifulsoup4 python-dotenv stem")
     sys.exit(1)
 
 print("Checking all 18 search engines via Tor...")

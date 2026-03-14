@@ -20,9 +20,14 @@ if os.path.exists(_env):
 
 try:
     import sicry
-except ImportError:
-    print("ERROR: sicry.py not found in", _skill_dir)
-    print("       Make sure sicry.py is in the OnionClaw folder.")
+except Exception as _e:
+    import traceback
+    if "sicry" in str(_e).lower() or "No module named 'sicry'" in str(_e):
+        print("ERROR: sicry.py not found in", _skill_dir)
+        print("       Make sure sicry.py is in the OnionClaw folder.")
+    else:
+        print("ERROR: failed to import sicry:", _e)
+        print("       Run:  pip install requests[socks] beautifulsoup4 python-dotenv stem")
     sys.exit(1)
 
 result = sicry.check_tor()
@@ -30,7 +35,6 @@ result = sicry.check_tor()
 if result["tor_active"]:
     print(f"✓ Tor active")
     print(f"  Exit IP  : {result['exit_ip']}")
-    print(f"  Error    : {result['error']}")
 else:
     print(f"✗ Tor NOT active")
     print(f"  Error    : {result['error']}")

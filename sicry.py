@@ -49,7 +49,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
-from urllib.parse import urljoin, urlparse, quote_plus
+from urllib.parse import urljoin, urlparse, quote_plus, parse_qs, unquote
 
 import requests
 from bs4 import BeautifulSoup
@@ -101,7 +101,7 @@ MAX_CONTENT_CHARS  = int(os.getenv("SICRY_MAX_CHARS", "8000"))
 OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL       = os.getenv("OPENAI_MODEL", "gpt-4o")
 ANTHROPIC_API_KEY  = os.getenv("ANTHROPIC_API_KEY")
-ANTHROPIC_MODEL    = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-6")
+ANTHROPIC_MODEL    = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-5")
 GEMINI_API_KEY     = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL       = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
 OLLAMA_URL         = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
@@ -230,7 +230,8 @@ def renew_identity() -> dict:
         for path in _COOKIE_PATHS:
             if path and os.path.isfile(path):
                 try:
-                    return open(path, "rb").read()
+                    with open(path, "rb") as _fh:
+                        return _fh.read()
                 except Exception:
                     continue
         return None
@@ -556,7 +557,7 @@ def search(
     Args:
         query:       What to search for (natural language or keywords).
         engines:     Optional list of specific engine names to use.
-                     Defaults to ALL 16 engines in parallel.
+                     Defaults to ALL 18 engines in parallel.
                      Options: Ahmia, OnionLand, Torgle, Amnesia, Kaizer,
                               Anima, Tornado, TorNet, Torland, FindTor,
                               Excavator, Onionway, Tor66, OSS, Torgol,
@@ -583,19 +584,46 @@ def search(
         url = engine["url"].format(query=quote_plus(query))
         headers = {"User-Agent": random.choice(_USER_AGENTS)}
         session = _build_tor_session()
+        # Compute engine's own hostname so we can exclude self-referential links
+        _eng_host_m = re.findall(r"https?://([^/]+)", engine["url"])
+        _eng_host = _eng_host_m[0] if _eng_host_m else ""
         found = []
         try:
             resp = session.get(url, headers=headers, timeout=TOR_TIMEOUT)
             if resp.status_code != 200:
                 return []
             soup = BeautifulSoup(resp.text, "html.parser")
-            for a in soup.find_all("a"):
+            # Try to find result containers first (more precise)
+            result_links = (
+                soup.select(".result a, .results a, li.result a, div.result a,"
+                            " .search-result a, .web-result a, td.result a") or
+                soup.find_all("a")
+            )
+            for a in result_links:
                 try:
-                    href = a.get("href", "")
+                    href  = a.get("href", "")
                     title = a.get_text(strip=True)
-                    match = re.findall(r"https?://[a-z0-9.]+\.onion[^\s\"'<>]*", href)
-                    if match and "search" not in match[0] and len(title) > 3:
-                        found.append({"title": title, "url": match[0].rstrip("/"), "engine": engine["name"]})
+                    if len(title) < 4:
+                        continue
+                    # Decode redirect wrappers (Ahmia /redirect/?redirect_url=... or ?url=...)
+                    if "redirect_url=" in href or ("redirect" in href and "?" in href):
+                        _qs = parse_qs(urlparse(href).query)
+                        for _param in ("redirect_url", "url"):
+                            if _param in _qs:
+                                href = unquote(_qs[_param][0])
+                                break
+                    # Primary: .onion dark web result URLs
+                    onion = re.findall(r"https?://[a-z0-9.\-]+\.onion[^\s\"'<>]*", href)
+                    onion = [u for u in onion if _eng_host not in u]
+                    # Fallback: clearnet HTTPS results (DuckDuckGo-Tor, Ahmia-clearnet, etc.)
+                    clearnet: list[str] = []
+                    if not onion:
+                        clearnet = re.findall(r"https?://[a-z0-9.\-]+\.[a-z]{2,}[^\s\"'<>]*", href)
+                        clearnet = [u for u in clearnet if _eng_host not in u and ".onion" not in u]
+                    picked = onion or clearnet
+                    if not picked:
+                        continue
+                    found.append({"title": title, "url": picked[0].rstrip("/"), "engine": engine["name"]})
                 except Exception:
                     continue
         except Exception:
@@ -849,7 +877,7 @@ TOOLS = [
     },
     {
         "name": "sicry_search",
-        "description": "Search the Tor network / dark web for the given query across up to 16 .onion search engines simultaneously (Ahmia, Tor66, Excavator, Torgle, and 12 more). Returns a deduplicated list of {title, url, engine} results. Use this the same way you'd call web_search() or brave_search() for the regular internet.",
+        "description": "Search the Tor network / dark web for the given query across up to 18 .onion search engines simultaneously (Ahmia, Tor66, Excavator, Torgle, and 12 more). Returns a deduplicated list of {title, url, engine} results. Use this the same way you'd call web_search() or brave_search() for the regular internet.",
         "input_schema": {
             "type": "object",
             "properties": {

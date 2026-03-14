@@ -28,8 +28,12 @@ if os.path.exists(_env):
 
 try:
     import sicry
-except ImportError:
-    print("ERROR: sicry.py not found in", _skill_dir)
+except Exception as _e:
+    if "sicry" in str(_e).lower() or "No module named 'sicry'" in str(_e):
+        print("ERROR: sicry.py not found in", _skill_dir)
+    else:
+        print("ERROR: failed to import sicry:", _e)
+        print("       Run:  pip install requests[socks] beautifulsoup4 python-dotenv stem")
     sys.exit(1)
 
 MODES = ["threat_intel", "ransomware", "personal_identity", "corporate"]
@@ -78,13 +82,19 @@ if not live_names:
                    key=lambda x: x.get("latency_ms") or 999999)
     dead  = [e for e in engine_status if e["status"] != "up"]
     live_names = [e["name"] for e in alive]
-    print(f"✓ {len(alive)}/18 engines alive  |  {len(dead)} down")
+    total_engines = len(engine_status)
+    print(f"✓ {len(alive)}/{total_engines} engines alive  |  {len(dead)} down")
     if alive:
         print(f"  Fastest: {alive[0]['name']} ({alive[0].get('latency_ms')}ms)")
     if not alive:
         print("✗ No engines alive — check your Tor connection")
         sys.exit(1)
 else:
+    # Validate specified engine names against SICRY's known list
+    known = {e["name"].lower() for e in getattr(sicry, "SEARCH_ENGINES", [])}
+    bad = [n for n in live_names if n.lower() not in known] if known else []
+    if bad:
+        print(f"WARN: unknown engine(s): {', '.join(bad)} — will be ignored by search()")
     _step(2, TOTAL, f"Using specified engines: {', '.join(live_names)}")
 
 # ──────────────────────────────────────────────────────────────────
