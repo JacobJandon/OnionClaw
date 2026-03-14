@@ -1,5 +1,10 @@
 # OnionClaw 🧅
 
+
+<p align="center">
+  <img src="OnionClawTransparent.png" alt="OnionClaw logo" width="200"/>
+</p>
+
 > **OpenClaw skill + standalone tool** — full Tor / dark web access for AI agents
 
 OnionClaw gives AI agents full access to the Tor network and .onion hidden services. It runs as an [OpenClaw](https://github.com/openclaw/openclaw) skill (drop-in, zero config beyond a `.env` file) and also works standalone from any terminal.
