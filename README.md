@@ -1,4 +1,4 @@
-# OnionClaw 🧅
+# OnionClaw™ 🧅
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/JacobJandon/OnionClaw/blob/main/LICENSE)
 [![OpenClaw Skill](https://img.shields.io/badge/OpenClaw-skill-blue)](https://github.com/JacobJandon/OnionClaw/blob/main/SKILL.md)
@@ -6,12 +6,12 @@
 **by [JacobJandon](https://github.com/JacobJandon)**
 
 <p align="center">
-  <img src="OnionClawTransparent.png" alt="OnionClaw logo" width="200"/>
+  <img src="OnionClawTransparent.png" alt="OnionClaw™ logo" width="200"/>
 </p>
 
 > **OpenClaw skill + standalone tool** — full Tor / dark web access for AI agents
 
-OnionClaw gives AI agents full access to the Tor network and .onion hidden services. It runs as an [OpenClaw](https://github.com/openclaw/openclaw) skill (drop-in, zero config beyond a `.env` file) and also works standalone from any terminal.
+OnionClaw™ gives AI agents full access to the Tor network and .onion hidden services. It runs as an [OpenClaw](https://github.com/openclaw/openclaw) skill (drop-in, zero config beyond a `.env` file) and also works standalone from any terminal.
 
 Based on the [SICRY](https://github.com/JacobJandon/Sicry) engine — 18 dark web search engines, Robin OSINT pipeline, four LLM analysis modes.
 
@@ -30,7 +30,7 @@ python3 scripts/pipeline.py --query "acme.com data leak" --mode corporate
 
 ## Contents
 
-1. [What OnionClaw does](#what-onionclaw-does)
+1. [What OnionClaw™ does](#what-onionclaw-does)
 2. [Requirements](#requirements)
 3. [Install as OpenClaw skill](#install-as-openclaw-skill)
 4. [Standalone install](#standalone-install)
@@ -43,7 +43,7 @@ python3 scripts/pipeline.py --query "acme.com data leak" --mode corporate
 
 ---
 
-## What OnionClaw does
+## What OnionClaw™ does
 
 Seven commands expose the complete Tor OSINT toolkit:
 
@@ -475,7 +475,7 @@ Dark web indexes fluctuate. Run `check_engines.py` to find alive engines, then u
 Set `LLM_PROVIDER` and an API key in `.env`. For no-key local operation: `LLM_PROVIDER=ollama` with a running Ollama instance. All five non-LLM scripts (`check_tor`, `renew`, `check_engines`, `search`, `fetch`) work without any key.
 
 **`ERROR: sicry.py not found`**
-`sicry.py` must be in the OnionClaw root (same folder as `SKILL.md`). It is included in this repo — do not delete or move it. If you cloned and it is missing, re-clone fresh.
+`sicry.py` must be in the OnionClaw™ root (same folder as `SKILL.md`). It is included in this repo — do not delete or move it. If you cloned and it is missing, re-clone fresh.
 
 ---
 
@@ -511,7 +511,7 @@ OnionClaw/
 
 Apache 2.0 License — Copyright 2026 JacobJandon
 
-The "OnionClaw" name and logo are owned by JacobJandon. The Apache 2.0 licence applies to all source code in this repository. See [LICENSE](LICENSE) for details.
+The "OnionClaw™" name and logo are owned by JacobJandon. The Apache 2.0 licence applies to all source code in this repository. See [LICENSE](LICENSE) for details.
 
 ---
 

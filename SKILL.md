@@ -19,11 +19,11 @@ metadata:
   }
 ---
 
-# OnionClaw — Tor / Dark Web Access
+# OnionClaw™ — Tor / Dark Web Access
 
 **by JacobJandon** · Apache 2.0 License · [github.com/JacobJandon/OnionClaw](https://github.com/JacobJandon/OnionClaw)
 
-OnionClaw routes all requests through the Tor network. It searches 18 dark web search engines simultaneously, fetches .onion hidden service pages, rotates Tor circuits, and produces structured OSINT reports using the Robin investigation pipeline.
+OnionClaw™ routes all requests through the Tor network. It searches 18 dark web search engines simultaneously, fetches .onion hidden service pages, rotates Tor circuits, and produces structured OSINT reports using the Robin investigation pipeline.
 
 ## Setup (run once after install)
 
