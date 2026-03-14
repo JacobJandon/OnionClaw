@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/OnionClaw
 """
 OnionClaw — fetch.py
 Fetch any URL or .onion hidden service through Tor.

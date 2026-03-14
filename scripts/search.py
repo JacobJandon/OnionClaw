@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/OnionClaw
 """
 OnionClaw — search.py
 Search 18 dark web search engines simultaneously.

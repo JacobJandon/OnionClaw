@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/OnionClaw
 """
 OnionClaw — renew.py
 Rotate the Tor circuit and get a new exit node / identity.

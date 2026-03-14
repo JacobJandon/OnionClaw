@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/OnionClaw
 """
 OnionClaw — check_engines.py
 Ping all 18 dark web search engines via Tor and report status + latency.

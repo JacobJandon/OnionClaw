@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/Sicry
 """
 SICRY — Tor/Onion Network Access Layer for AI Agents
 =====================================================
