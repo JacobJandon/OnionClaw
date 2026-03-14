@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  lint:
+    name: Syntax & import check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install requests[socks] beautifulsoup4 python-dotenv stem
+
+      - name: Syntax check — sicry.py
+        run: python3 -m py_compile sicry.py && echo "sicry.py OK"
+
+      - name: Syntax check — scripts
+        run: |
+          for f in scripts/*.py; do
+            python3 -m py_compile "$f" && echo "$f OK"
+          done
+
+      - name: Import check — sicry
+        run: python3 -c "import sicry; print('sicry', sicry.__version__, 'imported OK')"

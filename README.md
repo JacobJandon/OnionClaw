@@ -2,6 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/JacobJandon/OnionClaw/blob/main/LICENSE)
 [![OpenClaw Skill](https://img.shields.io/badge/OpenClaw-skill-blue)](https://github.com/JacobJandon/OnionClaw/blob/main/SKILL.md)
+[![CI](https://github.com/JacobJandon/OnionClaw/actions/workflows/ci.yml/badge.svg)](https://github.com/JacobJandon/OnionClaw/actions/workflows/ci.yml)
 
 **by [JacobJandon](https://github.com/JacobJandon)**
 
