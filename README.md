@@ -1,6 +1,6 @@
 # OnionClaw 🧅
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/JacobJandon/OnionClaw/blob/main/LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/JacobJandon/OnionClaw/blob/main/LICENSE)
 [![OpenClaw Skill](https://img.shields.io/badge/OpenClaw-skill-blue)](https://github.com/JacobJandon/OnionClaw/blob/main/SKILL.md)
 
 **by [JacobJandon](https://github.com/JacobJandon)**
@@ -509,9 +509,9 @@ OnionClaw/
 
 ## License
 
-MIT License — Copyright (c) 2026 JacobJandon
+Apache 2.0 License — Copyright 2026 JacobJandon
 
-The "OnionClaw" name and logo are owned by JacobJandon. The MIT licence applies to all source code in this repository. See [LICENSE](LICENSE) for details.
+The "OnionClaw" name and logo are owned by JacobJandon. The Apache 2.0 licence applies to all source code in this repository. See [LICENSE](LICENSE) for details.
 
 ---
 
