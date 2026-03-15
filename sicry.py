@@ -2,7 +2,7 @@
 # Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/Sicry
 from __future__ import annotations
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 """
 SICRY — Tor/Onion Network Access Layer for AI Agents
@@ -795,11 +795,16 @@ def score_results(query: str, results: list[dict]) -> list[dict]:
 
     scored: list[tuple[float, dict]] = []
     for result in results:
-        doc = (result.get("title", "") + " " + result.get("url", "")).lower()
+        # Include snippet/description if available for richer scoring
+        doc = " ".join(filter(None, [
+            result.get("title", ""),
+            result.get("snippet", "") or result.get("description", ""),
+            result.get("url", ""),
+        ])).lower()
         doc_terms = re.findall(r"[a-z0-9]{3,}", doc)
         term_count = {t: doc_terms.count(t) for t in q_terms if t in doc_terms}
         dl = max(len(doc_terms), 1)
-        avgdl = 50.0  # average onion search result "document" length
+        avgdl = 12.0  # realistic average for onion title+url+snippet combos
         k1, b = 1.5, 0.75
         score = sum(
             (cnt * (k1 + 1))
@@ -1436,7 +1441,17 @@ def check_search_engines(max_workers: int = 8, _cached: bool = False) -> list[di
                 "error": err,
             }
         except Exception as exc:
-            err = _friendly_error(exc)
+            # Use a compact engine-specific message — do NOT blame Tor globally
+            # (other engines may be working fine; this one is just unreachable)
+            exc_str = str(exc)
+            if any(kw in exc_str for kw in ("timed out", "Read timed out", "Timeout")):
+                err = f"engine timed out (hidden service unreachable or slow)"
+            elif any(kw in exc_str for kw in ("SOCKS", "Connection refused", "ConnectionRefused")):
+                err = f"engine unreachable via Tor circuit"
+            elif "HTTP" in exc_str or "4" in exc_str[:5] or "5" in exc_str[:5]:
+                err = exc_str[:120]
+            else:
+                err = exc_str[:120]
             _db().engine_history_add(engine["name"], "down", None, err)
             return {
                 "name": engine["name"],

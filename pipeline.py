@@ -99,6 +99,11 @@ parser.add_argument("--no-cache",     action="store_true",
                     help="Skip search cache, force live queries")
 args = parser.parse_args()
 
+# ── BUG-4: warn if --interval used without --watch ─────────────────────────
+if args.interval != 6.0 and not args.watch and not args.watch_check:
+    print("WARN: --interval only takes effect with --watch. Ignoring.",
+          file=sys.stderr)
+
 # ── pre-run actions ───────────────────────────────────────────────
 if args.clear_cache:
     n = sicry.clear_cache()
@@ -136,11 +141,12 @@ if args.interactive and not args.query:
     print("=" * 55)
     while True:
         try:
-            q = input("\nEnter query: ").strip()
+            q = input("\nQuery > ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nGoodbye.")
             break
         if q.lower() in ("exit", "quit", "q"):
+            print("Goodbye.")
             break
         if not q:
             continue
@@ -153,9 +159,13 @@ if args.interactive and not args.query:
             conf_str = f"  [{r.get('confidence', 0):.2f}]" if args.confidence else ""
             print(f"  {i:>3}.{conf_str} [{r['engine']}] {r.get('title','')[:60]}")
             print(f"       {r['url']}")
-        follow = input("\n  Fetch a result? Enter number (or blank to skip): ").strip()
-        if follow.isdigit():
-            idx = int(follow) - 1
+        print("\n  Commands: <number> fetch page  |  new query = type it  |  'exit' quit")
+        cmd = input("  > ").strip()
+        if cmd.lower() in ("exit", "quit", "q"):
+            print("Goodbye.")
+            break
+        if cmd.isdigit():
+            idx = int(cmd) - 1
             if 0 <= idx < len(results):
                 page = sicry.fetch(results[idx]["url"])
                 if page["error"]:
@@ -165,13 +175,37 @@ if args.interactive and not args.query:
                     print(page["text"][:4000])
     sys.exit(0)
 
-# ── --query required from here ────────────────────────────────────
+# ── BUG-1: load checkpoint early so --resume can restore the query ────────
+_checkpoint: dict = {}
+_job_id = args.resume or str(uuid.uuid4())[:8]
+
+if args.resume:
+    try:
+        from sicry import _db
+        _checkpoint = _db().cache_get(
+            f"pipeline_checkpoint:{args.resume}", "pipeline", ttl=86400 * 90
+        ) or {}
+        if _checkpoint:
+            # Restore the original query from the checkpoint if caller omitted it
+            if not args.query:
+                args.query = (_checkpoint.get("data") or {}).get("__meta__", {}).get("query")
+            print(f"[resume] Loaded checkpoint for job {args.resume!r}")
+            print(f"         Steps already completed: {list(_checkpoint.get('steps', {}).keys())}")
+            if args.query:
+                print(f"         Query: {args.query!r}")
+        else:
+            print(f"[resume] No checkpoint found for {args.resume!r} — starting fresh")
+    except Exception as _re:
+        print(f"[resume] Warning: could not load checkpoint — {_re}", file=sys.stderr)
+
+# ── UX-2: clean error for empty --query before argparse prints the usage block
+if args.query is not None and not args.query.strip():
+    print("ERROR: --query cannot be empty.", file=sys.stderr)
+    sys.exit(1)
+
+# ── --query required from here ────────────────────────────────────────────
 if not args.query:
     parser.error("--query is required")
-
-if not args.query.strip():
-    print("ERROR: --query cannot be empty", file=sys.stderr)
-    sys.exit(1)
 
 # ── standalone: register watch job ────────────────────────────────
 if args.watch:
@@ -201,24 +235,6 @@ def _step(n, total, label):
     print("─" * 55)
 
 TOTAL = 7  # 7 steps; LLM steps marked [skip N/7] with --no-llm
-
-# ─────────────────────────────────────────────────────────────────
-# Resume: load checkpoint state from SQLite
-# ─────────────────────────────────────────────────────────────────
-_checkpoint: dict = {}
-_job_id = args.resume or str(uuid.uuid4())[:8]
-
-if args.resume:
-    try:
-        from sicry import _db
-        _checkpoint = _db().cache_get(f"pipeline_checkpoint:{args.resume}", "pipeline", ttl=0) or {}
-        if _checkpoint:
-            print(f"[resume] Loaded checkpoint for job {args.resume}")
-            print(f"         Steps already completed: {list(_checkpoint.get('steps', {}).keys())}")
-        else:
-            print(f"[resume] No checkpoint found for {args.resume} — starting fresh")
-    except Exception:
-        pass
 
 def _save_checkpoint(step: str, data):
     try:
@@ -285,7 +301,9 @@ else:
 # Step 3: Refine query (LLM step — skipped with --no-llm)
 # ─────────────────────────────────────────────────────────────────
 raw_query = args.query
-if NO_LLM:
+# Persist query in checkpoint so --resume <job_id> can re-run without --query
+if not _ckpt("__meta__"):
+    _save_checkpoint("__meta__", {"query": raw_query, "mode": args.mode})
     refined = raw_query
     print(f"\n[skip 3/{TOTAL}] Query refinement skipped (--no-llm)")
     print(f"    Query: {refined}")
@@ -339,6 +357,10 @@ if len(raw_results) > 5:
 if NO_LLM:
     best = sorted(raw_results, key=lambda x: x.get("confidence", 0), reverse=True)[:20]
     print(f"\n[5/{TOTAL}] Ranked top {len(best)} results by BM25 confidence (--no-llm)")
+    if args.confidence and best:
+        for i, r in enumerate(best[:10], 1):
+            print(f"  {i:>3}. [conf={r.get('confidence', 0):.4f}] "
+                  f"[{r.get('engine','?')}] {r.get('title','?')[:55]}")
 else:
     cached_best = _ckpt("filter")
     if cached_best:
@@ -428,7 +450,7 @@ if args.out:
         if fmt == "json":
             out_payload = json.dumps({
                 "query": args.query,
-                "refined_query": refined,
+                "refined_query": None if NO_LLM else refined,
                 "mode": args.mode,
                 "results": best,
                 "report": report,
