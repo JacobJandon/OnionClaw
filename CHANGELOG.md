@@ -7,6 +7,32 @@ Versioning follows [Semantic Versioning](https://semver.org).
 
 ---
 
+## [1.2.0] — 2026-03-15
+
+### Added
+- **`check_engines.py --cached N`**: reuse last engine-check result if it is
+  less than `N` minutes old — skips the 15–30 s live Tor ping. Cache stored in
+  `/tmp/onionclaw_engines_cache.json`.
+- **`check_engines.py --json`** and **`--version`** flags
+- **`pipeline.py --clear-cache`**: delete all persistent fetch results before
+  the pipeline runs
+- **`pipeline.py --version`**, **`fetch.py --version`**, **`search.py --version`**,
+  **`sync_sicry.py --version`** flags added to every CLI script
+- **`sync_sicry.py` fully documented** in `README.md` with its own `###` section
+  covering `--tag`, `--dry-run`, and `--version`. Also documented in setup.py
+  summary output.
+
+### Security
+- **`setup.py` sets `.env` to `chmod 600`** after writing it — prevents world-
+  readable API keys on multi-user systems
+
+### Bundled SICRY™
+- Version 1.2.0 (see SICRY CHANGELOG for full details)
+- SAFETY-1 token-pair matching, persistent cache, `clear_cache()`,
+  redirect de-anonymization blocking
+
+---
+
 ## [1.1.0] — 2026-03-15
 
 ### Added

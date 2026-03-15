@@ -136,11 +136,22 @@ def setup_env():
 
     _p(f"\n✓ .env configured with provider={provider}", GREEN)
 
+    # Lock permissions — .env contains API keys; must not be world-readable
+    try:
+        os.chmod(_ENV, 0o600)
+        _p(f"✓ .env permissions set to 600 (owner read/write only)", GREEN)
+    except OSError as e:
+        _p(f"⚠  Could not set .env permissions: {e}", YELLOW)
+
     # Copy to parent Sicry repo as well
     parent_env = os.path.join(_DIR, "..", ".env")
     if not os.path.exists(parent_env):
         try:
             shutil.copy2(_ENV, parent_env)
+            try:
+                os.chmod(parent_env, 0o600)
+            except OSError:
+                pass
             _p(f"✓ Also copied to parent Sicry repo: {os.path.abspath(parent_env)}", GREEN)
         except Exception:
             pass
@@ -404,7 +415,17 @@ Quick-start commands:
 
   5. MCP server mode (for Claude Desktop / Cursor / Zed):
        python3 sicry.py serve
+  6. Check engine health (with result caching):
+       python3 check_engines.py --cached 10
 
+  7. Sync sicry.py to a newer SICRY™ release:
+       python3 sync_sicry.py               # latest main
+       python3 sync_sicry.py --tag v1.2.0  # specific tag
+       python3 sync_sicry.py --dry-run     # preview only
+
+  8. Clear the fetch result cache:
+       python3 pipeline.py --clear-cache
+       — or — python3 sicry.py clear-cache
   Docs: https://github.com/JacobJandon/OnionClaw
 """, CYAN)
 

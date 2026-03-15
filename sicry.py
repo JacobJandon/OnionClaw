@@ -2,7 +2,7 @@
 # Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/Sicry
 from __future__ import annotations
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 """
 SICRY — Tor/Onion Network Access Layer for AI Agents
@@ -116,8 +116,61 @@ LLM_PROVIDER       = os.getenv("LLM_PROVIDER", "openai")
 
 # ─────────────────────────────────────────────────────────────────
 # FETCH CACHE  (keyed by normalised URL; evicted after FETCH_CACHE_TTL)
+# Two-layer: in-process dict (fast) + /tmp file (survives between runs).
 # ─────────────────────────────────────────────────────────────────
 _FETCH_CACHE: dict[str, tuple[float, dict]] = {}
+_CACHE_FILE: str = os.getenv("SICRY_CACHE_FILE", "/tmp/onionclaw_cache.json")
+
+
+def _load_disk_cache() -> None:
+    """Load the persistent file cache into the in-memory dict (once per process)."""
+    global _FETCH_CACHE
+    if not _CACHE_FILE or not os.path.exists(_CACHE_FILE):
+        return
+    try:
+        with open(_CACHE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        now = time.time()
+        # Discard expired entries while loading
+        _FETCH_CACHE = {k: (ts, v) for k, (ts, v) in data.items()
+                        if now - ts < FETCH_CACHE_TTL}
+    except Exception:
+        pass  # corrupt cache — ignore, will be overwritten
+
+
+def _save_disk_cache() -> None:
+    """Flush the in-memory cache to the file-based persistent store."""
+    if not _CACHE_FILE:
+        return
+    try:
+        with open(_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(_FETCH_CACHE, f)
+    except Exception:
+        pass  # read-only fs or permission error — silently skip
+
+
+def clear_cache() -> int:
+    """Delete all cached fetch results (memory + disk).
+
+    Returns the number of entries that were evicted.
+
+    Example:
+        >>> n = sicry.clear_cache()
+        >>> print(f"Cleared {n} cached entries")
+    """
+    global _FETCH_CACHE
+    n = len(_FETCH_CACHE)
+    _FETCH_CACHE = {}
+    if _CACHE_FILE and os.path.exists(_CACHE_FILE):
+        try:
+            os.remove(_CACHE_FILE)
+        except OSError:
+            pass
+    return n
+
+
+# Load disk cache eagerly so the first call in a new process gets warm cache hits.
+_load_disk_cache()
 
 # ─────────────────────────────────────────────────────────────────
 # CONTENT SAFETY  — keyword blacklist (SAFETY-1)
@@ -141,13 +194,53 @@ _CONTENT_BLACKLIST: frozenset[str] = frozenset({
     # other hard illegal content
     "snuff film", "snuff video",
     "red room",
+    # standalone violent/sexual terms (SAFETY-1 gap fix — token-pair bypass)
+    " rape ", "rape video", "rape film", "rape porn", "rape site",
+    "torture porn", "torture murder", "torture video",
+    "kids sex", "kids porn", "kids nude",
+    "child rape", "child torture", "child murder",
+    "minor rape",
 })
+
+# Token pairs: if BOTH words appear anywhere in the text, block it.
+# Catches titles like "KIDS - CHILD - RAPE" that bypass phrase matching.
+_TOKEN_PAIR_BLACKLIST: tuple[tuple[str, str], ...] = (
+    ("child",  "rape"),
+    ("child",  "torture"),
+    ("minor",  "rape"),
+    ("minor",  "torture"),
+    ("kids",   "rape"),
+    ("kids",   "sex"),
+    ("kids",   "porn"),
+    ("baby",   "rape"),
+    ("infant", "rape"),
+    ("teen",   "rape"),
+    ("snuff",  "live"),
+)
 
 
 def _is_content_safe(text: str) -> bool:
-    """Return False if text contains any blacklisted term (case-insensitive)."""
+    """Return False if text contains any blacklisted phrase or token pair (case-insensitive)."""
     lower = text.lower()
-    return not any(term in lower for term in _CONTENT_BLACKLIST)
+    # 1. exact phrase match
+    if any(term in lower for term in _CONTENT_BLACKLIST):
+        return False
+    # 2. standalone "rape" not caught above (prefix/suffix boundary)
+    if re.search(r'\brake\b', lower) or re.search(r'\brape\b', lower):
+        # allow criminology/news context terms like "date rape statistics"
+        # but block if combined with any sexual/minor context word
+        if re.search(r'\brake\b', lower):
+            pass  # "brake" is safe
+        elif any(kw in lower for kw in ("video", "film", "porn", "site", "photo",
+                                        "image", "upload", "stream", "dark web",
+                                        "onion", "market", "child", "minor",
+                                        "teen", "kids", "baby", "infant")):
+            return False
+    # 3. token-pair check — blocks evasive titles like "KIDS — CHILD — RAPE"
+    tokens = set(re.findall(r"[a-z]+", lower))
+    if any(a in tokens and b in tokens for a, b in _TOKEN_PAIR_BLACKLIST):
+        return False
+    return True
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -423,10 +516,29 @@ def fetch(url: str, _use_cache: bool = True) -> dict:
             try:
                 session = _build_tor_session()
                 resp = session.get(attempt_url, headers=headers, timeout=TOR_TIMEOUT)
-                result = _parse_response(resp, attempt_url)
-                # Store in cache on success
+                # SECURITY: block .onion → clearnet redirect (de-anonymization risk)
+                # resp.url is the final URL after redirects (a string in real requests;
+                # fall back to attempt_url if not a string, e.g. in mocked tests).
+                raw_final = resp.url
+                final_url = raw_final if isinstance(raw_final, str) else attempt_url
+                if is_onion and ".onion" not in (urlparse(final_url).hostname or ""):
+                    logging.warning(
+                        "SICRY security: .onion URL %s redirected to clearnet %s — blocked",
+                        attempt_url, final_url,
+                    )
+                    return {
+                        "url": attempt_url, "is_onion": True, "status": resp.status_code,
+                        "title": None, "text": "", "links": [], "truncated": False,
+                        "error": (
+                            f"SICRY security: .onion URL redirected to clearnet "
+                            f"({final_url}) — blocked to prevent de-anonymization"
+                        ),
+                    }
+                result = _parse_response(resp, final_url)
+                # Store in cache on success (memory + disk)
                 if _use_cache and FETCH_CACHE_TTL > 0:
                     _FETCH_CACHE[cache_key] = (time.time(), result)
+                    _save_disk_cache()
                 return result
             except Exception as exc:
                 last_err = str(exc)
@@ -1198,7 +1310,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="SICRY — Tor/Onion Network Access Layer for AI Agents",
+        description=f"SICRY v{__version__} — Tor/Onion Network Access Layer for AI Agents",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Commands:
@@ -1208,20 +1320,25 @@ Commands:
   tools [--format openai|gemini] print tool schemas as JSON
   serve                          start MCP server
   renew                          rotate Tor circuit
+  clear-cache                    delete all cached fetch results
 
 Examples:
+  python sicry.py --version
   python sicry.py check
   python sicry.py search "ransomware data leak" --max 15
   python sicry.py fetch http://juhanurmihxlp77nkq76byazcldy2hlmovfu2epvl5ankdibsot4csyd.onion
   python sicry.py tools --format openai
   python sicry.py serve
+  python sicry.py clear-cache
         """,
     )
+    parser.add_argument("--version", action="version", version=f"SICRY {__version__}")
     sub = parser.add_subparsers(dest="cmd")
 
     sub.add_parser("check")
     sub.add_parser("renew")
     sub.add_parser("serve")
+    sub.add_parser("clear-cache", help="Delete all cached fetch results (memory + disk)")
 
     p_s = sub.add_parser("search")
     p_s.add_argument("query")
@@ -1269,6 +1386,10 @@ Examples:
 
     elif args.cmd == "serve":
         _start_mcp_server()
+
+    elif args.cmd == "clear-cache":
+        n = clear_cache()
+        print(f"Cleared {n} cached fetch result(s).")
 
     else:
         parser.print_help()

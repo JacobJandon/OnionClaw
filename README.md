@@ -215,18 +215,28 @@ Auth order: password env var → cookie from `TOR_DATA_DIR` → common system pa
 ### `check_engines.py` — engine health check
 
 ```bash
+# Live ping (15–30 s)
 python3 check_engines.py
+
+# --cached N: reuse last result if less than N minutes old (skips the slow ping)
+python3 check_engines.py --cached 10
+
+# JSON output only
+python3 check_engines.py --json
+
+# Show version
+python3 check_engines.py --version
 ```
 
 ```
-ALIVE  13/18
+ALIVE  9/12
 ──────────────────────────────────────────
   ✓  Ahmia-clearnet       670ms  ███
   ✓  Tor66                749ms  ███
   ✓  Ahmia               1139ms  █████
   ✓  OSS                 1203ms  ██████
   ...
-DOWN   5/18
+DOWN   3/12
   ✗  Kaizer     timeout
   ✗  Anima      timeout
   ✗  FindTor    timeout
@@ -342,6 +352,40 @@ python3 pipeline.py \
 ```
 
 **Steps 1–6 work fully without an LLM key.** Only steps 3, 5, and 7 use the LLM — they fall back gracefully when no key is set, printing what was collected so far.
+
+```bash
+# --clear-cache: discard cached fetch results before this run
+python3 pipeline.py --query "fresh data" --clear-cache
+
+# --version: print OnionClaw version
+python3 pipeline.py --version
+```
+
+---
+
+### `sync_sicry.py` — update bundled SICRY engine
+
+OnionClaw bundles a copy of `sicry.py` from the upstream [SICRY™](https://github.com/JacobJandon/Sicry) repo.
+`sync_sicry.py` lets you pull the latest version (or a specific release tag) without a full `git pull`.
+
+```bash
+# Fetch latest from main branch
+python3 sync_sicry.py
+
+# Fetch a specific release tag
+python3 sync_sicry.py --tag v1.2.0
+
+# Preview what would happen without writing
+python3 sync_sicry.py --dry-run
+
+# Show version
+python3 sync_sicry.py --version
+```
+
+After syncing, commit the updated file:
+```bash
+git add sicry.py && git commit -m "chore: sync sicry.py to SICRY v1.2.0"
+```
 
 ---
 

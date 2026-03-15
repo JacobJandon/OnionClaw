@@ -34,10 +34,17 @@ except Exception as _e:
     sys.exit(1)
 
 parser = argparse.ArgumentParser(description="Fetch any URL via Tor")
-parser.add_argument("--url",   required=True, help="URL or .onion address to fetch")
-parser.add_argument("--links", action="store_true", help="Print all extracted links")
-parser.add_argument("--json",  action="store_true", help="Output raw JSON only")
+parser.add_argument("--version",     action="version",
+                    version=f"OnionClaw fetch {getattr(sicry, '__version__', '?')}")
+parser.add_argument("--url",         required=True, help="URL or .onion address to fetch")
+parser.add_argument("--links",       action="store_true", help="Print all extracted links")
+parser.add_argument("--json",        action="store_true", help="Output raw JSON only")
+parser.add_argument("--clear-cache", action="store_true", help="Delete all cached fetch results before running")
 args = parser.parse_args()
+
+if args.clear_cache:
+    n = sicry.clear_cache()
+    print(f"Cleared {n} cached fetch result(s).")
 
 url = args.url
 if not url.startswith(("http://", "https://")):

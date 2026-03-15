@@ -41,23 +41,31 @@ except Exception as _e:
 MODES = ["threat_intel", "ransomware", "personal_identity", "corporate"]
 
 parser = argparse.ArgumentParser(description="Full dark web OSINT pipeline")
-parser.add_argument("--query",  required=True, help="Investigation topic (natural language OK)")
-parser.add_argument("--mode",   default="threat_intel", choices=MODES,
+parser.add_argument("--version",     action="version",
+                    version=f"OnionClaw pipeline {getattr(sicry, '__version__', '?')}")
+parser.add_argument("--query",       required=True, help="Investigation topic (natural language OK)")
+parser.add_argument("--mode",        default="threat_intel", choices=MODES,
                     help="Analysis mode (default: threat_intel)")
-parser.add_argument("--max",    type=int, default=30,
+parser.add_argument("--max",         type=int, default=30,
                     help="Max raw search results (default 30)")
-parser.add_argument("--scrape", type=int, default=8,
+parser.add_argument("--scrape",      type=int, default=8,
                     help="Pages to batch-scrape (default 8)")
-parser.add_argument("--custom", default="",
+parser.add_argument("--custom",      default="",
                     help="Custom LLM instructions appended to mode prompt")
-parser.add_argument("--out",    default=None,
+parser.add_argument("--out",         default=None,
                     help="Write final report to this file")
-parser.add_argument("--engines", nargs="*", metavar="ENGINE",
+parser.add_argument("--engines",     nargs="*", metavar="ENGINE",
                     help="Limit search to specific engines (default: check live first)")
-parser.add_argument("--no-llm",  action="store_true",
+parser.add_argument("--no-llm",      action="store_true",
                     help="Skip all LLM steps (refine, filter, ask). Outputs raw scraped text. "
                          "Useful when no API key is configured.")
+parser.add_argument("--clear-cache", action="store_true",
+                    help="Clear all cached fetch results before running the pipeline")
 args = parser.parse_args()
+
+if args.clear_cache:
+    n = sicry.clear_cache()
+    print(f"[cache] Cleared {n} cached fetch result(s).")
 
 # BUG-5: reject blank queries immediately
 if not args.query.strip():

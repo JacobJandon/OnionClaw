@@ -37,6 +37,8 @@ except Exception as _e:
     sys.exit(1)
 
 parser = argparse.ArgumentParser(description="Search 12 active dark web engines via Tor")
+parser.add_argument("--version", action="version",
+                    version=f"OnionClaw search {getattr(sicry, '__version__', '?')}")
 parser.add_argument("--query",   required=True, help="Search query (≤5 keywords works best)")
 parser.add_argument("--max",     type=int, default=20, help="Max results (default 20)")
 parser.add_argument("--engines", nargs="*", metavar="ENGINE",
