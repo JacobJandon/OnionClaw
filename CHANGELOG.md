@@ -7,6 +7,31 @@ Versioning follows [Semantic Versioning](https://semver.org).
 
 ---
 
+## [1.2.1] — 2026-03-15
+
+### Fixed
+- **ENV-1 (.env chmod on existing installs)**: `setup_env()` previously skipped
+  `os.chmod(_ENV, 0o600)` when the user declined to reconfigure an existing
+  `.env` (early `return` ran before the `chmod`). `chmod 600` now always runs
+  first so existing installs are also protected.
+- **BUG-6 (`--out` exit code)**: Both `--out` write-error handlers changed from
+  `except OSError` to `except Exception` — catches `PermissionError`, FUSE
+  mount errors, `UnicodeEncodeError`, etc., and guarantees `sys.exit(1)` in
+  all failure paths.
+- **AUTH-1 (permanent cookie-auth fix)**: `setup.py` now *applies* the fix
+  instead of only documenting it:
+  - New `_fix_cookie_auth()` function: adds user to `debian-tor` group via
+    `sudo usermod -aG debian-tor $USER`, appends
+    `CookieAuthFileGroupReadable 1` to the active torrc, and optionally
+    installs a systemd drop-in
+    (`/etc/systemd/system/tor.service.d/onionclaw-cookie.conf`) that
+    `ExecStartPost`-`chmod g+r`s the cookie file after every Tor restart.
+  - `_verify_controlport()` calls `_fix_cookie_auth()` when auth fails.
+  - New constants: `TORRC_COOKIE_FIX`, `SYSTEMD_DROPIN_DIR`,
+    `SYSTEMD_DROPIN_PATH`, `SYSTEMD_DROPIN_CONTENT`.
+
+---
+
 ## [1.2.0] — 2026-03-15
 
 ### Added

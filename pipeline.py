@@ -197,7 +197,7 @@ if NO_LLM:
                 for url, text in pages.items():
                     f.write(f"## {url}\n\n{text}\n\n")
             print(f"\nReport saved to: {args.out}")
-        except OSError as e:
+        except Exception as e:
             print(f"\nERROR: could not write output file: {e}", file=sys.stderr)
             sys.exit(1)
 else:
@@ -235,7 +235,7 @@ else:
                 f.write(f"**Mode:** {args.mode}\n\n")
                 f.write(report)
             print(f"\nReport saved to: {args.out}")
-        except OSError as e:
+        except Exception as e:
             print(f"\nERROR: could not write output file: {e}", file=sys.stderr)
             sys.exit(1)
 
