@@ -241,6 +241,33 @@ python3 {baseDir}/pipeline.py --query "INVESTIGATION_QUERY" --no-llm
 [SICRY™ GitHub repo](https://github.com/JacobJandon/Sicry) and overwrites the
 bundled copy inside OnionClaw. Run it after a new SICRY™ release is published.
 
+### Checking for OnionClaw updates
+
+OnionClaw will **automatically notify you** whenever a newer release is
+available — a one-line message is printed at startup of `pipeline.py` if an
+update exists. You can also check on demand:
+
+```bash
+# Quick CLI update check (prints latest version, release URL, upgrade command):
+python3 {baseDir}/pipeline.py --check-update
+
+# Programmatic check from any Python environment:
+import sicry
+r = sicry.check_update()
+if not r["up_to_date"]:
+    print(f"Update: {r['current']} → {r['latest']}  {r['url']}")
+```
+
+Upgrade after a new release:
+
+```bash
+git -C {baseDir} pull                          # update the whole repo
+python3 {baseDir}/sync_sicry.py               # re-sync sicry.py from SICRY™
+```
+
+The check is clearnet-only (not through Tor), uses a 4-second timeout, and
+is always silent on network errors.
+
 ```bash
 # Pull latest main branch:
 python3 {baseDir}/sync_sicry.py

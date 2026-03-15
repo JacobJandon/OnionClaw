@@ -103,6 +103,11 @@ TOR_TIMEOUT        = int(os.getenv("TOR_TIMEOUT", "45"))
 MAX_CONTENT_CHARS  = int(os.getenv("SICRY_MAX_CHARS", "8000"))
 FETCH_CACHE_TTL    = int(os.getenv("SICRY_CACHE_TTL", "600"))  # seconds; 0 disables
 
+# Update-check: GitHub Releases API for this repo
+GITHUB_RELEASES_URL = (
+    "https://api.github.com/repos/JacobJandon/OnionClaw/releases/latest"
+)
+
 OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL       = os.getenv("OPENAI_MODEL", "gpt-4o")
 ANTHROPIC_API_KEY  = os.getenv("ANTHROPIC_API_KEY")
@@ -322,6 +327,67 @@ def check_tor() -> dict:
         return {"tor_active": d.get("IsTor", False), "exit_ip": d.get("IP"), "error": None}
     except Exception as e:
         return {"tor_active": False, "exit_ip": None, "error": str(e)}
+
+
+def check_update() -> dict:
+    """
+    Check whether a newer OnionClaw release is available on GitHub (clearnet).
+
+    Uses a 4-second timeout; silently returns an error dict if the check
+    fails — callers can ignore the ``error`` field to suppress noise.
+
+    Returns::
+
+        {
+            "up_to_date": bool,          # True  → already on latest
+            "current":    str,           # e.g. "1.2.1"
+            "latest":     str,           # e.g. "1.3.0"
+            "url":        str | None,    # GitHub release page
+            "error":      str | None,    # set when the check itself failed
+        }
+
+    Upgrade with::
+
+        git -C /path/to/OnionClaw pull     # if cloned
+        python3 sync_sicry.py              # keep sicry.py up-to-date
+
+    Example::
+
+        >>> r = sicry.check_update()
+        >>> if not r["up_to_date"]:
+        ...     print(f"Update available: {r['current']} → {r['latest']}")
+    """
+    def _ver(v: str) -> tuple:
+        try:
+            return tuple(int(x) for x in v.lstrip("v").split("."))
+        except Exception:
+            return (0,)
+
+    try:
+        r = requests.get(
+            GITHUB_RELEASES_URL,
+            headers={"User-Agent": f"OnionClaw/{__version__}"},
+            timeout=4,
+        )
+        r.raise_for_status()
+        data      = r.json()
+        tag       = data.get("tag_name", "").lstrip("v")
+        html_url  = data.get("html_url")
+        if not tag:
+            return {"up_to_date": True, "current": __version__,
+                    "latest": __version__, "url": None,
+                    "error": "no tag_name in GitHub response"}
+        up_to_date = _ver(tag) <= _ver(__version__)
+        return {
+            "up_to_date": up_to_date,
+            "current":    __version__,
+            "latest":     tag,
+            "url":        html_url,
+            "error":      None,
+        }
+    except Exception as e:
+        return {"up_to_date": True, "current": __version__,
+                "latest": __version__, "url": None, "error": str(e)}
 
 
 def renew_identity() -> dict:

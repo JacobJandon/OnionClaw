@@ -61,11 +61,38 @@ parser.add_argument("--no-llm",      action="store_true",
                          "Useful when no API key is configured.")
 parser.add_argument("--clear-cache", action="store_true",
                     help="Clear all cached fetch results before running the pipeline")
+parser.add_argument("--check-update", action="store_true",
+                    help="Check GitHub for the latest OnionClaw release and exit")
 args = parser.parse_args()
 
 if args.clear_cache:
     n = sicry.clear_cache()
     print(f"[cache] Cleared {n} cached fetch result(s).")
+
+# ── Update check ──────────────────────────────────────────────────
+if args.check_update:
+    _u = sicry.check_update()
+    if _u["error"] and not _u["latest"]:
+        print(f"Update check failed: {_u['error']}")
+    elif _u["up_to_date"]:
+        print(f"OnionClaw {_u['current']} is up-to-date.")
+    else:
+        print(f"Update available: v{_u['current']} → v{_u['latest']}")
+        if _u["url"]:
+            print(f"  Release notes : {_u['url']}")
+        print(f"  Upgrade       : git -C {_skill_dir} pull")
+        print(f"                  python3 {os.path.join(_skill_dir, 'sync_sicry.py')}")
+    sys.exit(0)
+else:
+    # Passive notice — printed only when an update is available, never on errors
+    try:
+        _u = sicry.check_update()
+        if not _u["up_to_date"] and not _u["error"]:
+            print(f"\n⚡ OnionClaw update available: "
+                  f"v{_u['current']} → v{_u['latest']}  "
+                  f"| run with --check-update for details\n")
+    except Exception:
+        pass
 
 # BUG-5: reject blank queries immediately
 if not args.query.strip():

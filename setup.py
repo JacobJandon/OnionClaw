@@ -15,6 +15,8 @@ import os
 import sys
 import shutil
 import subprocess
+import json
+import urllib.request
 
 _DIR   = os.path.dirname(os.path.abspath(__file__))
 _ENV   = os.path.join(_DIR, ".env")
@@ -554,6 +556,40 @@ Quick-start commands:
 """, CYAN)
 
 
+def _check_update_notice() -> None:
+    """Print a one-line notice if a newer OnionClaw release exists on GitHub."""
+    _RELEASES_API = (
+        "https://api.github.com/repos/JacobJandon/OnionClaw/releases/latest"
+    )
+    try:
+        import sicry as _sicry_mod
+        current = getattr(_sicry_mod, "__version__", None)
+        if not current:
+            return
+        req = urllib.request.Request(
+            _RELEASES_API,
+            headers={"User-Agent": f"OnionClaw-setup/{current}"},
+        )
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            data = json.loads(resp.read())
+        tag = data.get("tag_name", "").lstrip("v")
+        if not tag:
+            return
+        def _ver(v):
+            try:
+                return tuple(int(x) for x in v.split("."))
+            except Exception:
+                return (0,)
+        if _ver(tag) > _ver(current):
+            _p(f"\n⚡  Update available: v{current} → v{tag}", YELLOW)
+            url = data.get("html_url", "https://github.com/JacobJandon/OnionClaw/releases")
+            _p(f"   Release page : {url}", CYAN)
+            _p(f"   Upgrade with : git -C {_DIR} pull", CYAN)
+            _p(f"                  python3 {os.path.join(_DIR, 'sync_sicry.py')}", CYAN)
+    except Exception:
+        pass  # network unavailable, rate-limited, etc. — always silent
+
+
 # ─────────────────────────────────────────────────────────────────
 # Entry point
 # ─────────────────────────────────────────────────────────────────
@@ -569,3 +605,4 @@ if __name__ == "__main__":
     setup_tor()
     check_deps()
     summary()
+    _check_update_notice()
