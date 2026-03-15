@@ -7,6 +7,34 @@ Versioning follows [Semantic Versioning](https://semver.org).
 
 ---
 
+## [1.2.2] — 2026-03-15
+
+### Fixed
+- **BUG-1** (`pipeline.py --check-update` requires `--query`): `--query` is no
+  longer `required=True` at argparse time. Standalone flags (`--check-update`,
+  `--clear-cache`) exit before the manual `--query` validation, so
+  `pipeline.py --check-update` works with no `--query`.
+- **BUG-2** (`sync_sicry.py` tag 404 / double message): Replaced
+  `raise_for_status()` with an explicit `r.status_code == 404` check that
+  prints a single clear error explaining the SICRY™ vs OnionClaw tag
+  versioning split. Updated docstring with full tag table.
+- **BUG-3** (`check_update()` reports misleading “up to date”): Switched from
+  the GitHub Releases API (only v1.0.0/v1.0.1 as formal releases) to the
+  GitHub Tags API (`/tags?per_page=20`) which sees all git tags including
+  v1.1.x and v1.2.x. Renamed constant `GITHUB_RELEASES_URL` →
+  `GITHUB_TAGS_URL`. Passive startup notice in `pipeline.py` now fires
+  correctly when behind.
+- **UX-1** (`check_tor.py` / `renew.py` no `--version` or `--help`): Both
+  scripts now use `argparse` with `--version` and `--json` flags. `--help`
+  comes for free.
+- **UX-2** (`.env.example` missing `SICRY_CACHE_TTL`): Added
+  `SICRY_CACHE_TTL=600` to both `.env.example` copies.
+- **UX-3** (passive update notice never fires): Fixed by BUG-3 (tags API fix)
+  and by restructuring `pipeline.py` so the passive notice runs unconditionally
+  in the main flow (not inside an `else` branch).
+
+---
+
 ## [1.2.1] — 2026-03-15
 
 ### Fixed

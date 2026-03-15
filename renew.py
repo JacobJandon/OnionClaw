@@ -30,8 +30,21 @@ except Exception as _e:
         print("       Run:  pip install requests[socks] beautifulsoup4 python-dotenv stem")
     sys.exit(1)
 
+import argparse as _ap
+_parser = _ap.ArgumentParser(
+    description="OnionClaw — rotate Tor circuit and get a new exit identity")
+_parser.add_argument("--version", action="version",
+                     version=f"OnionClaw renew {getattr(sicry, '__version__', '?')}")
+_parser.add_argument("--json", action="store_true",
+                     help="Print only the JSON result, no human-readable output")
+_args = _parser.parse_args()
+
 print("Rotating Tor circuit...")
 result = sicry.renew_identity()
+
+if _args.json:
+    print(json.dumps(result, indent=2))
+    sys.exit(0 if result["success"] else 1)
 
 if result["success"]:
     print("✓ Identity renewed — new Tor circuit established")

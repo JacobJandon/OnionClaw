@@ -43,7 +43,7 @@ MODES = ["threat_intel", "ransomware", "personal_identity", "corporate"]
 parser = argparse.ArgumentParser(description="Full dark web OSINT pipeline")
 parser.add_argument("--version",     action="version",
                     version=f"OnionClaw pipeline {getattr(sicry, '__version__', '?')}")
-parser.add_argument("--query",       required=True, help="Investigation topic (natural language OK)")
+parser.add_argument("--query",       default=None, help="Investigation topic (natural language OK)")
 parser.add_argument("--mode",        default="threat_intel", choices=MODES,
                     help="Analysis mode (default: threat_intel)")
 parser.add_argument("--max",         type=int, default=30,
@@ -69,7 +69,8 @@ if args.clear_cache:
     n = sicry.clear_cache()
     print(f"[cache] Cleared {n} cached fetch result(s).")
 
-# ── Update check ──────────────────────────────────────────────────
+# ── Standalone actions (exit before --query is required) ────────────────────
+# --check-update is a standalone flag; --query should NOT be required for it
 if args.check_update:
     _u = sicry.check_update()
     if _u["error"] and not _u["latest"]:
@@ -83,16 +84,20 @@ if args.check_update:
         print(f"  Upgrade       : git -C {_skill_dir} pull")
         print(f"                  python3 {os.path.join(_skill_dir, 'sync_sicry.py')}")
     sys.exit(0)
-else:
-    # Passive notice — printed only when an update is available, never on errors
-    try:
-        _u = sicry.check_update()
-        if not _u["up_to_date"] and not _u["error"]:
-            print(f"\n⚡ OnionClaw update available: "
-                  f"v{_u['current']} → v{_u['latest']}  "
-                  f"| run with --check-update for details\n")
-    except Exception:
-        pass
+
+# ── --query is required for all remaining actions ─────────────────────────
+if not args.query:
+    parser.error("--query is required")
+
+# Passive update notice — printed only when an update exists, never on errors
+try:
+    _u = sicry.check_update()
+    if not _u["up_to_date"] and not _u["error"]:
+        print(f"\n⚡ OnionClaw update available: "
+              f"v{_u['current']} → v{_u['latest']}  "
+              f"| run with --check-update for details\n")
+except Exception:
+    pass
 
 # BUG-5: reject blank queries immediately
 if not args.query.strip():

@@ -6,7 +6,17 @@ sync_sicry.py — update the bundled sicry.py from the upstream SICRY™ repo.
 
 Usage:
     python3 sync_sicry.py           # fetch latest from main
-    python3 sync_sicry.py --tag v1.0.0   # fetch a specific release tag
+    python3 sync_sicry.py --tag v1.1.1   # fetch a specific SICRY™ release tag
+
+IMPORTANT — tag versioning:
+    --tag must be a SICRY™ repository tag, NOT an OnionClaw tag.
+    SICRY™ and OnionClaw have independent release cadences.
+
+    SICRY™ available tags: v1.0.0, v1.0.1, v1.1.0, v1.1.1
+    OnionClaw tags:        v1.0.0, v1.0.1, v1.1.0, v1.1.1, v1.2.0, v1.2.1
+
+    Example: --tag v1.2.1 will 404 (no SICRY™ v1.2.1 exists).
+             --tag v1.1.1 works (SICRY™ v1.1.1 exists).
 
 Run from the OnionClaw root directory.
 """
@@ -27,7 +37,7 @@ DEST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sicry.py")
 
 def main():
     parser = argparse.ArgumentParser(description="Sync bundled sicry.py from upstream SICRY™")
-    parser.add_argument("--version", action="version", version="OnionClaw sync_sicry 1.2.1")
+    parser.add_argument("--version", action="version", version="OnionClaw sync_sicry 1.2.2")
     parser.add_argument("--tag",     default="main", help="git ref / tag to fetch (default: main)")
     parser.add_argument("--dry-run", action="store_true", help="print what would happen without writing")
     args = parser.parse_args()
@@ -37,9 +47,24 @@ def main():
 
     try:
         r = requests.get(url, timeout=15)
-        r.raise_for_status()
     except Exception as e:
-        print(f"Error: failed to fetch upstream — {e}", file=sys.stderr)
+        print(f"Error: network request failed — {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if r.status_code == 404:
+        print(f"Error: ref '{args.tag}' not found in the SICRY\u2122 repo (HTTP 404).",
+              file=sys.stderr)
+        print(f"  --tag must be a SICRY\u2122 tag, not an OnionClaw tag.",
+              file=sys.stderr)
+        print(f"  SICRY\u2122 available tags: v1.0.0, v1.0.1, v1.1.0, v1.1.1",
+              file=sys.stderr)
+        print(f"  OnionClaw tags are independent — e.g. v1.2.1 does not exist in SICRY\u2122.",
+              file=sys.stderr)
+        print(f"  Use --tag main to sync from the SICRY\u2122 main branch.",
+              file=sys.stderr)
+        sys.exit(1)
+    elif not r.ok:
+        print(f"Error: HTTP {r.status_code} fetching {url}", file=sys.stderr)
         sys.exit(1)
 
     new_content = r.text

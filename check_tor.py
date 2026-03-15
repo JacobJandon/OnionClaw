@@ -32,7 +32,20 @@ except Exception as _e:
         print("       Run:  pip install requests[socks] beautifulsoup4 python-dotenv stem")
     sys.exit(1)
 
+import argparse as _ap
+_parser = _ap.ArgumentParser(
+    description="OnionClaw — verify Tor is running and show exit IP")
+_parser.add_argument("--version", action="version",
+                     version=f"OnionClaw check_tor {getattr(sicry, '__version__', '?')}")
+_parser.add_argument("--json", action="store_true",
+                     help="Print only the JSON result, no human-readable output")
+_args = _parser.parse_args()
+
 result = sicry.check_tor()
+
+if _args.json:
+    print(json.dumps(result, indent=2))
+    sys.exit(0 if result["tor_active"] else 1)
 
 if result["tor_active"]:
     print(f"✓ Tor active")

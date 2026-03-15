@@ -2,7 +2,7 @@
 # Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/Sicry
 from __future__ import annotations
 
-__version__ = "1.2.1"
+__version__ = "1.2.2"
 
 """
 SICRY — Tor/Onion Network Access Layer for AI Agents
@@ -103,9 +103,9 @@ TOR_TIMEOUT        = int(os.getenv("TOR_TIMEOUT", "45"))
 MAX_CONTENT_CHARS  = int(os.getenv("SICRY_MAX_CHARS", "8000"))
 FETCH_CACHE_TTL    = int(os.getenv("SICRY_CACHE_TTL", "600"))  # seconds; 0 disables
 
-# Update-check: GitHub Releases API for this repo
-GITHUB_RELEASES_URL = (
-    "https://api.github.com/repos/JacobJandon/OnionClaw/releases/latest"
+# Update-check: GitHub Tags API (all git tags, not only formal Releases)
+GITHUB_TAGS_URL = (
+    "https://api.github.com/repos/JacobJandon/OnionClaw/tags?per_page=20"
 )
 
 OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY")
@@ -331,10 +331,11 @@ def check_tor() -> dict:
 
 def check_update() -> dict:
     """
-    Check whether a newer OnionClaw release is available on GitHub (clearnet).
+    Check whether a newer OnionClaw tag is available on GitHub (clearnet).
 
-    Uses a 4-second timeout; silently returns an error dict if the check
-    fails — callers can ignore the ``error`` field to suppress noise.
+    Uses the GitHub Tags API (all git tags, not only formal Releases) with a
+    4-second timeout.  Silently returns an error dict on any network failure —
+    callers can ignore the ``error`` field to suppress noise.
 
     Returns::
 
@@ -342,7 +343,7 @@ def check_update() -> dict:
             "up_to_date": bool,          # True  → already on latest
             "current":    str,           # e.g. "1.2.1"
             "latest":     str,           # e.g. "1.3.0"
-            "url":        str | None,    # GitHub release page
+            "url":        str | None,    # GitHub tag/release page
             "error":      str | None,    # set when the check itself failed
         }
 
@@ -365,24 +366,28 @@ def check_update() -> dict:
 
     try:
         r = requests.get(
-            GITHUB_RELEASES_URL,
+            GITHUB_TAGS_URL,
             headers={"User-Agent": f"OnionClaw/{__version__}"},
             timeout=4,
         )
         r.raise_for_status()
-        data      = r.json()
-        tag       = data.get("tag_name", "").lstrip("v")
-        html_url  = data.get("html_url")
-        if not tag:
+        tags = r.json()  # list of {"name": "v1.2.1", "commit": {...}, ...}
+        semver_tags = [
+            t["name"].lstrip("v") for t in tags
+            if re.match(r"^\d+\.\d+\.\d+", t.get("name", "").lstrip("v"))
+        ]
+        if not semver_tags:
             return {"up_to_date": True, "current": __version__,
                     "latest": __version__, "url": None,
-                    "error": "no tag_name in GitHub response"}
-        up_to_date = _ver(tag) <= _ver(__version__)
+                    "error": "no semver tags found in repository"}
+        latest = max(semver_tags, key=_ver)
+        up_to_date = _ver(latest) <= _ver(__version__)
+        url = f"https://github.com/JacobJandon/OnionClaw/releases/tag/v{latest}"
         return {
             "up_to_date": up_to_date,
             "current":    __version__,
-            "latest":     tag,
-            "url":        html_url,
+            "latest":     latest,
+            "url":        url,
             "error":      None,
         }
     except Exception as e:
