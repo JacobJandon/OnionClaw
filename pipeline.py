@@ -194,6 +194,13 @@ if args.resume:
             if args.query:
                 print(f"         Query: {args.query!r}")
         else:
+            # BUG-1/4: no checkpoint + no --query → clean error, not argparse noise
+            if not args.query:
+                print(f"ERROR: No checkpoint found for job {args.resume!r}.",
+                      file=sys.stderr)
+                print(f"       Either provide --query to start fresh, or check the job ID.",
+                      file=sys.stderr)
+                sys.exit(1)
             print(f"[resume] No checkpoint found for {args.resume!r} — starting fresh")
     except Exception as _re:
         print(f"[resume] Warning: could not load checkpoint — {_re}", file=sys.stderr)
@@ -470,8 +477,8 @@ if args.out:
             out_payload = (
                 f"# OnionClaw OSINT Report\n\n"
                 f"**Query:** {args.query}  \n"
-                f"**Refined:** {refined}  \n"
-                f"**Mode:** {args.mode}  \n"
+                + (f"**Refined:** {refined}  \n" if not NO_LLM and refined != raw_query else "")
+                + f"**Mode:** {args.mode}  \n"
                 f"**Date:** {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}  \n"
                 f"**Job ID:** {_job_id}  \n\n"
                 f"---\n\n"

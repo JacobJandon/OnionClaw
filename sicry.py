@@ -2,7 +2,7 @@
 # Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/Sicry
 from __future__ import annotations
 
-__version__ = "2.0.1"
+__version__ = "2.0.2"
 
 """
 SICRY — Tor/Onion Network Access Layer for AI Agents
@@ -1554,6 +1554,10 @@ def search(
     if _use_cache and SEARCH_CACHE_TTL > 0:
         _cached = _db().cache_get(cache_key, "search", SEARCH_CACHE_TTL)
         if _cached is not None:
+            # BUG-2: normalize legacy cached results that stored "score" not "confidence"
+            for _r in _cached:
+                if "score" in _r and "confidence" not in _r:
+                    _r["confidence"] = _r.pop("score")
             return _cached
 
     # ── mode-based engine routing (issue #6) ─────────────────────
@@ -1634,6 +1638,10 @@ def search(
 
     # ── confidence scoring (issue #10) ───────────────────────────
     scored = score_results(query, results)
+    # BUG-2: score_results() adds "score" key; rename to "confidence" for API
+    for r in scored:
+        if "score" in r and "confidence" not in r:
+            r["confidence"] = r.pop("score")
     final = scored[:max_results]
 
     # ── store in SQLite search cache ──────────────────────────────
