@@ -22,9 +22,9 @@ cp -r OnionClaw ~/.openclaw/skills/onionclaw
 # → agent now has 7 dark web commands available in every session
 
 # Standalone:
-python3 scripts/check_tor.py        # verify Tor
-python3 scripts/search.py --query "ransomware healthcare"
-python3 scripts/pipeline.py --query "acme.com data leak" --mode corporate
+python3 check_tor.py        # verify Tor
+python3 search.py --query "ransomware healthcare"
+python3 pipeline.py --query "acme.com data leak" --mode corporate
 ```
 
 ---
@@ -182,7 +182,7 @@ OPENAI_API_KEY=sk-...
 ### `check_tor.py` — verify Tor
 
 ```bash
-python3 scripts/check_tor.py
+python3 check_tor.py
 ```
 
 ```
@@ -199,7 +199,7 @@ Run this before anything else. Exits with code 1 if Tor is not running or not ac
 ### `renew.py` — rotate identity
 
 ```bash
-python3 scripts/renew.py
+python3 renew.py
 ```
 
 ```
@@ -215,7 +215,7 @@ Auth order: password env var → cookie from `TOR_DATA_DIR` → common system pa
 ### `check_engines.py` — engine health check
 
 ```bash
-python3 scripts/check_engines.py
+python3 check_engines.py
 ```
 
 ```
@@ -240,15 +240,15 @@ Run before a large search session. Use the alive engine names as arguments to `-
 
 ```bash
 # All 18 engines (default)
-python3 scripts/search.py --query "ransomware healthcare leak"
+python3 search.py --query "ransomware healthcare leak"
 
 # Specific engines (faster — use alive engines from check_engines output)
-python3 scripts/search.py \
+python3 search.py \
   --query "credential dump" \
   --engines Ahmia Tor66 Ahmia-clearnet OSS
 
 # Limit result count
-python3 scripts/search.py --query "bitcoin mixer" --max 30
+python3 search.py --query "bitcoin mixer" --max 30
 ```
 
 Returns a deduplicated `{title, url, engine}` list across all engines.
@@ -261,14 +261,14 @@ Returns a deduplicated `{title, url, engine}` list across all engines.
 
 ```bash
 # Hidden service
-python3 scripts/fetch.py \
+python3 fetch.py \
   --url "http://juhanurmihxlp77nkq76byazcldy2hlmovfu2epvl5ankdibsot4csyd.onion"
 
 # With links extracted
-python3 scripts/fetch.py --url "http://example.onion/page" --links
+python3 fetch.py --url "http://example.onion/page" --links
 
 # JSON output only
-python3 scripts/fetch.py --url "http://example.onion" --json
+python3 fetch.py --url "http://example.onion" --json
 ```
 
 Returns: title, text content (up to 8000 chars), extracted links, HTTP status code. A status of `0` means the hidden service is unreachable or offline.
@@ -279,24 +279,24 @@ Returns: title, text content (up to 8000 chars), extracted links, HTTP status co
 
 ```bash
 # Inline content
-python3 scripts/ask.py \
+python3 ask.py \
   --query "LockBit ransomware" \
   --mode ransomware \
   --content "page text from scraped pages"
 
 # From file
-python3 scripts/ask.py \
+python3 ask.py \
   --query "acme.com" \
   --mode corporate \
   --file /tmp/scraped_pages.txt
 
 # Pipe from fetch.py
-python3 scripts/fetch.py --url "http://some.onion" --json | \
+python3 fetch.py --url "http://some.onion" --json | \
   python3 -c "import sys,json; print(json.load(sys.stdin)['text'])" | \
-  python3 scripts/ask.py --query "investigate" --mode threat_intel
+  python3 ask.py --query "investigate" --mode threat_intel
 
 # Custom analysis focus
-python3 scripts/ask.py \
+python3 ask.py \
   --query "mixer services" \
   --mode threat_intel \
   --content "..." \
@@ -323,16 +323,16 @@ Runs the complete Robin OSINT pipeline automatically:
 
 ```bash
 # Basic
-python3 scripts/pipeline.py --query "hospital ransomware 2026"
+python3 pipeline.py --query "hospital ransomware 2026"
 
 # With analysis mode and output file
-python3 scripts/pipeline.py \
+python3 pipeline.py \
   --query "acme.com credentials leak" \
   --mode corporate \
   --out report.md
 
 # Full options
-python3 scripts/pipeline.py \
+python3 pipeline.py \
   --query "QUERY" \
   --mode ransomware \
   --max 50 \
@@ -350,8 +350,8 @@ python3 scripts/pipeline.py \
 ### Scenario 1: Check for leaked credentials
 
 ```bash
-python3 scripts/check_tor.py
-python3 scripts/pipeline.py \
+python3 check_tor.py
+python3 pipeline.py \
   --query "acme.com email passwords" \
   --mode corporate \
   --scrape 10 \
@@ -361,17 +361,17 @@ python3 scripts/pipeline.py \
 ### Scenario 2: Ransomware intelligence
 
 ```bash
-python3 scripts/check_tor.py
-python3 scripts/search.py \
+python3 check_tor.py
+python3 search.py \
   --query "LockBit healthcare 2026" \
   --engines Ahmia Tor66 Ahmia-clearnet \
   --max 40
 
 # Fetch the most relevant URL
-python3 scripts/fetch.py --url "http://..." > /tmp/page.json
+python3 fetch.py --url "http://..." > /tmp/page.json
 
 # Analyse
-python3 scripts/ask.py \
+python3 ask.py \
   --query "LockBit healthcare 2026" \
   --mode ransomware \
   --file /tmp/page.json
@@ -380,7 +380,7 @@ python3 scripts/ask.py \
 ### Scenario 3: Personal data exposure check
 
 ```bash
-python3 scripts/pipeline.py \
+python3 pipeline.py \
   --query "john.smith@email.com personal data" \
   --mode personal_identity \
   --scrape 8
@@ -390,29 +390,29 @@ python3 scripts/pipeline.py \
 
 ```bash
 # 1. Verify Tor
-python3 scripts/check_tor.py
+python3 check_tor.py
 
 # 2. Find alive engines
-python3 scripts/check_engines.py
+python3 check_engines.py
 
 # 3. Search with alive engines
-python3 scripts/search.py \
+python3 search.py \
   --query "ransomware hospital 2026" \
   --engines Ahmia Tor66 OSS \
   --max 40
 
 # 4. Fetch top pages
-python3 scripts/fetch.py --url "http://..." --links
-python3 scripts/fetch.py --url "http://..."
+python3 fetch.py --url "http://..." --links
+python3 fetch.py --url "http://..."
 
 # 5. Analyse
-python3 scripts/ask.py \
+python3 ask.py \
   --query "hospital ransomware" \
   --mode ransomware \
   --content "combined text from pages"
 
 # 6. Rotate identity when done
-python3 scripts/renew.py
+python3 renew.py
 ```
 
 ---
@@ -488,14 +488,14 @@ OnionClaw/
 ├── sicry.py              ← SICRY engine (bundled — no separate install needed)
 ├── .env.example          ← Copy to .env and configure
 ├── README.md             ← This file
-└── scripts/
-    ├── check_tor.py      ← Verify Tor / show exit IP
-    ├── renew.py          ← Rotate Tor circuit
-    ├── check_engines.py  ← Ping all 18 engines
-    ├── search.py         ← Search dark web
-    ├── fetch.py          ← Fetch .onion pages
-    ├── ask.py            ← OSINT analysis via LLM
-    └── pipeline.py       ← Full Robin investigation pipeline
+├── check_tor.py          ← Verify Tor / show exit IP
+├── renew.py              ← Rotate Tor circuit
+├── check_engines.py      ← Ping all 18 engines
+├── search.py             ← Search dark web
+├── fetch.py              ← Fetch .onion pages
+├── ask.py                ← OSINT analysis via LLM
+├── pipeline.py           ← Full Robin investigation pipeline
+└── sync_sicry.py         ← Sync SICRY engine from upstream
 ```
 
 ---

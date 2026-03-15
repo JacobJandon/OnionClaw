@@ -14,7 +14,7 @@ What you want to happen.
 
 **Is this an OpenClaw skill improvement or a standalone script improvement?**
 - [ ] OpenClaw skill (SKILL.md / agent usage)
-- [ ] Standalone script in `scripts/`
+- [ ] Standalone script (root-level .py)
 - [ ] Both
 
 **Alternatives considered**

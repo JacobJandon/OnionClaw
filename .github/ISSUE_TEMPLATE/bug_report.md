@@ -20,7 +20,7 @@ A clear and concise description of what the bug is.
 
 **To reproduce**
 ```bash
-python3 scripts/SCRIPT.py [args]
+python3 SCRIPT.py [args]
 ```
 
 **Expected behavior**

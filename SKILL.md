@@ -53,7 +53,7 @@ Start Tor (required before any command):
 **Always run this first** before any search or fetch.
 
 ```bash
-python3 {baseDir}/scripts/check_tor.py
+python3 {baseDir}/check_tor.py
 ```
 
 Output: exit IP address and `tor_active: true/false`. If tor_active is false, tell the user to start Tor and stop.
@@ -65,7 +65,7 @@ Output: exit IP address and `tor_active: true/false`. If tor_active is false, te
 Get a fresh exit node and new identity. Use between investigation sessions or when you need a new IP.
 
 ```bash
-python3 {baseDir}/scripts/renew.py
+python3 {baseDir}/renew.py
 ```
 
 Output: `success: true/false`. If false, the user needs to ensure ControlPort 9051 is enabled and `TOR_DATA_DIR` is set in `.env`.
@@ -78,17 +78,17 @@ Search all 18 dark web engines simultaneously. Returns deduplicated `{title, url
 
 **Basic search:**
 ```bash
-python3 {baseDir}/scripts/search.py --query "SEARCH_TERM"
+python3 {baseDir}/search.py --query "SEARCH_TERM"
 ```
 
 **With result limit:**
 ```bash
-python3 {baseDir}/scripts/search.py --query "SEARCH_TERM" --max 30
+python3 {baseDir}/search.py --query "SEARCH_TERM" --max 30
 ```
 
 **Specific engines only:**
 ```bash
-python3 {baseDir}/scripts/search.py --query "SEARCH_TERM" --engines Ahmia Tor66 Ahmia-clearnet
+python3 {baseDir}/search.py --query "SEARCH_TERM" --engines Ahmia Tor66 Ahmia-clearnet
 ```
 
 Available engines: Ahmia, OnionLand, Torgle, Amnesia, Kaizer, Anima, Tornado, TorNet, Torland, FindTor, Excavator, Onionway, Tor66, OSS, Torgol, TheDeepSearches, DuckDuckGo-Tor, Ahmia-clearnet
@@ -102,7 +102,7 @@ Available engines: Ahmia, OnionLand, Torgle, Amnesia, Kaizer, Anima, Tornado, To
 Fetch the full content of any .onion URL or clearnet URL through Tor.
 
 ```bash
-python3 {baseDir}/scripts/fetch.py --url "http://SOME.onion/path"
+python3 {baseDir}/fetch.py --url "http://SOME.onion/path"
 ```
 
 Output: title, text (first 3000 chars), link list, HTTP status. If status is 0 or error is set, the hidden service is unreachable.
@@ -114,7 +114,7 @@ Output: title, text (first 3000 chars), link list, HTTP status. If status is 0 o
 Ping all 18 engines via Tor and get latency + status for each.
 
 ```bash
-python3 {baseDir}/scripts/check_engines.py
+python3 {baseDir}/check_engines.py
 ```
 
 Output: per-engine up/down status, latency in ms. Use this before a large search run to pass only alive engines to `--engines`.
@@ -127,17 +127,17 @@ Analyse scraped dark web content with an LLM. Produces a structured sectioned re
 
 **From a string:**
 ```bash
-python3 {baseDir}/scripts/ask.py --query "INVESTIGATION_QUERY" --mode MODE --content "RAW_TEXT"
+python3 {baseDir}/ask.py --query "INVESTIGATION_QUERY" --mode MODE --content "RAW_TEXT"
 ```
 
 **From a file:**
 ```bash
-python3 {baseDir}/scripts/ask.py --query "INVESTIGATION_QUERY" --mode MODE --file /path/to/content.txt
+python3 {baseDir}/ask.py --query "INVESTIGATION_QUERY" --mode MODE --file /path/to/content.txt
 ```
 
 **From stdin (pipe):**
 ```bash
-echo "CONTENT" | python3 {baseDir}/scripts/ask.py --query "QUERY" --mode MODE
+echo "CONTENT" | python3 {baseDir}/ask.py --query "QUERY" --mode MODE
 ```
 
 **Analysis modes:**
@@ -151,7 +151,7 @@ echo "CONTENT" | python3 {baseDir}/scripts/ask.py --query "QUERY" --mode MODE
 
 **With custom focus:**
 ```bash
-python3 {baseDir}/scripts/ask.py --query "QUERY" --mode threat_intel --custom "Focus on cryptocurrency wallet addresses"
+python3 {baseDir}/ask.py --query "QUERY" --mode threat_intel --custom "Focus on cryptocurrency wallet addresses"
 ```
 
 ---
@@ -161,12 +161,12 @@ python3 {baseDir}/scripts/ask.py --query "QUERY" --mode threat_intel --custom "F
 Runs the complete Robin pipeline: refine query → check live engines → search → filter best results → batch scrape → OSINT analysis.
 
 ```bash
-python3 {baseDir}/scripts/pipeline.py --query "INVESTIGATION_QUERY" --mode MODE
+python3 {baseDir}/pipeline.py --query "INVESTIGATION_QUERY" --mode MODE
 ```
 
 **With more results:**
 ```bash
-python3 {baseDir}/scripts/pipeline.py --query "INVESTIGATION_QUERY" --mode ransomware --max 50 --scrape 10
+python3 {baseDir}/pipeline.py --query "INVESTIGATION_QUERY" --mode ransomware --max 50 --scrape 10
 ```
 
 **Options:**
@@ -182,23 +182,23 @@ python3 {baseDir}/scripts/pipeline.py --query "INVESTIGATION_QUERY" --mode ranso
 ## Typical investigation flows
 
 ### "Search the dark web for X"
-1. `python3 {baseDir}/scripts/check_tor.py` — verify connected
-2. `python3 {baseDir}/scripts/search.py --query "X"` — search all engines
-3. `python3 {baseDir}/scripts/fetch.py --url "URL"` on 2-3 top results
-4. `python3 {baseDir}/scripts/ask.py --mode threat_intel --query "X" --content "..."` on combined text
+1. `python3 {baseDir}/check_tor.py` — verify connected
+2. `python3 {baseDir}/search.py --query "X"` — search all engines
+3. `python3 {baseDir}/fetch.py --url "URL"` on 2-3 top results
+4. `python3 {baseDir}/ask.py --mode threat_intel --query "X" --content "..."` on combined text
 
 ### "Has company.com been leaked on the dark web"
-1. `python3 {baseDir}/scripts/check_tor.py`
-2. `python3 {baseDir}/scripts/pipeline.py --query "company.com data leak credentials" --mode corporate`
+1. `python3 {baseDir}/check_tor.py`
+2. `python3 {baseDir}/pipeline.py --query "company.com data leak credentials" --mode corporate`
 3. Present the structured report to the user
 
 ### "Investigate ransomware group X"
-1. `python3 {baseDir}/scripts/check_tor.py`
-2. `python3 {baseDir}/scripts/pipeline.py --query "GROUP_NAME ransomware" --mode ransomware`
+1. `python3 {baseDir}/check_tor.py`
+2. `python3 {baseDir}/pipeline.py --query "GROUP_NAME ransomware" --mode ransomware`
 
 ### "Fetch this .onion URL"
-1. `python3 {baseDir}/scripts/check_tor.py`
-2. `python3 {baseDir}/scripts/fetch.py --url "URL"`
+1. `python3 {baseDir}/check_tor.py`
+2. `python3 {baseDir}/fetch.py --url "URL"`
 3. Show the user the title + text content
 
 ---
