@@ -2,7 +2,7 @@
 # Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/Sicry
 from __future__ import annotations
 
-__version__ = "1.2.3"
+__version__ = "2.0.0"
 
 """
 SICRY — Tor/Onion Network Access Layer for AI Agents
@@ -44,15 +44,27 @@ Powered by Robin's engine catalogue (github.com/apurvsinghgautam/robin, MIT).
 Use responsibly and lawfully.
 """
 
+import csv
+import dataclasses
+import hashlib
+import io
 import json
 import logging
+import math
 import os
 import random
 import re
+import shutil
+import socket
+import sqlite3
+import subprocess
 import sys
+import tempfile
+import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional
+from typing import Iterator, Optional
 from urllib.parse import urljoin, urlparse, quote_plus, parse_qs, unquote
 
 import requests
@@ -102,6 +114,19 @@ TOR_DATA_DIR       = os.getenv("TOR_DATA_DIR")   # optional: path to Tor DataDir
 TOR_TIMEOUT        = int(os.getenv("TOR_TIMEOUT", "45"))
 MAX_CONTENT_CHARS  = int(os.getenv("SICRY_MAX_CHARS", "8000"))
 FETCH_CACHE_TTL    = int(os.getenv("SICRY_CACHE_TTL", "600"))  # seconds; 0 disables
+_FETCH_CACHE: dict = {}   # in-memory TTL cache: key → (timestamp, result)
+SEARCH_CACHE_TTL   = int(os.getenv("SICRY_SEARCH_CACHE_TTL", "1800"))  # cache search results 30 min
+ENGINE_CACHE_TTL   = int(os.getenv("SICRY_ENGINE_CACHE_TTL", "3600"))  # engine health history TTL
+
+# SQLite persistent store (replaces /tmp JSON cache — queryable, persistent, TTL per record type)
+SICRY_DB_PATH      = os.getenv("SICRY_DB_PATH", os.path.expanduser("~/.sicry/sicry.db"))
+
+# Tor circuit pool — multiple simultaneous identities
+TOR_POOL_SIZE      = int(os.getenv("SICRY_POOL_SIZE", "0"))   # 0 = disabled (single circuit)
+TOR_POOL_BASE_PORT = int(os.getenv("SICRY_POOL_BASE_PORT", "9060"))  # socks ports: 9060,9061...
+
+# Watch/alert mode
+WATCH_INTERVAL_DEFAULT = int(os.getenv("SICRY_WATCH_INTERVAL", "6"))  # hours between re-runs
 
 # Update-check: GitHub Tags API (all git tags, not only formal Releases)
 GITHUB_TAGS_URL = (
@@ -120,62 +145,267 @@ LLAMACPP_URL       = os.getenv("LLAMACPP_BASE_URL", "http://127.0.0.1:8080")
 LLM_PROVIDER       = os.getenv("LLM_PROVIDER", "openai")
 
 # ─────────────────────────────────────────────────────────────────
-# FETCH CACHE  (keyed by normalised URL; evicted after FETCH_CACHE_TTL)
-# Two-layer: in-process dict (fast) + /tmp file (survives between runs).
+# SQLITE PERSISTENT STORE
+# Replaces the old JSON file cache. Three tables:
+#   cache       — URL/query fetches (type: fetch | search | engine)
+#   engine_history — rolling health checks per engine
+#   watch_jobs  — persistent watch/alert jobs
+# All TTLs are per record-type and configurable via env vars.
 # ─────────────────────────────────────────────────────────────────
-_FETCH_CACHE: dict[str, tuple[float, dict]] = {}
-_CACHE_FILE: str = os.getenv("SICRY_CACHE_FILE", "/tmp/onionclaw_cache.json")
 
+class _DB:
+    """Thread-safe SQLite wrapper. One connection per thread (check_same_thread=False
+    is safe here because we use a lock around every write operation)."""
 
-def _load_disk_cache() -> None:
-    """Load the persistent file cache into the in-memory dict (once per process)."""
-    global _FETCH_CACHE
-    if not _CACHE_FILE or not os.path.exists(_CACHE_FILE):
-        return
-    try:
-        with open(_CACHE_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
+    def __init__(self, path: str) -> None:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        self._path = path
+        self._local = threading.local()
+        self._lock  = threading.Lock()
+        self._init_schema()
+
+    def _conn(self) -> sqlite3.Connection:
+        if not getattr(self._local, "conn", None):
+            self._local.conn = sqlite3.connect(self._path, check_same_thread=False)
+            self._local.conn.row_factory = sqlite3.Row
+        return self._local.conn
+
+    def _init_schema(self) -> None:
+        with self._lock:
+            c = self._conn()
+            c.executescript("""
+                CREATE TABLE IF NOT EXISTS cache (
+                    key       TEXT    NOT NULL,
+                    cache_type TEXT   NOT NULL,
+                    ts        REAL    NOT NULL,
+                    data      TEXT    NOT NULL,
+                    PRIMARY KEY (key, cache_type)
+                );
+                CREATE TABLE IF NOT EXISTS engine_history (
+                    engine    TEXT  NOT NULL,
+                    ts        REAL  NOT NULL,
+                    status    TEXT  NOT NULL,
+                    latency_ms INTEGER,
+                    error     TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_eh_engine ON engine_history(engine, ts);
+                CREATE TABLE IF NOT EXISTS watch_jobs (
+                    id        TEXT PRIMARY KEY,
+                    query     TEXT NOT NULL,
+                    mode      TEXT NOT NULL DEFAULT 'threat_intel',
+                    interval_hours REAL NOT NULL DEFAULT 6,
+                    fingerprint TEXT,
+                    last_run  REAL,
+                    created   REAL NOT NULL,
+                    enabled   INTEGER NOT NULL DEFAULT 1
+                );
+                CREATE TABLE IF NOT EXISTS crawl_pages (
+                    url       TEXT PRIMARY KEY,
+                    job_id    TEXT,
+                    depth     INTEGER,
+                    ts        REAL,
+                    title     TEXT,
+                    text      TEXT,
+                    entities  TEXT
+                );
+                CREATE TABLE IF NOT EXISTS crawl_links (
+                    src   TEXT NOT NULL,
+                    dst   TEXT NOT NULL,
+                    PRIMARY KEY (src, dst)
+                );
+            """)
+            c.commit()
+
+    # ── cache ──────────────────────────────────────────────────────
+    def cache_get(self, key: str, cache_type: str, ttl: int) -> dict | list | None:
+        if ttl <= 0:
+            return None
+        row = self._conn().execute(
+            "SELECT ts, data FROM cache WHERE key=? AND cache_type=?", (key, cache_type)
+        ).fetchone()
+        if row and (time.time() - row["ts"]) < ttl:
+            try:
+                return json.loads(row["data"])
+            except Exception:
+                return None
+        return None
+
+    def cache_set(self, key: str, cache_type: str, data: dict | list) -> None:
+        with self._lock:
+            self._conn().execute(
+                "INSERT OR REPLACE INTO cache(key,cache_type,ts,data) VALUES(?,?,?,?)",
+                (key, cache_type, time.time(), json.dumps(data, default=str)),
+            )
+            self._conn().commit()
+
+    def cache_clear(self, cache_type: str | None = None) -> int:
+        with self._lock:
+            if cache_type:
+                n = self._conn().execute(
+                    "SELECT COUNT(*) FROM cache WHERE cache_type=?", (cache_type,)
+                ).fetchone()[0]
+                self._conn().execute("DELETE FROM cache WHERE cache_type=?", (cache_type,))
+            else:
+                n = self._conn().execute("SELECT COUNT(*) FROM cache").fetchone()[0]
+                self._conn().execute("DELETE FROM cache")
+            self._conn().commit()
+            return n
+
+    def cache_prune(self) -> int:
+        """Delete all expired records based on type-appropriate TTL."""
         now = time.time()
-        # Discard expired entries while loading
-        _FETCH_CACHE = {k: (ts, v) for k, (ts, v) in data.items()
-                        if now - ts < FETCH_CACHE_TTL}
-    except Exception:
-        pass  # corrupt cache — ignore, will be overwritten
+        with self._lock:
+            n = 0
+            for ctype, ttl in (("fetch", FETCH_CACHE_TTL),
+                               ("search", SEARCH_CACHE_TTL),
+                               ("engine", ENGINE_CACHE_TTL)):
+                if ttl > 0:
+                    cur = self._conn().execute(
+                        "DELETE FROM cache WHERE cache_type=? AND ?-ts > ?",
+                        (ctype, now, ttl),
+                    )
+                    n += cur.rowcount
+            self._conn().commit()
+        return n
+
+    # ── engine health history ──────────────────────────────────────
+    def engine_history_add(self, engine: str, status: str,
+                           latency_ms: int | None, error: str | None) -> None:
+        with self._lock:
+            self._conn().execute(
+                "INSERT INTO engine_history(engine,ts,status,latency_ms,error) VALUES(?,?,?,?,?)",
+                (engine, time.time(), status, latency_ms, error),
+            )
+            # Keep only last 20 checks per engine
+            self._conn().execute(
+                """DELETE FROM engine_history WHERE engine=? AND ts NOT IN (
+                    SELECT ts FROM engine_history WHERE engine=? ORDER BY ts DESC LIMIT 20
+                )""",
+                (engine, engine),
+            )
+            self._conn().commit()
+
+    def engine_history_get(self, engine: str, n: int = 5) -> list[dict]:
+        rows = self._conn().execute(
+            "SELECT ts,status,latency_ms,error FROM engine_history "
+            "WHERE engine=? ORDER BY ts DESC LIMIT ?",
+            (engine, n),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def engine_reliability(self, engine: str, window: int = 5) -> float:
+        """Fraction of last `window` checks where engine was up. Returns 1.0 if no history."""
+        rows = self.engine_history_get(engine, window)
+        if not rows:
+            return 1.0
+        up = sum(1 for r in rows if r["status"] == "up")
+        return up / len(rows)
+
+    # ── watch jobs ─────────────────────────────────────────────────
+    def watch_add(self, query: str, mode: str = "threat_intel",
+                  interval_hours: float = 6) -> str:
+        job_id = str(uuid.uuid4())[:8]
+        with self._lock:
+            self._conn().execute(
+                "INSERT INTO watch_jobs(id,query,mode,interval_hours,created) "
+                "VALUES(?,?,?,?,?)",
+                (job_id, query, mode, interval_hours, time.time()),
+            )
+            self._conn().commit()
+        return job_id
+
+    def watch_list(self) -> list[dict]:
+        rows = self._conn().execute(
+            "SELECT * FROM watch_jobs WHERE enabled=1 ORDER BY created DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def watch_update(self, job_id: str, fingerprint: str, last_run: float) -> None:
+        with self._lock:
+            self._conn().execute(
+                "UPDATE watch_jobs SET fingerprint=?, last_run=? WHERE id=?",
+                (fingerprint, last_run, job_id),
+            )
+            self._conn().commit()
+
+    def watch_disable(self, job_id: str) -> None:
+        with self._lock:
+            self._conn().execute(
+                "UPDATE watch_jobs SET enabled=0 WHERE id=?", (job_id,)
+            )
+            self._conn().commit()
+
+    def watch_due(self) -> list[dict]:
+        """Return jobs that are due for a re-run."""
+        now = time.time()
+        rows = self._conn().execute(
+            "SELECT * FROM watch_jobs WHERE enabled=1 AND "
+            "(last_run IS NULL OR ?-last_run >= interval_hours*3600)",
+            (now,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    # ── crawl store ────────────────────────────────────────────────
+    def crawl_save_page(self, url: str, job_id: str, depth: int, title: str,
+                        text: str, entities: dict) -> None:
+        with self._lock:
+            self._conn().execute(
+                "INSERT OR REPLACE INTO crawl_pages(url,job_id,depth,ts,title,text,entities) "
+                "VALUES(?,?,?,?,?,?,?)",
+                (url, job_id, depth, time.time(), title or "", text[:10000],
+                 json.dumps(entities, default=str)),
+            )
+            self._conn().commit()
+
+    def crawl_save_link(self, src: str, dst: str) -> None:
+        with self._lock:
+            self._conn().execute(
+                "INSERT OR IGNORE INTO crawl_links(src,dst) VALUES(?,?)", (src, dst)
+            )
+            self._conn().commit()
+
+    def crawl_export(self, job_id: str) -> dict:
+        pages = [dict(r) for r in self._conn().execute(
+            "SELECT url,depth,ts,title,entities FROM crawl_pages WHERE job_id=?", (job_id,)
+        ).fetchall()]
+        links = [dict(r) for r in self._conn().execute(
+            "SELECT src,dst FROM crawl_links WHERE src IN "
+            "(SELECT url FROM crawl_pages WHERE job_id=?)", (job_id,)
+        ).fetchall()]
+        return {"job_id": job_id, "pages": pages, "links": links}
 
 
-def _save_disk_cache() -> None:
-    """Flush the in-memory cache to the file-based persistent store."""
-    if not _CACHE_FILE:
-        return
-    try:
-        with open(_CACHE_FILE, "w", encoding="utf-8") as f:
-            json.dump(_FETCH_CACHE, f)
-    except Exception:
-        pass  # read-only fs or permission error — silently skip
+# Module-level DB singleton (lazy: only created when used)
+_db_instance: _DB | None = None
+_db_lock = threading.Lock()
 
+
+def _db() -> _DB:
+    global _db_instance
+    if _db_instance is None:
+        with _db_lock:
+            if _db_instance is None:
+                _db_instance = _DB(SICRY_DB_PATH)
+    return _db_instance
+
+
+# ─────────────────────────────────────────────────────────────────
+# BACKWARD-COMPAT: clear_cache() now delegates to SQLite store
+# ─────────────────────────────────────────────────────────────────
 
 def clear_cache() -> int:
-    """Delete all cached fetch results (memory + disk).
+    """Delete all cached fetch/search results.
 
-    Returns the number of entries that were evicted.
+    Returns the number of entries evicted.
 
     Example:
         >>> n = sicry.clear_cache()
         >>> print(f"Cleared {n} cached entries")
     """
-    global _FETCH_CACHE
-    n = len(_FETCH_CACHE)
-    _FETCH_CACHE = {}
-    if _CACHE_FILE and os.path.exists(_CACHE_FILE):
-        try:
-            os.remove(_CACHE_FILE)
-        except OSError:
-            pass
-    return n
+    mem_count = len(_FETCH_CACHE)
+    _FETCH_CACHE.clear()
+    return mem_count + _db().cache_clear()
 
-
-# Load disk cache eagerly so the first call in a new process gets warm cache hits.
-_load_disk_cache()
 
 # ─────────────────────────────────────────────────────────────────
 # CONTENT SAFETY  — keyword blacklist (SAFETY-1)
@@ -249,6 +479,47 @@ def _is_content_safe(text: str) -> bool:
 
 
 # ─────────────────────────────────────────────────────────────────
+# FRIENDLY ERROR MESSAGES  (issue #8)
+# Maps raw socket/urllib3 noise to actionable user-facing strings.
+# ─────────────────────────────────────────────────────────────────
+
+_FRIENDLY_ERROR_MAP = [
+    # SOCKS / Tor circuit
+    (r"SOCKS5|SOCKSHTTPConnection|SOCKS proxy",
+     "Tor circuit unavailable — is `tor` running? (`apt install tor && tor &`)"),
+    (r"Max retries exceeded",
+     "Tor circuit slow or overloaded — renew identity with `sicry.renew_identity()` and retry"),
+    (r"timed out|Read timed out",
+     "Tor circuit timed out — hidden service may be offline, or try renewing identity"),
+    (r"Connection refused|ConnectionRefused",
+     "Connection refused — hidden service is likely down"),
+    (r"RemoteDisconnected|ConnectionReset",
+     "Connection reset by hidden service — site may be overloaded"),
+    (r"Name or service not known|Failed to resolve",
+     "DNS/hostname not resolved — only .onion URLs work over Tor"),
+    # Auth / crypto
+    (r"SSL|certificate|cert verify",
+     "TLS/SSL error on hidden service — try HTTP instead of HTTPS for this .onion"),
+    # Network generic
+    (r"Network is unreachable|No route to host",
+     "Network unreachable — check your internet connection"),
+    # Tor control port
+    (r"control port|stem|authentication",
+     "Tor control port auth failed — set TOR_CONTROL_PASSWORD or TOR_DATA_DIR in .env"),
+]
+
+
+def _friendly_error(exc: Exception | str) -> str:
+    """Convert a raw exception into a human-readable, actionable error message."""
+    msg = str(exc)
+    for pattern, friendly in _FRIENDLY_ERROR_MAP:
+        if re.search(pattern, msg, re.IGNORECASE):
+            return friendly
+    # Fall-through: return truncated original message
+    return msg[:200] if len(msg) > 200 else msg
+
+
+# ─────────────────────────────────────────────────────────────────
 # ROTATING USER AGENTS  (same pool Robin uses)
 # ─────────────────────────────────────────────────────────────────
 
@@ -304,7 +575,333 @@ def _build_tor_session() -> requests.Session:
 
 
 # ─────────────────────────────────────────────────────────────────
-# PUBLIC API — 5 functions,  that's it.
+# TOR CIRCUIT POOL  (issue #3)
+# Manages N simultaneous Tor processes on consecutive SOCKS ports
+# (TOR_POOL_BASE_PORT … TOR_POOL_BASE_PORT + size - 1).
+# Round-robin distributes requests so each identity scrapes different engines.
+# When TOR_POOL_SIZE=0 (default), everything falls back to the system Tor.
+# ─────────────────────────────────────────────────────────────────
+
+class TorPool:
+    """Spawn and manage a pool of independent Tor processes.
+
+    Usage::
+
+        pool = TorPool(size=5)
+        pool.start()
+        session = pool.session()   # round-robin across circuits
+        pool.renew_all()           # rotate all circuits at once
+        pool.stop()
+
+    Environment override: ``SICRY_POOL_SIZE`` (0 = disabled, use main Tor).
+    """
+
+    def __init__(self, size: int = 5, base_port: int = TOR_POOL_BASE_PORT) -> None:
+        self.size = size
+        self.base_port = base_port
+        self._procs: list[subprocess.Popen] = []
+        self._data_dirs: list[str] = []
+        self._lock = threading.Lock()
+        self._rr_idx = 0  # round-robin index
+        self._running = False
+
+    def _socks_port(self, i: int) -> int:
+        return self.base_port + i
+
+    def _ctl_port(self, i: int) -> int:
+        return self.base_port + 100 + i   # control port 100 above socks
+
+    def start(self) -> None:
+        """Launch all Tor processes in the pool. Waits until each SOCKS port accepts connections."""
+        if self._running:
+            return
+        self._data_dirs = [tempfile.mkdtemp(prefix=f"tor_pool_{i}_") for i in range(self.size)]
+        for i, ddir in enumerate(self._data_dirs):
+            sp = self._socks_port(i)
+            cp = self._ctl_port(i)
+            torrc = os.path.join(ddir, "torrc")
+            with open(torrc, "w") as f:
+                f.write(
+                    f"SocksPort {sp}\nControlPort {cp}\nDataDirectory {ddir}\n"
+                    f"CookieAuthentication 1\nSafeSocks 1\n"
+                )
+            proc = subprocess.Popen(
+                ["tor", "-f", torrc],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            self._procs.append(proc)
+        # Wait up to 30 s for each socks port to become available
+        deadline = time.time() + 30
+        for i in range(self.size):
+            sp = self._socks_port(i)
+            while time.time() < deadline:
+                try:
+                    with socket.create_connection(("127.0.0.1", sp), timeout=1):
+                        break
+                except OSError:
+                    time.sleep(0.5)
+        self._running = True
+
+    def stop(self) -> None:
+        """Terminate all pool processes and clean up temp dirs."""
+        for proc in self._procs:
+            try:
+                proc.terminate()
+                proc.wait(timeout=5)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+        self._procs.clear()
+        for ddir in self._data_dirs:
+            shutil.rmtree(ddir, ignore_errors=True)
+        self._data_dirs.clear()
+        self._running = False
+
+    def session(self) -> requests.Session:
+        """Return a requests.Session routed through the next pool circuit (round-robin)."""
+        if not self._running or not self.size:
+            return _build_tor_session()
+        with self._lock:
+            i = self._rr_idx % self.size
+            self._rr_idx += 1
+        sp = self._socks_port(i)
+        s = requests.Session()
+        retry = Retry(total=2, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
+        adapter = HTTPAdapter(max_retries=retry)
+        s.mount("http://", adapter)
+        s.mount("https://", adapter)
+        proxy = f"socks5h://127.0.0.1:{sp}"
+        s.proxies = {"http": proxy, "https": proxy}
+        return s
+
+    def renew_all(self) -> list[dict]:
+        """Send NEWNYM to every pool process via its control port."""
+        results = []
+        for i in range(self.size):
+            cp = self._ctl_port(i)
+            ddir = self._data_dirs[i] if i < len(self._data_dirs) else ""
+            cookie_path = os.path.join(ddir, "control_auth_cookie") if ddir else ""
+            try:
+                from stem import Signal
+                from stem.control import Controller
+                with Controller.from_port(address="127.0.0.1", port=cp) as c:
+                    if os.path.isfile(cookie_path):
+                        with open(cookie_path, "rb") as fh:
+                            c.authenticate(password=fh.read())
+                    else:
+                        c.authenticate()
+                    c.signal(Signal.NEWNYM)
+                results.append({"port": cp, "success": True})
+            except Exception as e:
+                results.append({"port": cp, "success": False, "error": str(e)})
+        return results
+
+    def __enter__(self) -> "TorPool":
+        self.start()
+        return self
+
+    def __exit__(self, *_) -> None:
+        self.stop()
+
+
+# Module-level pool singleton (only active when TOR_POOL_SIZE > 0)
+_pool_instance: TorPool | None = None
+_pool_lock = threading.Lock()
+
+
+def _get_pool() -> TorPool | None:
+    global _pool_instance
+    if TOR_POOL_SIZE <= 0:
+        return None
+    if _pool_instance is None or not _pool_instance._running:
+        with _pool_lock:
+            if _pool_instance is None or not _pool_instance._running:
+                _pool_instance = TorPool(size=TOR_POOL_SIZE)
+                _pool_instance.start()
+    return _pool_instance
+
+
+def _pool_session() -> requests.Session:
+    """Get a session from the pool if active, else fall back to standard Tor."""
+    pool = _get_pool()
+    return pool.session() if pool else _build_tor_session()
+
+
+# ─────────────────────────────────────────────────────────────────
+# NO-LLM INTELLIGENCE LAYER  (issue #1)
+# keyword extraction · BM25-lite relevance scoring · content dedup
+# Works 100% offline — no API key needed.
+# ─────────────────────────────────────────────────────────────────
+
+_STOPWORDS: frozenset[str] = frozenset({
+    "the","and","or","in","on","at","to","a","an","of","for","is","are","was",
+    "were","be","been","being","have","has","had","do","does","did","will","would",
+    "could","should","may","might","can","this","that","these","those","it","its",
+    "from","with","as","by","about","into","through","during","before","after",
+    "above","below","between","each","all","both","few","more","most","no","not",
+    "only","same","so","than","too","very","just","but","if","then","because","so",
+    "our","your","their","my","his","her","we","you","they","i","who","which","www",
+    "com","http","https","onion","html","page","site","click","here","link","home",
+    # dark web noise
+    "forum","thread","reply","post","message","user","admin","login","register",
+})
+
+
+def extract_keywords(text: str, top_n: int = 20) -> list[str]:
+    """Extract the top-N keywords from `text` using TF-IDF-like scoring.
+    Requires no external libraries — pure stdlib.
+
+    Args:
+        text:  Plain text to analyse.
+        top_n: Number of top keywords to return (default 20).
+
+    Returns:
+        Ordered list of keyword strings, highest-scoring first.
+    """
+    words = re.findall(r"[a-z0-9]{3,}", text.lower())
+    word_freq: dict[str, int] = {}
+    for w in words:
+        if w not in _STOPWORDS:
+            word_freq[w] = word_freq.get(w, 0) + 1
+    if not word_freq:
+        return []
+    total = sum(word_freq.values())
+    # Boost rare but present terms (IDF proxy: penalise very common words)
+    scored = {w: (cnt / total) * (1 / math.log(cnt + 2)) for w, cnt in word_freq.items()}
+    return sorted(scored, key=scored.__getitem__, reverse=True)[:top_n]
+
+
+def score_results(query: str, results: list[dict]) -> list[dict]:
+    """Score each result by keyword overlap with `query` using BM25-lite.
+    Adds a ``"score"`` key (0.0–1.0) to each result dict and returns them
+    sorted descending. Safe to call without an LLM — all stdlib.
+
+    Args:
+        query:   The investigation query.
+        results: List of {title, url, engine, ...} dicts.
+
+    Returns:
+        Same dicts, each with ``"score": float``, sorted best-first.
+    """
+    if not results:
+        return []
+    q_terms = set(re.findall(r"[a-z0-9]{3,}", query.lower())) - _STOPWORDS
+    if not q_terms:
+        for r in results:
+            r.setdefault("score", 0.5)
+        return results[:]
+
+    scored: list[tuple[float, dict]] = []
+    for result in results:
+        doc = (result.get("title", "") + " " + result.get("url", "")).lower()
+        doc_terms = re.findall(r"[a-z0-9]{3,}", doc)
+        term_count = {t: doc_terms.count(t) for t in q_terms if t in doc_terms}
+        dl = max(len(doc_terms), 1)
+        avgdl = 50.0  # average onion search result "document" length
+        k1, b = 1.5, 0.75
+        score = sum(
+            (cnt * (k1 + 1))
+            / (cnt + k1 * (1 - b + b * dl / avgdl))
+            for cnt in term_count.values()
+        )
+        # Normalise to 0-1 loosely
+        norm_score = min(score / (len(q_terms) * 2 + 1), 1.0)
+        r_copy = dict(result)
+        r_copy["score"] = round(norm_score, 4)
+        scored.append((norm_score, r_copy))
+
+    scored.sort(key=lambda t: t[0], reverse=True)
+    return [r for _, r in scored]
+
+
+def _content_fingerprint(text: str) -> str:
+    """Fast content fingerprint for near-duplicate detection.
+    Normalises whitespace, removes boilerplate, returns MD5 hex."""
+    normalised = re.sub(r"\s+", " ", text.lower()).strip()
+    normalised = re.sub(r"(copy|copyright|all rights reserved|terms|privacy)[^.]*\.", "", normalised)
+    return hashlib.md5(normalised[:4096].encode(), usedforsecurity=False).hexdigest()
+
+
+def deduplicate_results(results: list[dict], texts: dict[str, str] | None = None) -> list[dict]:
+    """Remove near-duplicate results by content fingerprint (not just URL).
+    When `texts` ({url: page_text}) is provided, fingerprinting is done on
+    content; otherwise falls back to URL+title normalisation.
+
+    Args:
+        results: List of result dicts with at least ``"url"`` key.
+        texts:   Optional dict mapping URL → scraped text for deep dedup.
+
+    Returns:
+        Deduplicated list (preserves first occurrence of each unique fingerprint).
+    """
+    seen: set[str] = set()
+    unique: list[dict] = []
+    for r in results:
+        url = r.get("url", "")
+        if texts and url in texts:
+            fp = _content_fingerprint(texts[url])
+        else:
+            # Shallow fingerprint: normalise URL + lowercased title
+            combined = url.lower().rstrip("/") + "|" + r.get("title", "").lower()
+            fp = hashlib.md5(combined.encode(), usedforsecurity=False).hexdigest()
+        if fp not in seen:
+            seen.add(fp)
+            unique.append(r)
+    return unique
+
+
+# ─────────────────────────────────────────────────────────────────
+# MODE CONFIG  (issue #6)
+# Each mode optionally targets specific engines and overrides defaults.
+# Ransomware mode adds known RW blog .onions to seed the search.
+# ─────────────────────────────────────────────────────────────────
+
+# Known ransomware leak-site .onion addresses (dark.fail / public OSINT verified)
+_RANSOMWARE_ONIONS: list[str] = [
+    "http://alphvmmm27o3abo3r2mlmjrpdmzle3rykajqc5xsj7j7ejksbpsa36ad.onion",   # AlphV/BlackCat
+    "http://lockbit7ouvrsdgtojeoj5hvu6bljqtghitekwpdy3b6y62ixtsu5jqd.onion",   # LockBit 3
+    "http://ransomwareuauudfvtj44g426w45pgjfvbwp64wfrypyjzn3jq3muxd.onion",    # generic placeholder
+]
+
+_MODE_CONFIG: dict[str, dict] = {
+    "threat_intel": {
+        "engines": None,          # use all alive engines
+        "max_results": 30,
+        "scrape": 8,
+        "extra_seeds": [],
+    },
+    "ransomware": {
+        "engines": ["Ahmia", "Tor66", "Excavator", "Ahmia-clearnet"],
+        "max_results": 40,
+        "scrape": 12,
+        "extra_seeds": _RANSOMWARE_ONIONS,
+    },
+    "personal_identity": {
+        "engines": ["Ahmia", "OnionLand", "Tor66", "DuckDuckGo-Tor", "Ahmia-clearnet"],
+        "max_results": 30,
+        "scrape": 8,
+        "extra_seeds": [],
+    },
+    "corporate": {
+        "engines": ["Ahmia", "Excavator", "Tor66", "TheDeepSearches", "Ahmia-clearnet"],
+        "max_results": 30,
+        "scrape": 10,
+        "extra_seeds": [],
+    },
+}
+
+
+def mode_config(mode: str) -> dict:
+    """Return the engine/depth config for the given analysis mode.
+
+    Returns:
+        Dict with keys: ``engines``, ``max_results``, ``scrape``, ``extra_seeds``.
+    """
+    return dict(_MODE_CONFIG.get(mode, _MODE_CONFIG["threat_intel"]))
+
+
 # Mirrors exactly how AI agents access the clearnet internet,
 # just now for .onion and the full Tor network.
 # ─────────────────────────────────────────────────────────────────
@@ -585,7 +1182,7 @@ def fetch(url: str, _use_cache: bool = True) -> dict:
         # ── SOCKS-level retry: 2 attempts per URL variant ────────
         for socks_attempt in range(2):
             try:
-                session = _build_tor_session()
+                session = _pool_session()
                 resp = session.get(attempt_url, headers=headers, timeout=TOR_TIMEOUT)
                 # SECURITY: block .onion → clearnet redirect (de-anonymization risk)
                 # resp.url is the final URL after redirects (a string in real requests;
@@ -606,14 +1203,14 @@ def fetch(url: str, _use_cache: bool = True) -> dict:
                         ),
                     }
                 result = _parse_response(resp, final_url)
-                # Store in cache on success (memory + disk)
+                # Store in both in-memory and SQLite cache on success
                 if _use_cache and FETCH_CACHE_TTL > 0:
                     _FETCH_CACHE[cache_key] = (time.time(), result)
-                    _save_disk_cache()
+                    _db().cache_set(cache_key, "fetch", result)
                 return result
             except Exception as exc:
-                last_err = str(exc)
-                _is_socks_err = any(kw in last_err for kw in
+                last_err = _friendly_error(exc)
+                _is_socks_err = any(kw in str(exc) for kw in
                                     ("SOCKS", "timed out", "Connection refused",
                                      "RemoteDisconnected", "ConnectionError"))
                 if socks_attempt == 0 and _is_socks_err:
@@ -649,7 +1246,7 @@ def scrape_all(urls: list[dict], max_workers: int = 5) -> dict:
         if not _is_content_safe(u + " " + t):
             return u, ""  # return empty so it won't be included
         try:
-            session = _build_tor_session()
+            session = _pool_session()
             session.headers["User-Agent"] = random.choice(_USER_AGENTS)
             resp = session.get(u, timeout=TOR_TIMEOUT)
             # UX-1: fix mojibake from servers that report ISO-8859-1 by default
@@ -788,37 +1385,65 @@ def filter_results(
     return results[:20]
 
 
-def check_search_engines(max_workers: int = 8) -> list[dict]:
+def check_search_engines(max_workers: int = 8, _cached: bool = False) -> list[dict]:
     """Ping all 12 active search engines via Tor and return per-engine status with latency.
     Robin health.py pattern — tells you which engines are alive before you search.
 
+    Results are stored in the SQLite health history so ``engine_health_history()`` and
+    automatic reliability weighting work over multiple runs.
+
     Args:
         max_workers: Parallel threads. Default 8.
+        _cached:     If True, return the last stored results (skip live ping).
 
     Returns:
         List of dicts ordered by original engine index:
-        [{"name": str, "status": "up"|"down", "latency_ms": int|None, "error": str|None}, ...]
+        [{"name": str, "status": "up"|"down", "latency_ms": int|None,
+          "reliability": float, "error": str|None}, ...]
     """
+    if _cached:
+        # Return most recent stored health check from SQLite
+        rows = []
+        for eng in SEARCH_ENGINES:
+            history = _db().engine_history_get(eng["name"], 1)
+            rel = _db().engine_reliability(eng["name"])
+            if history:
+                r = dict(history[0])
+                r["name"] = eng["name"]
+                r["reliability"] = round(rel, 3)
+            else:
+                r = {"name": eng["name"], "status": "unknown",
+                     "latency_ms": None, "error": "no history", "reliability": 1.0}
+            rows.append(r)
+        return rows
+
     def _ping(engine: dict) -> dict:
         url = engine["url"].format(query="test")
         try:
-            session = _build_tor_session()
+            session = _pool_session()
             session.headers["User-Agent"] = random.choice(_USER_AGENTS)
             start = time.time()
             resp = session.get(url, timeout=20)
             latency_ms = round((time.time() - start) * 1000)
+            status = "up" if resp.status_code == 200 else "down"
+            err = None if resp.status_code == 200 else f"HTTP {resp.status_code}"
+            _db().engine_history_add(engine["name"], status, latency_ms, err)
             return {
                 "name": engine["name"],
-                "status": "up" if resp.status_code == 200 else "down",
+                "status": status,
                 "latency_ms": latency_ms,
-                "error": None if resp.status_code == 200 else f"HTTP {resp.status_code}",
+                "reliability": round(_db().engine_reliability(engine["name"]), 3),
+                "error": err,
             }
         except Exception as exc:
+            err = _friendly_error(exc)
+            _db().engine_history_add(engine["name"], "down", None, err)
             return {
                 "name": engine["name"],
                 "status": "down",
                 "latency_ms": None,
-                "error": str(exc)[:80],
+                "reliability": round(_db().engine_reliability(engine["name"]), 3),
+                "error": err,
             }
 
     results_map: dict = {}
@@ -832,7 +1457,42 @@ def check_search_engines(max_workers: int = 8) -> list[dict]:
                 continue
 
     # Return in original engine order
-    return [results_map.get(e["name"], {"name": e["name"], "status": "down", "latency_ms": None, "error": "no result"}) for e in SEARCH_ENGINES]
+    return [results_map.get(e["name"], {"name": e["name"], "status": "down",
+            "latency_ms": None, "reliability": 0.0, "error": "no result"})
+            for e in SEARCH_ENGINES]
+
+
+def engine_health_history(engine_name: str, n: int = 5) -> list[dict]:
+    """Return the last `n` health checks for a specific engine.
+
+    Args:
+        engine_name: Engine name exactly as it appears in SEARCH_ENGINES.
+        n:           Number of past checks to return (default 5).
+
+    Returns:
+        List of ``{"ts": float, "status": str, "latency_ms": int|None, "error": str|None}``
+        ordered newest-first.
+
+    Example::
+
+        >>> sicry.engine_health_history("Ahmia", n=3)
+        [{"ts": 1741000000, "status": "up", "latency_ms": 842, "error": None}, ...]
+    """
+    return _db().engine_history_get(engine_name, n)
+
+
+def engine_reliability_scores() -> dict[str, float]:
+    """Return a dict of engine_name → reliability (fraction up over last 5 checks).
+    Engines with no history default to 1.0.
+
+    Example::
+
+        >>> sicry.engine_reliability_scores()
+        {"Ahmia": 1.0, "Excavator": 0.6, "Torland": 0.2, ...}
+    """
+    return {e["name"]: _db().engine_reliability(e["name"]) for e in SEARCH_ENGINES}
+
+
 
 
 def search(
@@ -840,29 +1500,52 @@ def search(
     engines: Optional[list[str]] = None,
     max_results: int = 20,
     max_workers: int = 8,
+    mode: Optional[str] = None,
+    _use_cache: bool = True,
 ) -> list[dict]:
     """
     Search the Tor network across 12 verified-live dark web search indexes simultaneously.
     The onion equivalent of web_search() or brave_search().
     All results are passed through a content safety filter before being returned.
 
+    Results are automatically scored by relevance (issue #10) and cached per query
+    in SQLite for 30 minutes (``SICRY_SEARCH_CACHE_TTL``).  When ``mode`` is set,
+    engine selection and search depth are automatically tuned for that investigation
+    type (issue #6).
+
     Args:
         query:       What to search for (natural language or keywords).
-        engines:     Optional list of specific engine names to use.
-                     Defaults to ALL 12 engines in parallel.
+        engines:     Optional explicit engine list. Overrides mode defaults.
                      Options: Ahmia, OnionLand, Amnesia, Torland,
                               Excavator, Onionway, Tor66, OSS, Torgol,
                               TheDeepSearches, DuckDuckGo-Tor, Ahmia-clearnet
         max_results: Max unique results returned after dedup. Default 20.
         max_workers: Parallel search threads. Default 8.
+        mode:        If set, applies mode-specific engine routing (``mode_config()``).
+                     Options: threat_intel | ransomware | personal_identity | corporate
+        _use_cache:  Set False to bypass the 30-min search result cache.
 
     Returns:
-        List of dicts: [{"title": str, "url": str, "engine": str}, ...]
+        List of dicts: [{"title": str, "url": str, "engine": str, "confidence": float}, ...]
+        Results are sorted by ``confidence`` (BM25-lite relevance score) descending.
 
     Example:
         >>> sicry.search("leaked database credentials")
-        [{"title": "...", "url": "http://...onion/...", "engine": "Ahmia"}, ...]
+        [{"title": "...", "url": "http://...onion/...", "engine": "Ahmia",
+          "confidence": 0.72}, ...]
     """
+    # ── search result cache (SQLite, TTL=SEARCH_CACHE_TTL) ────────
+    cache_key = f"{query.lower().strip()}|{','.join(sorted(engines or []))}|{max_results}"
+    if _use_cache and SEARCH_CACHE_TTL > 0:
+        _cached = _db().cache_get(cache_key, "search", SEARCH_CACHE_TTL)
+        if _cached is not None:
+            return _cached
+
+    # ── mode-based engine routing (issue #6) ─────────────────────
+    if mode and not engines:
+        cfg = mode_config(mode)
+        engines = cfg.get("engines")  # None means use all
+
     selected = SEARCH_ENGINES
     if engines:
         names = {e.lower() for e in engines}
@@ -874,7 +1557,7 @@ def search(
     def _fetch_engine(engine: dict) -> list[dict]:
         url = engine["url"].format(query=quote_plus(query))
         headers = {"User-Agent": random.choice(_USER_AGENTS)}
-        session = _build_tor_session()
+        session = _pool_session()
         # Compute engine's own hostname so we can exclude self-referential links
         _eng_host_m = re.findall(r"https?://([^/]+)", engine["url"])
         _eng_host = _eng_host_m[0] if _eng_host_m else ""
@@ -934,7 +1617,17 @@ def search(
                     lock_seen.add(clean)
                     results.append(item)
 
-    return results[:max_results]
+    # ── confidence scoring (issue #10) ───────────────────────────
+    scored = score_results(query, results)
+    final = scored[:max_results]
+
+    # ── store in SQLite search cache ──────────────────────────────
+    if _use_cache and SEARCH_CACHE_TTL > 0 and final:
+        _db().cache_set(cache_key, "search", final)
+
+    return final
+
+
 
 
 def ask(
@@ -973,6 +1666,601 @@ def ask(
         system = system.rstrip() + f"\n\nAdditionally focus on: {custom_instructions.strip()}"
     prompt = f"Investigation Query: {query}\n\nContent:\n---\n{content[:MAX_CONTENT_CHARS]}\n---"
     return _call_llm(_provider, system, prompt)
+
+
+# ─────────────────────────────────────────────────────────────────
+# NO-LLM ANALYSIS  (issue #1)
+# Produces a structured OSINT report using only heuristics — no API key.
+# ─────────────────────────────────────────────────────────────────
+
+def analyze_nollm(
+    content: str,
+    query: str = "",
+    results: Optional[list[dict]] = None,
+) -> str:
+    """Produce a structured OSINT report without an LLM.
+
+    Uses keyword extraction + BM25-lite scoring + entity regex to turn raw
+    scraped dark web text into an actionable summary.  Works offline, zero cost.
+
+    Args:
+        content:  Raw concatenated text from fetched pages.
+        query:    Original investigation query (used for keyword scoring).
+        results:  Optional search result list — adds source attribution.
+
+    Returns:
+        Plain-text OSINT summary report string.
+    """
+    ts = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+    lines: list[str] = [
+        f"# OnionClaw OSINT Report (no-LLM)",
+        f"**Query:** {query}",
+        f"**Generated:** {ts}",
+        "",
+    ]
+
+    # ── entity extraction ─────────────────────────────────────────
+    emails = sorted(set(re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", content)))
+    onion_links = sorted(set(re.findall(r"https?://[a-z2-7]{16,56}\.onion(?:/[^\s\"'<>]*)?", content)))
+    btc_addrs = sorted(set(re.findall(r"\b(?:bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}\b", content)))
+    xmr_addrs = sorted(set(re.findall(r"\b4[0-9AB][0-9a-zA-Z]{93}\b", content)))
+    pgp_keys = bool(re.search(r"BEGIN PGP|END PGP|-----BEGIN", content))
+    # Crypto wallet addresses (ETH format)
+    eth_addrs = sorted(set(re.findall(r"\b0x[a-fA-F0-9]{40}\b", content)))
+
+    lines.append("## Extracted Entities")
+    if emails:
+        lines.append(f"**Email addresses** ({len(emails)}):")
+        for e in emails[:20]:
+            lines.append(f"  - {e}")
+    if onion_links:
+        lines.append(f"**Onion links** ({len(onion_links)}):")
+        for o in onion_links[:30]:
+            lines.append(f"  - {o}")
+    if btc_addrs:
+        lines.append(f"**BTC addresses** ({len(btc_addrs)}): " + ", ".join(btc_addrs[:10]))
+    if xmr_addrs:
+        lines.append(f"**XMR addresses** ({len(xmr_addrs)}): " + ", ".join(xmr_addrs[:5]))
+    if eth_addrs:
+        lines.append(f"**ETH addresses** ({len(eth_addrs)}): " + ", ".join(eth_addrs[:10]))
+    if pgp_keys:
+        lines.append("**PGP key detected** in content")
+    if not any([emails, onion_links, btc_addrs, xmr_addrs, eth_addrs, pgp_keys]):
+        lines.append("*No entities auto-extracted.*")
+
+    # ── keyword analysis ──────────────────────────────────────────
+    keywords = extract_keywords(content, top_n=25)
+    lines.append("")
+    lines.append("## Top Keywords")
+    lines.append(", ".join(keywords) if keywords else "*None extracted.*")
+
+    # ── relevance-scored source attribution ───────────────────────
+    if results:
+        scored = score_results(query, results) if query else results
+        lines.append("")
+        lines.append("## Source Links (by relevance)")
+        for r in scored[:20]:
+            conf = r.get("confidence", r.get("score", 0))
+            lines.append(f"  [{r.get('engine','?')}] confidence={conf:.2f}  {r.get('url','')}  — {r.get('title','')[:80]}")
+
+    # ── content excerpt ───────────────────────────────────────────
+    lines.append("")
+    lines.append("## Content Excerpt")
+    lines.append(content[:3000].strip() or "*No content available.*")
+
+    lines.append("")
+    lines.append("---")
+    lines.append("*Generated by OnionClaw analyze_nollm() — no LLM required.*")
+
+    return "\n".join(lines)
+
+
+# ─────────────────────────────────────────────────────────────────
+# STRUCTURED OUTPUT FORMATS  (issue #4)
+# to_stix()   — STIX 2.1 Bundle JSON
+# to_csv()    — flat CSV string
+# to_report() — timestamped report dict with confidence scores
+# ─────────────────────────────────────────────────────────────────
+
+def to_stix(
+    results: list[dict],
+    query: str = "",
+    report_text: str = "",
+) -> dict:
+    """Generate a STIX 2.1 Bundle from search results.
+
+    Each result becomes a ``location``-free ``report`` + ``url`` observable.
+    Suitable for import into OpenCTI, MISP, Maltego, or any STIX-aware platform.
+
+    Args:
+        results:     List of {title, url, engine, confidence} dicts.
+        query:       Investigation query string.
+        report_text: Optional full LLM/nollm report text to embed as a Note.
+
+    Returns:
+        STIX 2.1 Bundle dict (JSON-serialisable).
+
+    Example::
+
+        bundle = sicry.to_stix(results, query="ransomware leak")
+        with open("report.stix2", "w") as f:
+            json.dump(bundle, f, indent=2)
+    """
+    ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    objects: list[dict] = []
+
+    # Identity (tool as threat actor)
+    identity_id = f"identity--{uuid.uuid4()}"
+    objects.append({
+        "type": "identity", "spec_version": "2.1", "id": identity_id,
+        "created": ts, "modified": ts, "name": f"OnionClaw v{__version__}",
+        "identity_class": "system",
+        "description": "Automated dark web OSINT collection system",
+    })
+
+    # Report object (the investigation itself)
+    report_id = f"report--{uuid.uuid4()}"
+    object_refs: list[str] = [identity_id]
+
+    # URL observables for each result
+    for r in results[:50]:
+        url_id = f"url--{uuid.uuid4()}"
+        url_val = r.get("url", "")
+        if not url_val:
+            continue
+        objects.append({
+            "type": "url", "spec_version": "2.1", "id": url_id,
+            "value": url_val,
+        })
+        objects.append({
+            "type": "relationship", "spec_version": "2.1",
+            "id": f"relationship--{uuid.uuid4()}",
+            "created": ts, "modified": ts,
+            "relationship_type": "related-to",
+            "source_ref": report_id,
+            "target_ref": url_id,
+            "description": (
+                f"[engine:{r.get('engine','?')}] "
+                f"[confidence:{r.get('confidence', r.get('score', 0)):.2f}] "
+                f"{r.get('title', '')[:120]}"
+            ),
+        })
+        object_refs.append(url_id)
+
+    # Optional note with full report text
+    if report_text:
+        note_id = f"note--{uuid.uuid4()}"
+        objects.append({
+            "type": "note", "spec_version": "2.1", "id": note_id,
+            "created": ts, "modified": ts,
+            "abstract": f"OnionClaw OSINT Report: {query}",
+            "content": report_text[:20000],
+            "object_refs": [report_id],
+            "created_by_ref": identity_id,
+        })
+        object_refs.append(note_id)
+
+    objects.insert(1, {
+        "type": "report", "spec_version": "2.1", "id": report_id,
+        "created": ts, "modified": ts,
+        "name": f"OnionClaw OSINT: {query or 'Investigation'}",
+        "description": f"Dark web OSINT investigation — {len(results)} results collected",
+        "labels": ["threat-intelligence", "dark-web", "osint"],
+        "published": ts,
+        "created_by_ref": identity_id,
+        "object_refs": object_refs,
+    })
+
+    return {
+        "type": "bundle",
+        "id": f"bundle--{uuid.uuid4()}",
+        "spec_version": "2.1",
+        "objects": objects,
+    }
+
+
+def to_csv(results: list[dict]) -> str:
+    """Serialise search or crawl results to a CSV string.
+
+    Columns: title, url, engine, confidence, timestamp
+
+    Args:
+        results: List of result dicts (from ``search()`` or ``crawl()``).
+
+    Returns:
+        UTF-8 CSV string (include header row).
+
+    Example::
+
+        csv_data = sicry.to_csv(results)
+        with open("results.csv", "w") as f:
+            f.write(csv_data)
+    """
+    buf = io.StringIO()
+    writer = csv.DictWriter(
+        buf,
+        fieldnames=["title", "url", "engine", "confidence", "timestamp"],
+        extrasaction="ignore",
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    ts = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+    for r in results:
+        writer.writerow({
+            "title":      r.get("title", ""),
+            "url":        r.get("url", ""),
+            "engine":     r.get("engine", ""),
+            "confidence": r.get("confidence", r.get("score", "")),
+            "timestamp":  ts,
+        })
+    return buf.getvalue()
+
+
+def to_report(
+    results: list[dict],
+    query: str = "",
+    mode: str = "threat_intel",
+    report_text: str = "",
+    keywords: Optional[list[str]] = None,
+) -> dict:
+    """Generate a structured report dict with metadata, timestamps, and confidence scores.
+
+    Designed to be serialised to JSON and loaded into threat intel platforms.
+
+    Args:
+        results:     Search/crawl results.
+        query:       Investigation query.
+        mode:        Analysis mode string.
+        report_text: Full LLM or analyze_nollm() report text.
+        keywords:    Top keywords extracted from content.
+
+    Returns:
+        Dict with keys: query, mode, timestamp, version, result_count, keywords,
+        sources (with confidence + engine per URL), report, source_attribution.
+    """
+    ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    avg_conf = (
+        sum(r.get("confidence", r.get("score", 0.0)) for r in results) / len(results)
+        if results else 0.0
+    )
+    return {
+        "query":           query,
+        "mode":            mode,
+        "timestamp":       ts,
+        "version":         __version__,
+        "result_count":    len(results),
+        "avg_confidence":  round(avg_conf, 4),
+        "keywords":        keywords or [],
+        "sources": [
+            {
+                "title":      r.get("title", ""),
+                "url":        r.get("url", ""),
+                "engine":     r.get("engine", ""),
+                "confidence": round(r.get("confidence", r.get("score", 0.0)), 4),
+            }
+            for r in results[:50]
+        ],
+        "report": report_text,
+        "source_attribution": "OnionClaw dark web OSINT — collected via Tor network",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────
+# WATCH / ALERT MODE  (issue #7)
+# Store a query fingerprint. Re-run every N hours.
+# Alert when new results appear that weren't in the last run.
+# ─────────────────────────────────────────────────────────────────
+
+def watch_add(
+    query: str,
+    mode: str = "threat_intel",
+    interval_hours: float = WATCH_INTERVAL_DEFAULT,
+) -> str:
+    """Register a persistent watch job.
+
+    Persisted in SQLite (``SICRY_DB_PATH``).  Check for new results with
+    ``watch_check()``; list all jobs with ``watch_list()``.
+
+    Args:
+        query:          The search query to monitor.
+        mode:           Analysis mode (default ``threat_intel``).
+        interval_hours: How often to re-check. Default ``SICRY_WATCH_INTERVAL`` (6 h).
+
+    Returns:
+        Job ID string (short UUID prefix, e.g. ``"a1b2c3d4"``).
+
+    Example::
+
+        jid = sicry.watch_add("ransomware blackcat", mode="ransomware", interval_hours=4)
+        print(f"Monitoring started — job {jid}")
+    """
+    return _db().watch_add(query, mode, interval_hours)
+
+
+def watch_list() -> list[dict]:
+    """Return all active watch jobs.
+
+    Returns:
+        List of job dicts with keys: id, query, mode, interval_hours,
+        fingerprint, last_run, created, enabled.
+    """
+    return _db().watch_list()
+
+
+def watch_disable(job_id: str) -> None:
+    """Disable a watch job (soft delete — keeps history)."""
+    _db().watch_disable(job_id)
+
+
+def watch_check(
+    callback: Optional[object] = None,
+) -> list[dict]:
+    """Check all due watch jobs for new results.
+
+    A job is "due" when ``now - last_run >= interval_hours * 3600``.
+
+    For each due job:
+    1. Run ``search(query, mode=mode)``
+    2. Compute a content fingerprint of result URLs + titles
+    3. If fingerprint changed vs last run → "new results" event
+    4. Store new fingerprint + timestamp
+
+    Args:
+        callback: Optional callable(job, new_results) invoked when new results
+                  are detected. Signature: ``callback(job: dict, results: list[dict]) -> None``
+
+    Returns:
+        List of alert dicts::
+
+            [{"job_id": str, "query": str, "new": bool,
+              "result_count": int, "results": list[dict]}, ...]
+
+    Example::
+
+        def on_alert(job, results):
+            print(f"[ALERT] New results for {job['query']}: {len(results)}")
+
+        sicry.watch_check(callback=on_alert)
+    """
+    due_jobs = _db().watch_due()
+    alerts: list[dict] = []
+    for job in due_jobs:
+        try:
+            results = search(job["query"], mode=job["mode"], max_results=30, _use_cache=False)
+            # Fingerprint: sorted URL+title hash
+            fp_source = "|".join(
+                sorted(r.get("url", "") + r.get("title", "") for r in results)
+            )
+            fp = hashlib.md5(fp_source.encode(), usedforsecurity=False).hexdigest()
+            is_new = fp != job.get("fingerprint")
+            _db().watch_update(job["id"], fp, time.time())
+            alert = {
+                "job_id":       job["id"],
+                "query":        job["query"],
+                "new":          is_new,
+                "result_count": len(results),
+                "results":      results,
+            }
+            alerts.append(alert)
+            if is_new and callback and callable(callback):
+                callback(job, results)
+        except Exception as e:
+            alerts.append({
+                "job_id": job["id"], "query": job["query"],
+                "new": False, "result_count": 0, "results": [], "error": str(e),
+            })
+    return alerts
+
+
+def watch_daemon(
+    callback: Optional[object] = None,
+    poll_interval_s: int = 300,
+) -> threading.Thread:
+    """Start a background daemon thread that continuously polls due watch jobs.
+
+    The thread runs until the process exits (daemon=True).
+
+    Args:
+        callback:        Callable(job, results) for alerts. See ``watch_check()``.
+        poll_interval_s: How often to check for due jobs (seconds). Default 300 (5 min).
+
+    Returns:
+        The started ``threading.Thread`` object.
+
+    Example::
+
+        t = sicry.watch_daemon(callback=lambda j, r: print(f"Alert: {j['query']}"))
+        # thread runs in background automatically
+    """
+    def _loop():
+        while True:
+            try:
+                watch_check(callback=callback)
+            except Exception:
+                pass
+            time.sleep(poll_interval_s)
+
+    t = threading.Thread(target=_loop, name="sicry-watch-daemon", daemon=True)
+    t.start()
+    return t
+
+
+# ─────────────────────────────────────────────────────────────────
+# ONION SPIDER — depth-first .onion crawler  (the big one)
+# Follows links, maps site structure, extracts entities,
+# stores everything in SQLite (crawl_pages + crawl_links tables).
+# ─────────────────────────────────────────────────────────────────
+
+@dataclasses.dataclass
+class CrawlResult:
+    """Summary of a completed crawl job."""
+    job_id:       str
+    seed_url:     str
+    pages_found:  int
+    links_found:  int
+    entities:     dict       # aggregated across all pages
+    db_path:      str
+
+
+def crawl(
+    seed_url: str,
+    max_depth: int = 3,
+    max_pages: int = 100,
+    stay_on_domain: bool = True,
+    extract_entities: bool = True,
+    max_workers: int = 4,
+    job_id: Optional[str] = None,
+    on_page: Optional[object] = None,
+) -> CrawlResult:
+    """Depth-first .onion spider.
+
+    Follows links from `seed_url`, maps site structure, extracts entities
+    (emails, crypto addresses, PGP keys, onion links, usernames), and stores
+    everything in the SQLite database under a single ``job_id``.
+
+    Args:
+        seed_url:         Starting .onion URL.
+        max_depth:        Maximum link-follow depth from seed (default 3).
+        max_pages:        Hard cap on total pages visited (default 100).
+        stay_on_domain:   Only follow links that stay on the same .onion host (default True).
+        extract_entities: Run entity extraction on each page (default True).
+        max_workers:      Concurrent fetch workers (default 4, capped at 4 for Tor).
+        job_id:           Optional custom job ID for resuming. Auto-generated if None.
+        on_page:          Optional callback(url, depth, result_dict) called after each page.
+
+    Returns:
+        ``CrawlResult`` dataclass with summary and ``db_path`` pointing to SQLite store.
+
+    Example::
+
+        result = sicry.crawl("http://examplemarket.onion", max_depth=2, max_pages=50)
+        print(f"Crawled {result.pages_found} pages, found {len(result.entities)} entities")
+        export = sicry.crawl_export(result.job_id)
+        with open("crawl.json", "w") as f:
+            json.dump(export, f, indent=2)
+    """
+    if not seed_url.startswith(("http://", "https://")):
+        seed_url = "http://" + seed_url
+
+    job_id = job_id or str(uuid.uuid4())[:12]
+    parsed_seed = urlparse(seed_url)
+    seed_host = parsed_seed.netloc
+
+    visited:  set[str] = set()
+    # queue: (url, depth)
+    queue: list[tuple[str, int]] = [(seed_url, 0)]
+    all_entities: dict = {
+        "emails": [], "onion_links": [], "btc_addresses": [],
+        "xmr_addresses": [], "eth_addresses": [], "pgp_keys": 0,
+        "usernames": [],
+    }
+    pages_crawled = 0
+    links_found = 0
+
+    _lock = threading.Lock()
+
+    def _extract_entities_from_text(text: str, url: str) -> dict:
+        ents: dict = {}
+        ents["emails"]        = re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", text)
+        ents["onion_links"]   = re.findall(r"https?://[a-z2-7]{16,56}\.onion(?:/[^\s\"'<>]*)?", text)
+        ents["btc_addresses"] = re.findall(r"\b(?:bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}\b", text)
+        ents["xmr_addresses"] = re.findall(r"\b4[0-9AB][0-9a-zA-Z]{93}\b", text)
+        ents["eth_addresses"] = re.findall(r"\b0x[a-fA-F0-9]{40}\b", text)
+        ents["pgp_keys"]      = 1 if re.search(r"BEGIN PGP|END PGP", text) else 0
+        # Simple username heuristics: "user: <word>" or "username: <word>"
+        ents["usernames"]     = re.findall(r"(?:username|user|handle|nick)\s*:\s*([^\s<>\"']{3,32})", text, re.IGNORECASE)
+        return {k: list(set(v)) if isinstance(v, list) else v for k, v in ents.items()}
+
+    def _process_page(url: str, depth: int) -> list[tuple[str, int]]:
+        nonlocal pages_crawled, links_found
+        result = fetch(url)
+        if result.get("error") or not result.get("text"):
+            return []
+
+        text  = result["text"]
+        title = result.get("title", "")
+        entities = _extract_entities_from_text(text, url) if extract_entities else {}
+        _db().crawl_save_page(url, job_id, depth, title, text, entities)
+
+        with _lock:
+            pages_crawled += 1
+            if extract_entities:
+                for k, v in entities.items():
+                    if isinstance(v, list):
+                        all_entities[k].extend(v)
+                    elif isinstance(v, int):
+                        all_entities[k] = all_entities.get(k, 0) + v
+
+        if on_page and callable(on_page):
+            try:
+                on_page(url, depth, result)
+            except Exception:
+                pass
+
+        # Collect child links
+        child_links: list[tuple[str, int]] = []
+        if depth < max_depth:
+            for link in result.get("links", []):
+                href = link.get("href", "")
+                if not href:
+                    continue
+                # Must be .onion
+                if ".onion" not in href:
+                    continue
+                # Domain restriction
+                if stay_on_domain and urlparse(href).netloc != seed_host:
+                    continue
+                clean = href.rstrip("/")
+                with _lock:
+                    if clean not in visited:
+                        visited.add(clean)
+                        links_found += 1
+                        _db().crawl_save_link(url, clean)
+                        child_links.append((clean, depth + 1))
+        return child_links
+
+    # BFS with ThreadPoolExecutor for concurrent sibling-page fetching
+    visited.add(seed_url.rstrip("/"))
+    while queue and pages_crawled < max_pages:
+        batch = []
+        while queue and len(batch) < max_workers:
+            item = queue.pop(0)
+            batch.append(item)
+
+        with ThreadPoolExecutor(max_workers=min(max_workers, len(batch))) as ex:
+            future_map = {ex.submit(_process_page, url, depth): (url, depth)
+                          for url, depth in batch}
+            for fut in as_completed(future_map):
+                try:
+                    children = fut.result()
+                    queue.extend(children)
+                except Exception:
+                    pass
+        if pages_crawled >= max_pages:
+            break
+
+    # Deduplicate entities
+    for k, v in all_entities.items():
+        if isinstance(v, list):
+            all_entities[k] = sorted(set(v))
+
+    return CrawlResult(
+        job_id=job_id,
+        seed_url=seed_url,
+        pages_found=pages_crawled,
+        links_found=links_found,
+        entities=all_entities,
+        db_path=SICRY_DB_PATH,
+    )
+
+
+def crawl_export(job_id: str) -> dict:
+    """Export all crawled pages and links for a given job to a dict.
+
+    Returns:
+        Dict with ``job_id``, ``pages`` (list), and ``links`` (list).
+    """
+    return _db().crawl_export(job_id)
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -1141,128 +2429,181 @@ TOOLS = [
     {
         "name": "sicry_check_tor",
         "description": "Verify Tor is running and confirm the machine is routing traffic through the Tor network. Call this before any dark web operations.",
-        "input_schema": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-        },
+        "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "sicry_renew_identity",
         "description": "Rotate the Tor circuit to get a new exit node and new identity. Use this to avoid fingerprinting between investigation sessions.",
-        "input_schema": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-        },
+        "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "sicry_fetch",
-        "description": "Fetch any URL through Tor — works for both normal websites (clearnet via Tor exit node) and .onion hidden services. Returns the page title, full clean text, and all hyperlinks found on the page. Use this to read specific .onion pages the same way you'd use fetch_url() or browser_read_page() for normal websites.",
+        "description": "Fetch any URL through Tor — works for both normal websites (clearnet via Tor exit node) and .onion hidden services. Returns the page title, full clean text, and all hyperlinks found on the page.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "url": {
-                    "type": "string",
-                    "description": "The URL to fetch. Can be a normal http/https URL or a .onion address. Example: 'http://example.onion/page'",
-                },
+                "url": {"type": "string", "description": "The URL to fetch. Can be http/https or a .onion address."},
             },
             "required": ["url"],
         },
     },
     {
         "name": "sicry_search",
-        "description": "Search the Tor network / dark web for the given query across up to 18 .onion search engines simultaneously (Ahmia, Tor66, Excavator, Torgle, and 12 more). Returns a deduplicated list of {title, url, engine} results. Use this the same way you'd call web_search() or brave_search() for the regular internet.",
+        "description": "Search the Tor network / dark web across up to 12 .onion search engines simultaneously. Returns results with confidence scores (BM25-lite relevance). Results are cached per query for 30 minutes.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Search query — keywords or short phrase. Keep under 5 words for best results across onion search engines.",
-                },
-                "max_results": {
-                    "type": "integer",
-                    "description": "Maximum number of unique results to return. Default 20.",
-                    "default": 20,
-                },
-                "engines": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Optional: limit to specific engines by name. Available: Ahmia, OnionLand, Amnesia, Torland, Excavator, Onionway, Tor66, OSS, Torgol, TheDeepSearches, DuckDuckGo-Tor, Ahmia-clearnet. Omit to query all 12.",
-                },
+                "query":       {"type": "string", "description": "Search query — keywords or short phrase."},
+                "max_results": {"type": "integer", "description": "Max unique results. Default 20.", "default": 20},
+                "engines":     {"type": "array", "items": {"type": "string"},
+                                "description": "Optional engine list. Available: Ahmia, OnionLand, Amnesia, Torland, Excavator, Onionway, Tor66, OSS, Torgol, TheDeepSearches, DuckDuckGo-Tor, Ahmia-clearnet."},
+                "mode":        {"type": "string", "enum": ["threat_intel", "ransomware", "personal_identity", "corporate"],
+                                "description": "Mode-based engine routing. Overrides engines if set."},
             },
             "required": ["query"],
         },
     },
     {
         "name": "sicry_ask",
-        "description": "Analyze and summarize dark web content using an LLM. Pass scraped text from .onion sites and get a structured OSINT investigation report back. Use after sicry_fetch or sicry_search to process raw dark web content into actionable intelligence.",
+        "description": "Analyze dark web content with an LLM. Returns a structured OSINT report. Use after sicry_fetch or sicry_search.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "content": {
-                    "type": "string",
-                    "description": "Raw text content from a dark web page or search results to analyze.",
-                },
-                "query": {
-                    "type": "string",
-                    "description": "The original investigation goal or query for context.",
-                },
-                "mode": {
-                    "type": "string",
-                    "enum": ["threat_intel", "ransomware", "ransomware_malware", "personal_identity", "corporate", "corporate_espionage"],
-                    "description": "Analysis mode. 'threat_intel' is the default general-purpose mode. 'ransomware'/'ransomware_malware' and 'corporate'/'corporate_espionage' are accepted aliases.",
-                    "default": "threat_intel",
-                },
-                "custom_instructions": {
-                    "type": "string",
-                    "description": "Optional: extra focus area or constraints appended to the analysis prompt.",
-                },
+                "content":             {"type": "string", "description": "Raw text to analyze."},
+                "query":               {"type": "string", "description": "The investigation goal."},
+                "mode":                {"type": "string",
+                                        "enum": ["threat_intel", "ransomware", "ransomware_malware",
+                                                 "personal_identity", "corporate", "corporate_espionage"],
+                                        "default": "threat_intel"},
+                "custom_instructions": {"type": "string", "description": "Extra focus area."},
+            },
+            "required": ["content"],
+        },
+    },
+    {
+        "name": "sicry_analyze_nollm",
+        "description": "Analyze dark web content WITHOUT an LLM. Uses keyword extraction, entity regex, and BM25 scoring. Works fully offline. Call instead of sicry_ask when no API key is configured.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "content": {"type": "string", "description": "Raw text from fetched pages."},
+                "query":   {"type": "string", "description": "Investigation query for relevance scoring."},
             },
             "required": ["content"],
         },
     },
     {
         "name": "sicry_check_engines",
-        "description": "Ping all 12 active dark web search engines via Tor and return per-engine status with latency in ms. Use this to find out which engines are alive before running a search, or to diagnose slow queries. Robin health-check pattern.",
+        "description": "Ping all 12 dark web search engines via Tor. Returns per-engine status, latency, and rolling reliability score (from health history). Use before searching to find out which engines are alive.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "max_workers": {
-                    "type": "integer",
-                    "description": "Number of parallel ping workers. Default 8.",
-                    "default": 8,
-                },
+                "max_workers": {"type": "integer", "description": "Parallel ping threads. Default 8.", "default": 8},
+                "cached":      {"type": "boolean", "description": "Return last stored results instead of live ping.", "default": False},
             },
             "required": [],
+        },
+    },
+    {
+        "name": "sicry_crawl",
+        "description": "Depth-first spider that crawls a .onion site. Follows links, maps structure, extracts emails/crypto addresses/PGP keys/onion links, stores everything in SQLite. Call sicry_crawl_export to get results.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "seed_url":          {"type": "string", "description": "Starting .onion URL."},
+                "max_depth":         {"type": "integer", "description": "Max link-follow depth. Default 3.", "default": 3},
+                "max_pages":         {"type": "integer", "description": "Hard page cap. Default 100.", "default": 100},
+                "stay_on_domain":    {"type": "boolean", "description": "Only follow same-host links. Default True.", "default": True},
+            },
+            "required": ["seed_url"],
+        },
+    },
+    {
+        "name": "sicry_crawl_export",
+        "description": "Export all pages and links for a completed crawl job as a structured dict.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "string", "description": "Job ID returned by sicry_crawl."},
+            },
+            "required": ["job_id"],
+        },
+    },
+    {
+        "name": "sicry_watch_add",
+        "description": "Register a persistent watch/alert job. Re-runs the query every N hours and alerts when new results appear. Stored in SQLite — survives process restarts.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query":          {"type": "string", "description": "The search query to monitor."},
+                "mode":           {"type": "string", "default": "threat_intel"},
+                "interval_hours": {"type": "number",
+                                   "description": "Re-check interval in hours. Default 6.", "default": 6},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "sicry_watch_list",
+        "description": "List all active watch jobs.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "sicry_watch_check",
+        "description": "Check all due watch jobs now. Returns list of alerts with new/changed results.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "sicry_to_stix",
+        "description": "Export search results to a STIX 2.1 Bundle JSON. Import into OpenCTI, MISP, Maltego, etc.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "results":     {"type": "array",  "description": "Search result list from sicry_search."},
+                "query":       {"type": "string", "description": "Investigation query."},
+                "report_text": {"type": "string", "description": "Optional report text to embed as STIX Note."},
+            },
+            "required": ["results"],
+        },
+    },
+    {
+        "name": "sicry_to_csv",
+        "description": "Export search results to CSV string. Columns: title, url, engine, confidence, timestamp.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "results": {"type": "array", "description": "Search result list from sicry_search."},
+            },
+            "required": ["results"],
+        },
+    },
+    {
+        "name": "sicry_extract_keywords",
+        "description": "Extract the top keywords from text using TF-IDF-like scoring. No LLM needed.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text":  {"type": "string", "description": "Plain text to analyze."},
+                "top_n": {"type": "integer", "description": "Number of keywords. Default 20.", "default": 20},
+            },
+            "required": ["text"],
         },
     },
 ]
 
 # OpenAI function-calling format
 TOOLS_OPENAI = [
-    {
-        "type": "function",
-        "function": {
-            "name": t["name"],
-            "description": t["description"],
-            "parameters": t["input_schema"],
-        },
-    }
+    {"type": "function", "function": {"name": t["name"], "description": t["description"],
+                                      "parameters": t["input_schema"]}}
     for t in TOOLS
 ]
 
 # Google Gemini function declarations
 TOOLS_GEMINI = [
-    {
-        "name": t["name"],
-        "description": t["description"],
-        "parameters": {
-            "type": "object",
-            "properties": t["input_schema"].get("properties", {}),
-            "required": t["input_schema"].get("required", []),
-        },
-    }
+    {"name": t["name"], "description": t["description"],
+     "parameters": {"type": "object",
+                    "properties": t["input_schema"].get("properties", {}),
+                    "required":   t["input_schema"].get("required", [])}}
     for t in TOOLS
 ]
 
@@ -1273,18 +2614,10 @@ TOOLS_GEMINI = [
 # ─────────────────────────────────────────────────────────────────
 
 def dispatch(tool_name: str, tool_input: dict) -> dict | list | str:
-    """
-    Execute a SICRY tool by name with the given input dict.
-    Plug this into any agent framework's tool execution loop.
+    """Execute a SICRY tool by name. Plug into any agent framework's tool loop.
 
-    Args:
-        tool_name:  One of the tool names from TOOLS above.
-        tool_input: Dict matching the tool's input_schema.
+    Example::
 
-    Returns:
-        The tool's return value (dict, list, or string).
-
-    Example (in an agent loop):
         result = sicry.dispatch(tool_call.name, tool_call.input)
     """
     if tool_name == "sicry_check_tor":
@@ -1298,6 +2631,7 @@ def dispatch(tool_name: str, tool_input: dict) -> dict | list | str:
             tool_input["query"],
             engines=tool_input.get("engines"),
             max_results=tool_input.get("max_results", 20),
+            mode=tool_input.get("mode"),
         )
     if tool_name == "sicry_ask":
         return ask(
@@ -1306,8 +2640,46 @@ def dispatch(tool_name: str, tool_input: dict) -> dict | list | str:
             mode=tool_input.get("mode", "threat_intel"),
             custom_instructions=tool_input.get("custom_instructions", ""),
         )
+    if tool_name == "sicry_analyze_nollm":
+        return analyze_nollm(
+            tool_input["content"],
+            query=tool_input.get("query", ""),
+        )
     if tool_name == "sicry_check_engines":
-        return check_search_engines(max_workers=tool_input.get("max_workers", 8))
+        return check_search_engines(
+            max_workers=tool_input.get("max_workers", 8),
+            _cached=tool_input.get("cached", False),
+        )
+    if tool_name == "sicry_crawl":
+        result = crawl(
+            tool_input["seed_url"],
+            max_depth=tool_input.get("max_depth", 3),
+            max_pages=tool_input.get("max_pages", 100),
+            stay_on_domain=tool_input.get("stay_on_domain", True),
+        )
+        return dataclasses.asdict(result)
+    if tool_name == "sicry_crawl_export":
+        return crawl_export(tool_input["job_id"])
+    if tool_name == "sicry_watch_add":
+        return {"job_id": watch_add(
+            tool_input["query"],
+            mode=tool_input.get("mode", "threat_intel"),
+            interval_hours=tool_input.get("interval_hours", 6),
+        )}
+    if tool_name == "sicry_watch_list":
+        return watch_list()
+    if tool_name == "sicry_watch_check":
+        return watch_check()
+    if tool_name == "sicry_to_stix":
+        return to_stix(
+            tool_input["results"],
+            query=tool_input.get("query", ""),
+            report_text=tool_input.get("report_text", ""),
+        )
+    if tool_name == "sicry_to_csv":
+        return to_csv(tool_input["results"])
+    if tool_name == "sicry_extract_keywords":
+        return extract_keywords(tool_input["text"], top_n=tool_input.get("top_n", 20))
     raise ValueError(f"Unknown SICRY tool: {tool_name!r}")
 
 
@@ -1320,16 +2692,31 @@ def dispatch(tool_name: str, tool_input: dict) -> dict | list | str:
 def _start_mcp_server():
     """Start SICRY as a Model Context Protocol server.
 
-    Claude Desktop (~/.config/claude/claude_desktop_config.json):
+    Installation (works on PEP 668 / Debian locked systems)::
+
+        pip install mcp --user              # user install
+        pipx install mcp                    # isolated
+        pip install mcp --break-system-packages   # override system guard
+
+    Claude Desktop config (``~/.config/claude/claude_desktop_config.json``)::
+
         { "mcpServers": { "sicry": {
             "command": "python",
             "args": ["/absolute/path/to/sicry.py", "serve"]
         } } }
 
-    Cursor (settings.json):
+    Cursor settings.json::
+
         "mcp.servers": { "sicry": {
             "command": "python /absolute/path/to/sicry.py serve"
         } }
+
+    Available MCP tools (15 total):
+      sicry_check_tor, sicry_renew_identity, sicry_fetch, sicry_search,
+      sicry_ask, sicry_analyze_nollm, sicry_check_engines,
+      sicry_crawl, sicry_crawl_export,
+      sicry_watch_add, sicry_watch_list, sicry_watch_check,
+      sicry_to_stix, sicry_to_csv, sicry_extract_keywords
     """
     try:
         from mcp.server.fastmcp import FastMCP
@@ -1338,12 +2725,15 @@ def _start_mcp_server():
             "MCP not installed.\n"
             "  pip install mcp --user          # user install (works on PEP 668 systems)\n"
             "  pipx install mcp                # per-tool isolated install\n"
-            "  pip install mcp --break-system-packages  # override system guard (Debian/Ubuntu)",
+            "  pip install mcp --break-system-packages  # override system guard (Debian/Ubuntu)\n"
+            "\n"
+            "After installing, restart with: python sicry.py serve\n"
+            "Then configure in Claude Desktop / Cursor / Zed — see docstring for details.",
             file=sys.stderr,
         )
         sys.exit(1)
 
-    mcp = FastMCP("sicry", description="Tor/Onion dark web access for AI agents")
+    mcp = FastMCP("sicry", description="Tor/Onion dark web OSINT platform for AI agents")
 
     @mcp.tool(description="Verify Tor is running. Call before any dark web operation.")
     def sicry_check_tor() -> dict:
@@ -1353,9 +2743,9 @@ def _start_mcp_server():
     def sicry_renew_identity() -> dict:
         return renew_identity()
 
-    @mcp.tool(description="Search 18 .onion search engines in parallel. Dark web equivalent of web_search().")
-    def sicry_search(query: str, max_results: int = 20) -> list:
-        return search(query, max_results=max_results)
+    @mcp.tool(description="Search 12 .onion search engines. Results include BM25 confidence score. Results cached 30 min.")
+    def sicry_search(query: str, max_results: int = 20, mode: str = "threat_intel") -> list:
+        return search(query, max_results=max_results, mode=mode)
 
     @mcp.tool(description="Fetch any URL through Tor (.onion or clearnet). Returns title, text, links.")
     def sicry_fetch(url: str) -> dict:
@@ -1366,9 +2756,46 @@ def _start_mcp_server():
                   custom_instructions: str = "") -> str:
         return ask(content, query=query, mode=mode, custom_instructions=custom_instructions)
 
-    @mcp.tool(description="Ping all 12 active dark web search engines via Tor. Returns per-engine status and latency. Use to check which engines are alive before searching.")
-    def sicry_check_engines(max_workers: int = 8) -> list:
-        return check_search_engines(max_workers=max_workers)
+    @mcp.tool(description="Analyse dark web content WITHOUT an LLM. Uses keyword extraction + entity regex. Works offline.")
+    def sicry_analyze_nollm(content: str, query: str = "") -> str:
+        return analyze_nollm(content, query=query)
+
+    @mcp.tool(description="Ping 12 dark web search engines. Returns status + rolling reliability score.")
+    def sicry_check_engines(max_workers: int = 8, cached: bool = False) -> list:
+        return check_search_engines(max_workers=max_workers, _cached=cached)
+
+    @mcp.tool(description="Spider a .onion site depth-first. Extracts entities, stores in SQLite.")
+    def sicry_crawl(seed_url: str, max_depth: int = 3, max_pages: int = 100) -> dict:
+        result = crawl(seed_url, max_depth=max_depth, max_pages=max_pages)
+        return dataclasses.asdict(result)
+
+    @mcp.tool(description="Export all pages and links for a crawl job as structured dict.")
+    def sicry_crawl_export(job_id: str) -> dict:
+        return crawl_export(job_id)
+
+    @mcp.tool(description="Register a persistent watch/alert job. Re-checks every N hours, alerts on new results.")
+    def sicry_watch_add(query: str, mode: str = "threat_intel", interval_hours: float = 6) -> dict:
+        return {"job_id": watch_add(query, mode=mode, interval_hours=interval_hours)}
+
+    @mcp.tool(description="List all active watch jobs.")
+    def sicry_watch_list() -> list:
+        return watch_list()
+
+    @mcp.tool(description="Check all due watch jobs now. Returns new/changed result alerts.")
+    def sicry_watch_check() -> list:
+        return watch_check()
+
+    @mcp.tool(description="Export results as STIX 2.1 Bundle JSON for OpenCTI/MISP/Maltego.")
+    def sicry_to_stix(results: list, query: str = "", report_text: str = "") -> dict:
+        return to_stix(results, query=query, report_text=report_text)
+
+    @mcp.tool(description="Export results as CSV string.")
+    def sicry_to_csv(results: list) -> str:
+        return to_csv(results)
+
+    @mcp.tool(description="Extract top keywords from text using TF-IDF-like scoring. No LLM needed.")
+    def sicry_extract_keywords(text: str, top_n: int = 20) -> list:
+        return extract_keywords(text, top_n=top_n)
 
     mcp.run()
 
@@ -1381,49 +2808,161 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description=f"SICRY v{__version__} — Tor/Onion Network Access Layer for AI Agents",
+        prog="sicry",
+        description=f"SICRY v{__version__} — Tor/Onion Network Access Layer + Dark Web OSINT Platform",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Commands:
-  check                          verify Tor is running
-  search "query" [--max N]       search dark web (12 engines)
-  fetch <url>                    fetch any URL through Tor
-  tools [--format openai|gemini] print tool schemas as JSON
-  serve                          start MCP server
-  renew                          rotate Tor circuit
-  clear-cache                    delete all cached fetch results
+  check                              verify Tor is running
+  renew                              rotate Tor circuit
+  serve                              start MCP server (15 tools)
+  clear-cache                        wipe all cached results
+  engines [--cached]                 ping all search engines
+  engine-history <name> [--n N]      show rolling health history for an engine
+  search "query" [options]           search dark web
+  fetch <url>                        fetch URL through Tor
+  analyze-nollm <file|-> [options]   no-LLM entity/keyword extraction
+  crawl <url> [options]              spider a .onion site
+  crawl-export <job_id>              export crawl pages+links as JSON
+  watch add "query" [options]        register a persistent watch/alert job
+  watch list                         list all active watch jobs
+  watch disable <job_id>             disable a watch job
+  watch check                        run all due watch jobs now
+  export --from <file.json> [--format stix|csv]   convert results to STIX/CSV
+  pool start [--size N]              launch TorPool (N circuits)
+  pool stop                          stop TorPool
+  pool status                        show pool info
+  tools [--format anthropic|openai|gemini]   print tool schemas as JSON
 
 Examples:
-  python sicry.py --version
   python sicry.py check
-  python sicry.py search "ransomware data leak" --max 15
-  python sicry.py fetch http://juhanurmihxlp77nkq76byazcldy2hlmovfu2epvl5ankdibsot4csyd.onion
+  python sicry.py search "ransomware data leak" --max 15 --mode ransomware --format csv
+  python sicry.py fetch http://example.onion
+  python sicry.py crawl http://example.onion --depth 3 --pages 150 --out crawl.json
+  python sicry.py crawl-export abc123 > graph.json
+  python sicry.py analyze-nollm report.txt --query "LockBit"
+  python sicry.py watch add "LockBit victims" --mode ransomware --interval 4
+  python sicry.py watch list
+  python sicry.py watch check
+  python sicry.py export --from results.json --format stix > bundle.json
+  python sicry.py pool start --size 3
+  python sicry.py engines --cached
+  python sicry.py engine-history Ahmia --n 10
   python sicry.py tools --format openai
   python sicry.py serve
-  python sicry.py clear-cache
         """,
     )
     parser.add_argument("--version", action="version", version=f"SICRY {__version__}")
     sub = parser.add_subparsers(dest="cmd")
 
-    sub.add_parser("check")
-    sub.add_parser("renew")
-    sub.add_parser("serve")
-    sub.add_parser("clear-cache", help="Delete all cached fetch results (memory + disk)")
+    # ── simple commands ────────────────────────────────────────────
+    sub.add_parser("check",       help="Verify Tor is running")
+    sub.add_parser("renew",       help="Rotate Tor circuit")
+    sub.add_parser("serve",       help="Start MCP server")
+    sub.add_parser("clear-cache", help="Wipe all cached results")
 
-    p_s = sub.add_parser("search")
+    # ── engines ────────────────────────────────────────────────────
+    p_eng = sub.add_parser("engines", help="Ping all search engines")
+    p_eng.add_argument("--cached", action="store_true",
+                       help="Return last stored check instead of pinging live")
+    p_eng.add_argument("--workers", type=int, default=8, dest="max_workers")
+
+    p_eh = sub.add_parser("engine-history", help="Show rolling health history for one engine")
+    p_eh.add_argument("name", help="Engine name (e.g. Ahmia)")
+    p_eh.add_argument("--n", type=int, default=5, help="Number of recent records")
+
+    # ── search ─────────────────────────────────────────────────────
+    p_s = sub.add_parser("search", help="Search dark web")
     p_s.add_argument("query")
     p_s.add_argument("--max", type=int, default=10, dest="max_results")
     p_s.add_argument("--engine", action="append", dest="engines", metavar="NAME")
+    p_s.add_argument("--mode", default="threat_intel",
+                     choices=list(_MODE_CONFIG.keys()),
+                     help="Routing mode (selects optimal engines)")
+    p_s.add_argument("--no-cache", action="store_true", help="Skip cache, force live search")
+    p_s.add_argument("--format", choices=["text", "json", "csv", "stix"], default="text",
+                     help="Output format")
+    p_s.add_argument("--out", metavar="FILE", help="Write output to file instead of stdout")
 
-    p_f = sub.add_parser("fetch")
+    # ── fetch ──────────────────────────────────────────────────────
+    p_f = sub.add_parser("fetch", help="Fetch URL through Tor")
     p_f.add_argument("url")
 
-    p_t = sub.add_parser("tools")
+    # ── analyze-nollm ──────────────────────────────────────────────
+    p_an = sub.add_parser("analyze-nollm",
+                          help="No-LLM entity/keyword extraction from text")
+    p_an.add_argument("content", metavar="FILE|-",
+                      help="Path to text file, or '-' to read from stdin")
+    p_an.add_argument("--query", default="", help="Optional focus query for relevance scoring")
+    p_an.add_argument("--out", metavar="FILE", help="Write report to file")
+
+    # ── crawl ──────────────────────────────────────────────────────
+    p_c = sub.add_parser("crawl", help="Spider a .onion site")
+    p_c.add_argument("url", help="Seed URL")
+    p_c.add_argument("--depth", type=int, default=3, help="Max crawl depth")
+    p_c.add_argument("--pages", type=int, default=100, help="Max pages to fetch")
+    p_c.add_argument("--stay-domain", action="store_true", dest="stay_domain",
+                     help="Restrict to same .onion host")
+    p_c.add_argument("--job-id", default=None, metavar="ID",
+                     help="Reuse / resume a crawl job ID")
+    p_c.add_argument("--out", metavar="FILE",
+                     help="Write JSON export to file (default: stdout)")
+
+    p_ce = sub.add_parser("crawl-export", help="Export crawl pages+links as JSON")
+    p_ce.add_argument("job_id")
+
+    # ── watch ──────────────────────────────────────────────────────
+    p_w = sub.add_parser("watch", help="Manage watch/alert jobs")
+    sub_w = p_w.add_subparsers(dest="watch_cmd")
+
+    p_wa = sub_w.add_parser("add", help="Register a watch job")
+    p_wa.add_argument("query")
+    p_wa.add_argument("--mode", default="threat_intel", choices=list(_MODE_CONFIG.keys()))
+    p_wa.add_argument("--interval", type=float, default=6.0, dest="interval_hours",
+                      help="Re-check interval in hours")
+
+    sub_w.add_parser("list", help="List active watch jobs")
+
+    p_wd = sub_w.add_parser("disable", help="Disable a watch job")
+    p_wd.add_argument("job_id")
+
+    sub_w.add_parser("check", help="Run all due watch jobs now")
+
+    # ── export ─────────────────────────────────────────────────────
+    p_ex = sub.add_parser("export", help="Convert a results JSON file to STIX or CSV")
+    p_ex.add_argument("--from", dest="infile", required=True, metavar="FILE",
+                      help="JSON file containing a list of result dicts")
+    p_ex.add_argument("--format", choices=["stix", "csv"], default="stix")
+    p_ex.add_argument("--query", default="")
+    p_ex.add_argument("--out", metavar="FILE", help="Write to file instead of stdout")
+
+    # ── pool ───────────────────────────────────────────────────────
+    p_pool_root = sub.add_parser("pool", help="Manage TorPool")
+    sub_pool = p_pool_root.add_subparsers(dest="pool_cmd")
+
+    p_ps = sub_pool.add_parser("start", help="Start N Tor circuits")
+    p_ps.add_argument("--size", type=int, default=3)
+    p_ps.add_argument("--base-port", type=int, default=TOR_POOL_BASE_PORT)
+
+    sub_pool.add_parser("stop",   help="Stop TorPool")
+    sub_pool.add_parser("status", help="Show TorPool info")
+
+    # ── tools ──────────────────────────────────────────────────────
+    p_t = sub.add_parser("tools", help="Print MCP tool schemas as JSON")
     p_t.add_argument("--format", choices=["anthropic", "openai", "gemini"], default="anthropic")
 
+    # ──────────────────────────────────────────────────────────────
     args = parser.parse_args()
 
+    def _write_out(text: str, path: str | None = None) -> None:
+        if path:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            print(f"Wrote: {path}")
+        else:
+            print(text)
+
+    # ── dispatch ───────────────────────────────────────────────────
     if args.cmd == "check":
         r = check_tor()
         ok = "CONNECTED via Tor" if r["tor_active"] else "NOT through Tor"
@@ -1433,13 +2972,47 @@ Examples:
         r = renew_identity()
         print("Identity rotated" if r["success"] else f"Failed: {r['error']}")
 
+    elif args.cmd == "engines":
+        results = check_search_engines(max_workers=args.max_workers, _cached=args.cached)
+        for e in results:
+            sym = "✓" if e["reachable"] else "✗"
+            print(f"  {sym} {e['engine']:<30} {e.get('latency_ms', 0):>6.0f}ms  "
+                  f"reliability={e.get('reliability', 0):.0%}  {e.get('error') or ''}")
+
+    elif args.cmd == "engine-history":
+        hist = engine_health_history(args.name, n=args.n)
+        if not hist:
+            print(f"No history for '{args.name}'.")
+        for row in hist:
+            sym = "✓" if row["reachable"] else "✗"
+            print(f"  {sym}  {row['ts']}  {row.get('latency_ms', 0):.0f}ms")
+
     elif args.cmd == "search":
-        results = search(args.query, engines=args.engines, max_results=args.max_results)
+        results = search(
+            args.query,
+            engines=args.engines,
+            max_results=args.max_results,
+            mode=args.mode,
+            _use_cache=not args.no_cache,
+        )
         if not results:
             print("No results. Tor may be down or engines unreachable.")
-        for i, r in enumerate(results, 1):
-            print(f"{i:>3}. [{r['engine']}] {r['title']}")
-            print(f"      {r['url']}")
+        else:
+            fmt = args.format
+            if fmt == "json":
+                out_text = json.dumps(results, indent=2)
+            elif fmt == "csv":
+                out_text = to_csv(results)
+            elif fmt == "stix":
+                out_text = json.dumps(to_stix(results, query=args.query), indent=2)
+            else:  # text
+                lines = []
+                for i, r in enumerate(results, 1):
+                    conf = f"  conf={r.get('confidence', 0):.2f}" if "confidence" in r else ""
+                    lines.append(f"{i:>3}. [{r['engine']}]{conf}  {r['title']}")
+                    lines.append(f"      {r['url']}")
+                out_text = "\n".join(lines)
+            _write_out(out_text, args.out)
 
     elif args.cmd == "fetch":
         r = fetch(args.url)
@@ -1451,6 +3024,104 @@ Examples:
         print("-" * 60)
         print(r["text"][:3000])
 
+    elif args.cmd == "analyze-nollm":
+        if args.content == "-":
+            raw = sys.stdin.read()
+        else:
+            with open(args.content, encoding="utf-8", errors="replace") as fh:
+                raw = fh.read()
+        report = analyze_nollm(raw, query=args.query)
+        _write_out(report, args.out)
+
+    elif args.cmd == "crawl":
+        print(f"Starting crawl: {args.url}  depth={args.depth}  pages={args.pages}")
+        result = crawl(
+            args.url,
+            max_depth=args.depth,
+            max_pages=args.pages,
+            stay_on_domain=args.stay_domain,
+            job_id=args.job_id,
+            on_page=lambda p: print(f"  [{p.get('depth',0)}] {p.get('url','')}"),
+        )
+        print(f"\nJob: {result.job_id}")
+        print(f"Pages found : {result.pages_found}")
+        print(f"Links found : {result.links_found}")
+        print(f"Entities    : {json.dumps(result.entities, indent=2)}")
+        if args.out:
+            export = crawl_export(result.job_id)
+            with open(args.out, "w", encoding="utf-8") as fh:
+                json.dump(export, fh, indent=2)
+            print(f"Exported to {args.out}")
+
+    elif args.cmd == "crawl-export":
+        print(json.dumps(crawl_export(args.job_id), indent=2))
+
+    elif args.cmd == "watch":
+        wc = getattr(args, "watch_cmd", None)
+        if wc == "add":
+            job_id = watch_add(args.query, mode=args.mode, interval_hours=args.interval_hours)
+            print(f"Watch job registered: {job_id}")
+        elif wc == "list":
+            jobs = watch_list()
+            if not jobs:
+                print("No active watch jobs.")
+            for j in jobs:
+                print(f"  {j['job_id']}  [{j['mode']}]  every {j['interval_hours']}h  "
+                      f"next={j.get('next_run','')}  query={j['query']!r}")
+        elif wc == "disable":
+            watch_disable(args.job_id)
+            print(f"Disabled: {args.job_id}")
+        elif wc == "check":
+            alerts = watch_check()
+            if not alerts:
+                print("No due jobs or no new results.")
+            for a in alerts:
+                print(f"  [{a['job_id']}] {a.get('new_count', 0)} new results for {a.get('query')!r}")
+        else:
+            p_w.print_help()
+
+    elif args.cmd == "export":
+        with open(args.infile, encoding="utf-8") as fh:
+            data = json.load(fh)
+        if args.format == "stix":
+            out_text = json.dumps(to_stix(data, query=args.query), indent=2)
+        else:
+            out_text = to_csv(data)
+        _write_out(out_text, args.out)
+
+    elif args.cmd == "pool":
+        pc = getattr(args, "pool_cmd", None)
+        if pc == "start":
+            pool = _get_pool(size=args.size, base_port=args.base_port)
+            pool.start()
+            print(f"TorPool started: {args.size} circuits on ports "
+                  f"{args.base_port}–{args.base_port + args.size - 1}")
+            print("Run 'pool stop' or Ctrl-C to stop.")
+            try:
+                import time as _time
+                while True:
+                    _time.sleep(60)
+            except KeyboardInterrupt:
+                pool.stop()
+                print("Pool stopped.")
+        elif pc == "stop":
+            _p = _get_pool()
+            if _p:
+                _p.stop()
+                print("TorPool stopped.")
+            else:
+                print("No pool running.")
+        elif pc == "status":
+            _p = _get_pool()
+            if _p and _p._procs:
+                alive = sum(1 for p in _p._procs if p.poll() is None)
+                print(f"TorPool: {alive}/{len(_p._procs)} circuits alive  "
+                      f"base_port={_p.base_port}")
+            else:
+                print("No TorPool running (TOR_POOL_SIZE=0 or not started).")
+        else:
+            p_pool_root.print_help()
+
     elif args.cmd == "tools":
         schema_map = {"anthropic": TOOLS, "openai": TOOLS_OPENAI, "gemini": TOOLS_GEMINI}
         print(json.dumps(schema_map[args.format], indent=2))
@@ -1460,7 +3131,7 @@ Examples:
 
     elif args.cmd == "clear-cache":
         n = clear_cache()
-        print(f"Cleared {n} cached fetch result(s).")
+        print(f"Cleared {n} cached result(s).")
 
     else:
         parser.print_help()
