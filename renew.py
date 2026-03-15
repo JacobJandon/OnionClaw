@@ -39,7 +39,8 @@ _parser.add_argument("--json", action="store_true",
                      help="Print only the JSON result, no human-readable output")
 _args = _parser.parse_args()
 
-print("Rotating Tor circuit...")
+if not _args.json:
+    print("Rotating Tor circuit...")
 result = sicry.renew_identity()
 
 if _args.json:

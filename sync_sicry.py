@@ -37,13 +37,12 @@ DEST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sicry.py")
 
 def main():
     parser = argparse.ArgumentParser(description="Sync bundled sicry.py from upstream SICRY™")
-    parser.add_argument("--version", action="version", version="OnionClaw sync_sicry 1.2.2")
+    parser.add_argument("--version", action="version", version="OnionClaw sync_sicry 1.2.3")
     parser.add_argument("--tag",     default="main", help="git ref / tag to fetch (default: main)")
     parser.add_argument("--dry-run", action="store_true", help="print what would happen without writing")
     args = parser.parse_args()
 
     url = UPSTREAM_RAW.format(ref=args.tag)
-    print(f"Fetching {url} ...")
 
     try:
         r = requests.get(url, timeout=15)
@@ -67,6 +66,7 @@ def main():
         print(f"Error: HTTP {r.status_code} fetching {url}", file=sys.stderr)
         sys.exit(1)
 
+    print(f"Fetching {url} ...")
     new_content = r.text
 
     # Extract upstream version
