@@ -5,8 +5,8 @@
 sync_sicry.py — update the bundled sicry.py from the upstream SICRY™ repo.
 
 Usage:
-    python3 scripts/sync_sicry.py           # fetch latest from main
-    python3 scripts/sync_sicry.py --tag v1.0.0   # fetch a specific release tag
+    python3 sync_sicry.py           # fetch latest from main
+    python3 sync_sicry.py --tag v1.0.0   # fetch a specific release tag
 
 Run from the OnionClaw root directory.
 """
