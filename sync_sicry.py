@@ -12,10 +12,10 @@ IMPORTANT — tag versioning:
     --tag must be a SICRY™ repository tag, NOT an OnionClaw tag.
     SICRY™ and OnionClaw have independent release cadences.
 
-    SICRY™ available tags: v1.0.0, v1.0.1, v1.1.0, v1.1.1
-    OnionClaw tags:        v1.0.0, v1.0.1, v1.1.0, v1.1.1, v1.2.0, v1.2.1
+    The 404 error message performs a live GitHub API lookup to show the current
+    SICRY™ tags at the time of the failed request.
 
-    Example: --tag v1.2.1 will 404 (no SICRY™ v1.2.1 exists).
+    Example: --tag v1.2.1 will 404 if no SICRY™ v1.2.1 exists.
              --tag v1.1.1 works (SICRY™ v1.1.1 exists).
 
 Run from the OnionClaw root directory.
@@ -31,8 +31,33 @@ except Exception as _e:
     print(f"Error: requests not installed — pip3 install requests ({_e})", file=sys.stderr)
     sys.exit(1)
 
-UPSTREAM_RAW = "https://raw.githubusercontent.com/JacobJandon/Sicry/{ref}/sicry.py"
+UPSTREAM_RAW  = "https://raw.githubusercontent.com/JacobJandon/Sicry/{ref}/sicry.py"
+SICRY_TAGS_API = "https://api.github.com/repos/JacobJandon/Sicry/tags?per_page=50"
 DEST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sicry.py")
+
+
+def _fetch_sicry_tags() -> str:
+    """Return a comma-separated list of SICRY™ tags fetched live from the GitHub API.
+    Falls back to a static fallback string on any error so the 404 message is never blank."""
+    try:
+        resp = requests.get(SICRY_TAGS_API, timeout=10)
+        if not resp.ok:
+            raise ValueError(f"HTTP {resp.status_code}")
+        names = [t["name"] for t in resp.json() if isinstance(t, dict) and "name" in t]
+        if not names:
+            raise ValueError("empty tag list")
+        # Sort newest-first using semver components (ignore non-semver names)
+        def _ver(n):
+            stripped = n.lstrip("v")
+            parts = stripped.split(".")
+            try:
+                return tuple(int(p) for p in parts)
+            except ValueError:
+                return (0, 0, 0)
+        names.sort(key=_ver, reverse=True)
+        return ", ".join(names)
+    except Exception:
+        return "v1.0.0, v1.0.1, v1.1.0, v1.1.1  (could not fetch live list)"
 
 
 def main():
@@ -51,11 +76,12 @@ def main():
         sys.exit(1)
 
     if r.status_code == 404:
+        sicry_tags = _fetch_sicry_tags()
         print(f"Error: ref '{args.tag}' not found in the SICRY\u2122 repo (HTTP 404).",
               file=sys.stderr)
         print(f"  --tag must be a SICRY\u2122 tag, not an OnionClaw tag.",
               file=sys.stderr)
-        print(f"  SICRY\u2122 available tags: v1.0.0, v1.0.1, v1.1.0, v1.1.1",
+        print(f"  SICRY\u2122 available tags: {sicry_tags}",
               file=sys.stderr)
         print(f"  OnionClaw tags are independent — e.g. v1.2.1 does not exist in SICRY\u2122.",
               file=sys.stderr)
