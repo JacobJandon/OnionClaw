@@ -29,18 +29,66 @@ python3 pipeline.py --query "acme.com data leak" --mode corporate
 
 ---
 
+## ⚠️  The Rabbit Hole
+
+> *Autonomous agents paired with the Tor network will be one of the most dangerous automation stacks on the internet within the next five years. OnionClaw is living proof that the rabbit hole goes deeper than most people think.*
+
+This tool is built for **legitimate OSINT, threat intelligence, and security research**. But the same primitives — anonymous routing, bulk scraping, AI-driven synthesis, zero-attribution browsing, automated identity rotation — are precisely what make this combination genuinely dangerous in the wrong hands.
+
+This is not a warning tucked in fine print. It is the whole point of writing it down openly.
+
+### What the stack enables — the full map
+
+| Use case | What it looks like |
+|---|---|
+| **Dark-web crawling** | Automated, headless spidering of `.onion` services at scale — forums, paste sites, markets, leak boards — with full identity rotation between every request. No human ever touches a keyboard. |
+| **Threat intelligence** | Continuous monitoring of ransomware group blogs, initial access broker ads, CVE exploit drops, and actor chatter long before it surfaces on clearnet feeds. |
+| **Marketplace monitoring** | Price tracking, stock alerts, vendor reputation scraping, and availability checks across darknet markets — the same logic a researcher uses to track fentanyl price trends is the same logic a supplier uses to undercut competitors. |
+| **Credential surveillance** | Watching paste boards, breach dumps, and forum leaks for specific email domains, API keys, SSH keys, or internal hostnames the moment they appear — at a scale no human analyst can match. |
+| **Deanonymisation research** | Cross-correlating `.onion` service metadata with clearnet traces, timing attacks, correlation of writing style and PGP keys — used both by law enforcement hunting criminals and by threat actors hunting journalists and dissidents. |
+| **Criminal automation** | Autonomous agents placing orders, posting ads, messaging vendors, managing mule accounts, draining wallets — an entire criminal operation running without a human ever in the loop. |
+| **Disinformation infrastructure** | Coordinated persona networks on hidden boards, fabricated document drops timed to bleed into legitimate OSINT pipelines, synthetic intelligence that reads real but originates from nowhere. |
+| **Zero-day brokerage** | Automated monitoring of exploit vendor channels, private CVE auction boards, and vulnerability markets — buy-side and sell-side intelligence gathered faster than any human analyst. |
+
+### The ugly side
+
+The 2026 internet is already at the edge of this. Within five years, AI agents that can:
+
+1. **Browse anonymously** through rotating Tor circuits with no persistent identity
+2. **Understand context** well enough to navigate dark web UIs, CAPTCHA logic, and forum culture without hardcoded selectors
+3. **Act autonomously** — search, buy, post, exfiltrate, rotate — in closed loops with no human confirmation step
+4. **Self-orchestrate** across dozens of simultaneous Tor identities on parallel threads
+
+…represent a qualitative shift from *human criminals using tools* to **autonomous criminal infrastructure operating at machine speed with no human in the loop**. The bottleneck has always been human attention. Remove it and the scaling properties of dark web operations change completely.
+
+OnionClaw demonstrates all four of those primitives working together **today**. The full `pipeline.py` step — query refinement → multi-engine search → result filtering → batch scrape → LLM synthesis → identity rotation — is a complete autonomous dark web intelligence loop. Remove the OSINT framing and it is equally a complete autonomous dark web **operation** loop. The code is the same either way.
+
+### Why this is written explicitly
+
+Security tools that pretend the dual-use problem does not exist are more dangerous than ones that name it directly. If you are building on top of OnionClaw:
+
+- **Know what you are building.** The pipeline does not know if the query is `"acme.com credential leak"` for a pentest or `"rival vendor SSH keys"` for espionage.
+- **Know your jurisdiction.** Automated access to dark web content and `.onion` services may be illegal in your country regardless of intent or findings.
+- **Tor is not legal protection.** It is operational security. The two are different things with very different limits.
+- **AI + Tor + autonomy is not a theoretical threat.** It is a present capability. This repo is one of many signals that the tooling is ready.
+
+OnionClaw is published for **defensive research, red-team engagements, and threat intelligence work**. The code does not know the difference between those uses and their inverse. You do. Build accordingly.
+
+---
+
 ## Contents
 
-1. [What OnionClaw does](#what-onionclaw-does)
-2. [Requirements](#requirements)
-3. [Install as OpenClaw skill](#install-as-openclaw-skill)
-4. [Standalone install](#standalone-install)
-5. [Configuration](#configuration)
-6. [All seven commands](#all-seven-commands)
-7. [Investigation flows](#investigation-flows)
-8. [Analysis modes](#analysis-modes)
-9. [Troubleshooting](#troubleshooting)
-10. [Credits](#credits)
+1. [⚠️ The Rabbit Hole](#️-the-rabbit-hole)
+2. [What OnionClaw does](#what-onionclaw-does)
+3. [Requirements](#requirements)
+4. [Install as OpenClaw skill](#install-as-openclaw-skill)
+5. [Standalone install](#standalone-install)
+6. [Configuration](#configuration)
+7. [All seven commands](#all-seven-commands)
+8. [Investigation flows](#investigation-flows)
+9. [Analysis modes](#analysis-modes)
+10. [Troubleshooting](#troubleshooting)
+11. [Credits](#credits)
 
 ---
 
@@ -562,4 +610,4 @@ MIT License — Copyright (c) 2026 JacobJandon
 See [LICENSE](LICENSE) for full text.
 
 ---
-> Use responsibly and lawfully. For OSINT, security research, and threat intelligence purposes only.
+> ⚠️  **Use responsibly and lawfully.** Built for OSINT, security research, and threat intelligence. Read [The Rabbit Hole](#️-the-rabbit-hole) section before deploying autonomously.
