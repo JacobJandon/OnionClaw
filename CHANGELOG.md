@@ -7,6 +7,25 @@ Versioning follows [Semantic Versioning](https://semver.org).
 
 ---
 
+## [2.1.13] — 2026-03-16
+
+### Fixed
+- **[BUG-NEW]** `--scrape 0 --out <file>` silently wrote no file and exited 0.
+
+  `if not pages: sys.exit(0)` fired for both "services unreachable" and
+  "user passed `--scrape 0`", dropping the output file with no actionable
+  warning in the latter case.
+
+  **Fix:** split on `scrape_count`:
+  - `scrape_count > 0`, empty pages → services unreachable → `sys.exit(0)` as
+    before.
+  - `scrape_count == 0` → prints `WARN: --scrape 0: no pages scraped — output
+    file will contain search results only.` to stderr, then **continues** to
+    step 7 and the file-write block.  The `--out` / `--output-dir` file is
+    always written.
+
+---
+
 ## [2.1.12] — 2026-03-16
 
 ### Fixed

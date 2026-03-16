@@ -718,8 +718,20 @@ if best and pages:
             _br.setdefault("_no_content", True)
 
 if not pages:
-    print("No pages could be scraped — all hidden services unreachable.")
-    sys.exit(0)
+    if scrape_count > 0:
+        # Services were genuinely unreachable — no content to analyse.
+        print("No pages could be scraped — all hidden services unreachable.")
+        sys.exit(0)
+    else:
+        # [BUG-NEW v2.1.13] --scrape 0: user intentionally skipped scraping.
+        # Previously exited here (same sys.exit(0) as the unreachable path),
+        # which silently dropped --out / --output-dir files with no warning.
+        # Now: warn to stderr and continue so the output file is always written.
+        print(
+            "WARN: --scrape 0: no pages scraped — "
+            "output file will contain search results only.",
+            file=sys.stderr,
+        )
 
 # ─────────────────────────────────────────────────────────────────
 # Step 7: Analysis
