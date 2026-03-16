@@ -206,6 +206,26 @@ if args.watch_check:
                     _json.dump({"job_id": a["job_id"], "query": a["query"],
                                 "results": a["results"]}, _wf, indent=2)
                 print(f"       saved → {_wout}")
+    # [2] v2.1.9: also list waiting (non-due) jobs so every job's health is
+    # visible — not just the ones that ran today.
+    _due_ids = {a["job_id"] for a in alerts}
+    _waiting = [j for j in sicry.watch_list() if j["id"] not in _due_ids]
+    if _waiting:
+        print()
+        print(f"Waiting jobs ({len(_waiting)}) — not yet due:")
+        for _wj in _waiting:
+            _wlast = _wj.get("last_run")
+            _wint  = _wj.get("interval_hours", 6)
+            _wlast_str = (_time.strftime("%Y-%m-%d %H:%M", _time.localtime(_wlast))
+                          if _wlast else "never")
+            if _wlast:
+                _wnext_str = _time.strftime(
+                    "%Y-%m-%d %H:%M", _time.localtime(_wlast + _wint * 3600))
+            else:
+                _wnext_str = "overdue (never run)"
+            print(f"  [waiting] [{_wj['id']}] [{_wj['mode']}] every {_wint}h  "
+                  f"last={_wlast_str}  next={_wnext_str}")
+            print(f"       query: {_wj['query']!r}")
     sys.exit(0)
 
 # ── standalone: watch-list ────────────────────────────────────────────

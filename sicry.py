@@ -2,7 +2,7 @@
 # Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/Sicry
 from __future__ import annotations
 
-__version__ = "2.1.8"
+__version__ = "2.1.9"
 
 """
 SICRY — Tor/Onion Network Access Layer for AI Agents
@@ -297,20 +297,34 @@ class _DB:
         ).fetchall()
         return [dict(r) for r in rows]
 
-    def engine_reliability(self, engine: str, window: int = 5) -> float | None:
-        """Fraction of last `window` checks where engine was up.
-        Returns ``None`` when no history exists (engine never checked this session).
+    def engine_reliability(self, engine: str, window: int = 20) -> float | None:
+        """Reliability score for `engine` computed over the last `window` checks.
 
-        Uses Laplace (add-1) smoothing so a single downtime episode shows up
-        against an otherwise perfect history — prevents perpetual ``100%``.
+        Uses **exponential time-decay** (half-life 48 h) combined with Laplace
+        add-1 smoothing.  A recent outage shows up clearly even if all prior
+        history was green; stale "up" records decay toward zero weight so a
+        brand-new install and one running for months no longer look identical.
+
+        Returns ``None`` when no history exists (engine never checked).
+
+        [4] v2.1.9: added time-decay so reliability reflects *recent* behaviour.
         """
         rows = self.engine_history_get(engine, window)
-        if not rows:
-            return None   # UX-4 fix: distinguish "never checked" from "100% up"
-        up = sum(1 for r in rows if r["status"] == "up")
-        # UX-2 v2.1.7: Laplace smoothing (up+1)/(n+2) prevents perpetual 100%/0%
-        # so a single downtime incident is visible even against a full "up" history.
-        return (up + 1) / (len(rows) + 2)
+        if not rows:   # UX-4 fix: distinguish "never checked" from "100% up"
+            return None
+        _now = time.time()
+        _hl  = 48 * 3600           # half-life: 48 hours
+        _ln2 = math.log(2)
+        w_up = 0.0
+        w_total = 0.0
+        for r in rows:
+            age_s = max(0.0, _now - (r.get("ts") or _now))
+            w = math.exp(-_ln2 * age_s / _hl)  # weight ∈ (0, 1]
+            w_total += w
+            if r["status"] == "up":
+                w_up += w
+        # Laplace smoothing: never returns exactly 0 or 1
+        return (w_up + 1) / (w_total + 2)
 
     # ── watch jobs ─────────────────────────────────────────────────
     def watch_add(self, query: str, mode: str = "threat_intel",
@@ -2587,6 +2601,7 @@ def search_and_crawl(
     mode: Optional[str] = None,
     stay_on_domain: bool = True,
     _use_cache: bool = True,
+    job_id: Optional[str] = None,  # [3] v2.1.9: accept / generate a job_id
 ) -> dict:
     """Search dark web engines then automatically spider the top-N results.
 
@@ -2608,6 +2623,7 @@ def search_and_crawl(
     Returns::
 
         {
+          "job_id":         str,             # stable ID usable with crawl_export() / to_stix() / --resume
           "query":          str,
           "search_results": [...],           # full scored list from search()
           "crawls":         {url: dict, ...}, # one CrawlResult dict per crawled URL
@@ -2619,6 +2635,11 @@ def search_and_crawl(
         for url, crawl in result["crawls"].items():
             print(url, crawl["pages_found"], "pages")
     """
+    # [3] v2.1.9: generate a stable job_id for the whole run so callers can
+    # pass the return value to crawl_export() / to_stix() / to_misp() / --resume
+    # without manually unpacking and reformatting.
+    _sac_job_id: str = job_id or str(uuid.uuid4())[:8]
+
     search_results = search(
         query,
         engines=engines,
@@ -2643,8 +2664,9 @@ def search_and_crawl(
 
     def _do_crawl(url: str) -> None:
         try:
+            # Pass the parent job_id so all pages share the same DB namespace
             cr = crawl(url, max_depth=max_depth, max_pages=max_pages,
-                       stay_on_domain=stay_on_domain)
+                       stay_on_domain=stay_on_domain, job_id=_sac_job_id)
             with _lock:
                 crawl_results[url] = dataclasses.asdict(cr)
         except Exception:
@@ -2656,6 +2678,7 @@ def search_and_crawl(
         list(pool.map(_do_crawl, seeds))
 
     return {
+        "job_id":         _sac_job_id,  # [3] v2.1.9: stable pipeline handle
         "query":          query,
         "search_results": search_results,
         "crawls":         crawl_results,
