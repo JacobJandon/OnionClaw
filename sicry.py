@@ -2,7 +2,7 @@
 # Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/Sicry
 from __future__ import annotations
 
-__version__ = "2.0.2"
+__version__ = "2.1.0"
 
 """
 SICRY — Tor/Onion Network Access Layer for AI Agents
@@ -1575,52 +1575,62 @@ def search(
 
     def _fetch_engine(engine: dict) -> list[dict]:
         url = engine["url"].format(query=quote_plus(query))
-        headers = {"User-Agent": random.choice(_USER_AGENTS)}
-        session = _pool_session()
         # Compute engine's own hostname so we can exclude self-referential links
         _eng_host_m = re.findall(r"https?://([^/]+)", engine["url"])
         _eng_host = _eng_host_m[0] if _eng_host_m else ""
+        # Transient errors that are safe to retry (circuit hiccup / throttle)
+        _TRANSIENT_KW = ("timed out", "SOCKS", "Connection refused",
+                         "RemoteDisconnected", "ConnectionError",
+                         "ConnectionReset", "ProxyError")
         found = []
-        try:
-            resp = session.get(url, headers=headers, timeout=TOR_TIMEOUT)
-            if resp.status_code != 200:
-                return []
-            soup = BeautifulSoup(resp.text, "html.parser")
-            # Try to find result containers first (more precise)
-            result_links = (
-                soup.select(".result a, .results a, li.result a, div.result a,"
-                            " .search-result a, .web-result a, td.result a") or
-                soup.find_all("a")
-            )
-            for a in result_links:
-                try:
-                    href  = a.get("href", "")
-                    title = a.get_text(strip=True)
-                    if len(title) < 4:
+        for _attempt in range(3):        # initial attempt + up to 2 retries
+            headers = {"User-Agent": random.choice(_USER_AGENTS)}
+            session = _pool_session()
+            try:
+                resp = session.get(url, headers=headers, timeout=TOR_TIMEOUT)
+                if resp.status_code != 200:
+                    return []
+                soup = BeautifulSoup(resp.text, "html.parser")
+                # Try to find result containers first (more precise)
+                result_links = (
+                    soup.select(".result a, .results a, li.result a, div.result a,"
+                                " .search-result a, .web-result a, td.result a") or
+                    soup.find_all("a")
+                )
+                for a in result_links:
+                    try:
+                        href  = a.get("href", "")
+                        title = a.get_text(strip=True)
+                        if len(title) < 4:
+                            continue
+                        # Decode redirect wrappers (Ahmia /redirect/?redirect_url=... or ?url=...)
+                        if "redirect_url=" in href or ("redirect" in href and "?" in href):
+                            _qs = parse_qs(urlparse(href).query)
+                            for _param in ("redirect_url", "url"):
+                                if _param in _qs:
+                                    href = unquote(_qs[_param][0])
+                                    break
+                        # Primary: .onion dark web result URLs
+                        onion = re.findall(r"https?://[a-z0-9.\-]+\.onion[^\s\"'<>]*", href)
+                        onion = [u for u in onion if _eng_host not in u]
+                        # Fallback: clearnet HTTPS results (DuckDuckGo-Tor, Ahmia-clearnet, etc.)
+                        clearnet: list[str] = []
+                        if not onion:
+                            clearnet = re.findall(r"https?://[a-z0-9.\-]+\.[a-z]{2,}[^\s\"'<>]*", href)
+                            clearnet = [u for u in clearnet if _eng_host not in u and ".onion" not in u]
+                        picked = onion or clearnet
+                        if not picked:
+                            continue
+                        found.append({"title": title, "url": picked[0].rstrip("/"), "engine": engine["name"]})
+                    except Exception:
                         continue
-                    # Decode redirect wrappers (Ahmia /redirect/?redirect_url=... or ?url=...)
-                    if "redirect_url=" in href or ("redirect" in href and "?" in href):
-                        _qs = parse_qs(urlparse(href).query)
-                        for _param in ("redirect_url", "url"):
-                            if _param in _qs:
-                                href = unquote(_qs[_param][0])
-                                break
-                    # Primary: .onion dark web result URLs
-                    onion = re.findall(r"https?://[a-z0-9.\-]+\.onion[^\s\"'<>]*", href)
-                    onion = [u for u in onion if _eng_host not in u]
-                    # Fallback: clearnet HTTPS results (DuckDuckGo-Tor, Ahmia-clearnet, etc.)
-                    clearnet: list[str] = []
-                    if not onion:
-                        clearnet = re.findall(r"https?://[a-z0-9.\-]+\.[a-z]{2,}[^\s\"'<>]*", href)
-                        clearnet = [u for u in clearnet if _eng_host not in u and ".onion" not in u]
-                    picked = onion or clearnet
-                    if not picked:
-                        continue
-                    found.append({"title": title, "url": picked[0].rstrip("/"), "engine": engine["name"]})
-                except Exception:
+                return found            # success — don't retry
+            except Exception as _exc:
+                _is_transient = any(kw in str(_exc) for kw in _TRANSIENT_KW)
+                if _is_transient and _attempt < 2:
+                    time.sleep(2 ** _attempt)   # 1 s, then 2 s
                     continue
-        except Exception:
-            pass
+                break
         return found
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
@@ -1917,6 +1927,132 @@ def to_csv(results: list[dict]) -> str:
             "timestamp":  ts,
         })
     return buf.getvalue()
+
+
+def to_misp(
+    results: list[dict],
+    query: str = "",
+    report_text: str = "",
+    threat_level: int = 2,
+    distribution: int = 0,
+) -> dict:
+    """Generate a MISP 2.4 event dict from search results.
+
+    No external dependency — returns a plain dict that is directly
+    JSON-serialisable and importable into any MISP instance via the REST API
+    (``POST /events/add``) or the free-text import interface.
+
+    Args:
+        results:      List of {title, url, engine, confidence} dicts.
+        query:        Investigation query string.
+        report_text:  Full LLM/nollm report text to embed as a comment attribute.
+        threat_level: MISP threat level (1=High 2=Medium 3=Low 4=Undefined). Default 2.
+        distribution: MISP distribution level (0=Your org only … 3=All). Default 0.
+
+    Returns:
+        MISP 2.4 event dict — ``{"Event": {...}}`` ready for JSON serialisation.
+
+    Example::
+
+        event = sicry.to_misp(results, query="ransomware leak")
+        import json
+        with open("investigation.misp.json", "w") as f:
+            json.dump(event, f, indent=2)
+    """
+    ts_unix  = str(int(time.time()))
+    date_str = time.strftime("%Y-%m-%d", time.gmtime())
+    event_uuid = str(uuid.uuid4())
+    event_info = f"OnionClaw OSINT: {query or 'Dark web investigation'}"
+    dist_str   = str(distribution)
+
+    attributes: list[dict] = []
+
+    for r in results[:50]:
+        url_val = r.get("url", "")
+        if not url_val:
+            continue
+        conf    = r.get("confidence", r.get("score", 0)) or 0
+        comment = (
+            f"[engine: {r.get('engine', '?')}] "
+            f"[confidence: {conf:.4f}] "
+            f"{r.get('title', '')[:120]}"
+        )
+        attributes.append({
+            "uuid":         str(uuid.uuid4()),
+            "type":         "url",
+            "category":     "External analysis",
+            "value":        url_val,
+            "comment":      comment,
+            "to_ids":       False,
+            "distribution": dist_str,
+            "timestamp":    ts_unix,
+        })
+        # Also emit the hostname/domain as a network indicator
+        hostname = urlparse(url_val).hostname or ""
+        if hostname:
+            attr_type = "domain" if "." in hostname else "hostname"
+            attributes.append({
+                "uuid":         str(uuid.uuid4()),
+                "type":         attr_type,
+                "category":     "Network activity",
+                "value":        hostname,
+                "comment":      f"Extracted from: {r.get('title', '')[:80]}",
+                "to_ids":       True,
+                "distribution": dist_str,
+                "timestamp":    ts_unix,
+            })
+
+    # Full report as a comment attribute
+    if report_text:
+        attributes.append({
+            "uuid":         str(uuid.uuid4()),
+            "type":         "comment",
+            "category":     "Attribution",
+            "value":        report_text[:65536],
+            "comment":      f"OnionClaw v{__version__} OSINT report",
+            "to_ids":       False,
+            "distribution": dist_str,
+            "timestamp":    ts_unix,
+        })
+
+    # Original query as a text attribute
+    if query:
+        attributes.append({
+            "uuid":         str(uuid.uuid4()),
+            "type":         "text",
+            "category":     "Other",
+            "value":        query,
+            "comment":      "Original investigation query",
+            "to_ids":       False,
+            "distribution": dist_str,
+            "timestamp":    ts_unix,
+        })
+
+    tags = [
+        {"name": "tlp:amber"},
+        {"name": "dark-web"},
+        {"name": "osint"},
+        {"name": 'osint:source-scale="i"'},
+        {"name": f'onionclaw:version="{__version__}"'},
+    ]
+    if query:
+        tags.append({"name": f'onionclaw:query="{query[:100]}"'})
+
+    return {
+        "Event": {
+            "uuid":            event_uuid,
+            "info":            event_info,
+            "date":            date_str,
+            "timestamp":       ts_unix,
+            "threat_level_id": str(threat_level),
+            "analysis":        "1",   # Ongoing
+            "distribution":    dist_str,
+            "published":       False,
+            "Attribute":       attributes,
+            "Tag":             tags,
+            "Object":          [],
+        }
+    }
 
 
 def to_report(
@@ -2284,6 +2420,80 @@ def crawl_export(job_id: str) -> dict:
         Dict with ``job_id``, ``pages`` (list), and ``links`` (list).
     """
     return _db().crawl_export(job_id)
+
+
+def search_and_crawl(
+    query: str,
+    top_n: int = 3,
+    max_depth: int = 2,
+    max_pages: int = 30,
+    engines: Optional[list[str]] = None,
+    max_results: int = 20,
+    mode: Optional[str] = None,
+    stay_on_domain: bool = True,
+    _use_cache: bool = True,
+) -> dict:
+    """Search dark web engines then automatically spider the top-N results.
+
+    Closes the most common manual loop — search → pick top URLs → crawl each one
+    — in a single call. All crawls run concurrently (one thread per seed URL, up
+    to ``top_n`` threads, capped at 4 to be gentle on Tor circuits).
+
+    Args:
+        query:          Search query.
+        top_n:          Number of top search results to crawl. Default 3.
+        max_depth:      Crawl depth per seed URL. Default 2.
+        max_pages:      Max pages visited per crawl job. Default 30.
+        engines:        Engine list override (passed to search()).
+        max_results:    Max search results to collect before picking top_n. Default 20.
+        mode:           OSINT mode (threat_intel|ransomware|personal_identity|corporate).
+        stay_on_domain: Only follow same-host links during crawls. Default True.
+        _use_cache:     Use search result cache. Crawl results are never cached. Default True.
+
+    Returns::
+
+        {
+          "query":          str,
+          "search_results": [...],           # full scored list from search()
+          "crawls":         {url: dict, ...}, # one CrawlResult dict per crawled URL
+        }
+
+    Example::
+
+        result = sicry.search_and_crawl("LockBit ransomware hospital", top_n=3)
+        for url, crawl in result["crawls"].items():
+            print(url, crawl["pages_found"], "pages")
+    """
+    search_results = search(
+        query,
+        engines=engines,
+        max_results=max_results,
+        mode=mode,
+        _use_cache=_use_cache,
+    )
+    seeds = [r["url"] for r in search_results[:top_n] if r.get("url")]
+    crawl_results: dict = {}
+    _lock = threading.Lock()
+
+    def _do_crawl(url: str) -> None:
+        try:
+            cr = crawl(url, max_depth=max_depth, max_pages=max_pages,
+                       stay_on_domain=stay_on_domain)
+            with _lock:
+                crawl_results[url] = dataclasses.asdict(cr)
+        except Exception:
+            with _lock:
+                crawl_results[url] = {"error": "crawl failed"}
+
+    workers = min(len(seeds), 4) if seeds else 1
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        list(pool.map(_do_crawl, seeds))
+
+    return {
+        "query":          query,
+        "search_results": search_results,
+        "crawls":         crawl_results,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -2701,6 +2911,25 @@ def dispatch(tool_name: str, tool_input: dict) -> dict | list | str:
         )
     if tool_name == "sicry_to_csv":
         return to_csv(tool_input["results"])
+    if tool_name == "sicry_to_misp":
+        return to_misp(
+            tool_input["results"],
+            query=tool_input.get("query", ""),
+            report_text=tool_input.get("report_text", ""),
+            threat_level=tool_input.get("threat_level", 2),
+            distribution=tool_input.get("distribution", 0),
+        )
+    if tool_name == "sicry_search_and_crawl":
+        return search_and_crawl(
+            tool_input["query"],
+            top_n=tool_input.get("top_n", 3),
+            max_depth=tool_input.get("max_depth", 2),
+            max_pages=tool_input.get("max_pages", 30),
+            engines=tool_input.get("engines"),
+            max_results=tool_input.get("max_results", 20),
+            mode=tool_input.get("mode"),
+            stay_on_domain=tool_input.get("stay_on_domain", True),
+        )
     if tool_name == "sicry_extract_keywords":
         return extract_keywords(tool_input["text"], top_n=tool_input.get("top_n", 20))
     raise ValueError(f"Unknown SICRY tool: {tool_name!r}")
