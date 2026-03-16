@@ -7,6 +7,20 @@ Versioning follows [Semantic Versioning](https://semver.org).
 
 ---
 
+## [2.1.11] — 2026-03-16
+
+### Changed
+- **`check_update()`** now uses the GitHub **Releases API** (`/releases/latest`)
+  instead of the Tags API. Update notices are triggered only by published formal
+  releases — plain git tags and pre-releases are ignored.
+- `GITHUB_TAGS_URL` constant renamed to `GITHUB_RELEASES_URL`.
+
+### Added
+- **README Architecture section** — full layer diagram, OSINT pipeline flow,
+  TorPool mode, and update policy.
+
+---
+
 ## [2.1.10] — 2026-03-16
 
 ### Fixed

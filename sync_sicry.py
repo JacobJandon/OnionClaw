@@ -62,7 +62,7 @@ def _fetch_sicry_tags() -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Sync bundled sicry.py from upstream SICRY™")
-    parser.add_argument("--version", action="version", version="OnionClaw sync_sicry 2.1.10")
+    parser.add_argument("--version", action="version", version="OnionClaw sync_sicry 2.1.11")
     parser.add_argument("--tag",     default="main", help="git ref / tag to fetch (default: main)")
     parser.add_argument("--dry-run", action="store_true", help="print what would happen without writing")
     parser.add_argument("--check-bundled", action="store_true",
