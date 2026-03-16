@@ -173,9 +173,13 @@ if args.check_update:
 if args.watch_check:
     print("[watch-check] Running all due watch jobs…")
     alerts = sicry.watch_check()
+    _n_saved = 0
     if not alerts:
-        print("  No due jobs or no new results.")
+        print("  No due jobs.")
+        if args.output_dir:
+            print(f"  --output-dir: no files written (no due jobs).")
     else:
+        import json as _json
         for a in alerts:
             new_flag = "[NEW]" if a.get("new") else "[unchanged]"
             last_run = a.get("last_run")
@@ -197,15 +201,28 @@ if args.watch_check:
                     _tc   = f"[conf={_conf:.2f}] " if _conf is not None else ""
                     print(f"         {_tc}{_tr.get('title', '(no title)')[:70]}")
                     print(f"           {_tr.get('url', '')}")
-            # IMPROVE-7: --output-dir saves each triggered alert as <job_id>.json
-            if args.output_dir and a.get("new") and a.get("results"):
-                import json as _json
+            # [1] v2.1.10: --output-dir saves ALL due jobs (new or unchanged) so
+            # automated pipelines always receive a file regardless of delta status.
+            # Payload enriched with 'new', schedule fields, and 'mode'.
+            if args.output_dir:
                 os.makedirs(args.output_dir, exist_ok=True)
                 _wout = os.path.join(args.output_dir, f"{a['job_id']}.json")
                 with open(_wout, "w") as _wf:
-                    _json.dump({"job_id": a["job_id"], "query": a["query"],
-                                "results": a["results"]}, _wf, indent=2)
+                    _json.dump({
+                        "job_id":       a["job_id"],
+                        "query":        a.get("query", ""),
+                        "new":          a.get("new", False),
+                        "result_count": a.get("result_count", 0),
+                        "mode":         a.get("mode", "threat_intel"),
+                        "last_run":     last_str,
+                        "last_run_ts":  last_run,
+                        "next_run":     next_str,
+                        "results":      a.get("results") or [],
+                    }, _wf, indent=2)
                 print(f"       saved → {_wout}")
+                _n_saved += 1
+        if args.output_dir:
+            print(f"  Saved {_n_saved} file(s) to {args.output_dir!r}")
     # [2] v2.1.9: also list waiting (non-due) jobs so every job's health is
     # visible — not just the ones that ran today.
     _due_ids = {a["job_id"] for a in alerts}

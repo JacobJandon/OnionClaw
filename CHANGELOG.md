@@ -7,6 +7,25 @@ Versioning follows [Semantic Versioning](https://semver.org).
 
 ---
 
+## [2.1.10] — 2026-03-16
+
+### Fixed
+- **[1]** `pipeline.py --watch-check --output-dir`: was only writing a file
+  when `new=True` AND results were non-empty.  Now saves **all due jobs** to
+  `<output-dir>/<job_id>.json`, unconditionally.  Enriched JSON payload:
+  `"new"`, `"result_count"`, `"mode"`, `"last_run"`, `"last_run_ts"`,
+  `"next_run"`.  `Saved N file(s)` summary line added; note printed when
+  `--output-dir` is set but no jobs were due.
+
+### Improved
+- **[2]** `.env.example`: `SICRY_POOL_SIZE` now carries a
+  "Recommended: 2–4 circuits" comment with a concrete example.
+
+### Bundled SICRY™
+- Version 2.1.10 (`__version__` bump only; no logic changes in sicry.py)
+
+---
+
 ## [2.1.9] — 2026-03-16
 
 ### Fixed
