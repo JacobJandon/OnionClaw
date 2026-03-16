@@ -62,10 +62,43 @@ def _fetch_sicry_tags() -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Sync bundled sicry.py from upstream SICRY™")
-    parser.add_argument("--version", action="version", version="OnionClaw sync_sicry 2.1.4")
+    parser.add_argument("--version", action="version", version="OnionClaw sync_sicry 2.1.5")
     parser.add_argument("--tag",     default="main", help="git ref / tag to fetch (default: main)")
     parser.add_argument("--dry-run", action="store_true", help="print what would happen without writing")
+    parser.add_argument("--check-bundled", action="store_true",
+                        help="Compare bundled sicry.py version to latest upstream tag and exit")
     args = parser.parse_args()
+
+    # BUG-5: --check-bundled warns when bundled.py is behind upstream
+    if args.check_bundled:
+        try:
+            bundled_version = "unknown"
+            if os.path.isfile(DEST):
+                with open(DEST, encoding="utf-8") as _f:
+                    for _l in _f:
+                        if _l.startswith("__version__"):
+                            bundled_version = _l.split("=")[1].strip().strip('"')
+                            break
+            sicry_tags = _fetch_sicry_tags()
+            # pick highest from the live tag list
+            def _v(n):
+                try: return tuple(int(p) for p in n.lstrip("v").split("."))
+                except: return (0, 0, 0)
+            latest_name = max(
+                (t.strip() for t in sicry_tags.split(",")),
+                key=_v, default="unknown"
+            )
+            print(f"Bundled  : v{bundled_version}")
+            print(f"Upstream : {latest_name}")
+            if _v(bundled_version) < _v(latest_name):
+                print("\nNOTICE: bundled sicry.py is BEHIND upstream. Run sync_sicry.py before tagging.")
+                sys.exit(2)  # non-zero ⟶ CI / release scripts can catch this
+            else:
+                print("Bundled sicry.py is up-to-date.")
+        except Exception as e:
+            print(f"Error checking bundled version: {e}", file=sys.stderr)
+            sys.exit(1)
+        return
 
     url = UPSTREAM_RAW.format(ref=args.tag)
 

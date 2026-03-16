@@ -57,6 +57,10 @@ Examples:
   python3 pipeline.py --watch-check
   python3 pipeline.py --query "QUERY" --resume abc123
   python3 pipeline.py --interactive
+  python3 pipeline.py --query "QUERY" --format misp --out event.json --misp-threat-level 1
+  python3 pipeline.py --watch-list
+  python3 pipeline.py --modes
+  python3 pipeline.py --engine-stats
     """,
 )
 parser.add_argument("--version",      action="version",
@@ -101,6 +105,19 @@ parser.add_argument("--interactive",  action="store_true",
                     help="Interactive drill-down mode — ask follow-up questions after the report")
 parser.add_argument("--no-cache",     action="store_true",
                     help="Skip search cache, force live queries")
+parser.add_argument("--modes",         action="store_true",
+                    help="List all modes and their engine routing, then exit")
+parser.add_argument("--engine-stats",  action="store_true",
+                    help="Print per-engine reliability / latency table and exit")
+parser.add_argument("--watch-daemon",  action="store_true",
+                    help="Run watch daemon as a foreground loop (Ctrl+C to stop)")
+parser.add_argument("--misp-threat-level", type=int, default=2, choices=[1, 2, 3, 4],
+                    help="MISP threat level (1=High 2=Medium 3=Low 4=Undefined; default 2)")
+parser.add_argument("--misp-distribution", type=int, default=0,
+                    choices=[0, 1, 2, 3, 4, 5],
+                    help="MISP distribution setting (0=Organisation only … 5=All; default 0)")
+parser.add_argument("--output-dir",    default=None, metavar="DIR",
+                    help="Write output to DIR/<job_id>.<ext> instead of --out (batch-friendly)")
 args = parser.parse_args()
 
 # ── BUG-4: warn if --interval used without --watch ─────────────────────────
@@ -125,6 +142,23 @@ if args.check_update:
             print(f"  Release notes : {_u['url']}")
         print(f"  Upgrade       : git -C {_skill_dir} pull")
         print(f"                  python3 {os.path.join(_skill_dir, 'sync_sicry.py')}")
+    # IMPROVE-5: also check if bundled sicry.py is behind upstream SICRY™
+    try:
+        import urllib.request
+        _sicry_api = "https://api.github.com/repos/JacobJandon/Sicry/tags?per_page=1"
+        with urllib.request.urlopen(_sicry_api, timeout=4) as _sr:
+            _stags = json.loads(_sr.read())
+        if _stags:
+            def _sver(v): 
+                try: return tuple(int(x) for x in v.lstrip("v").split("."))
+                except: return (0,)
+            _latest_sicry = max(_stags, key=lambda t: _sver(t["name"]))['name'].lstrip('v')
+            _bundled = getattr(sicry, "__version__", "0.0.0")
+            if _sver(_bundled) < _sver(_latest_sicry):
+                print(f"NOTICE: bundled sicry.py (v{_bundled}) is behind upstream SICRY™ (v{_latest_sicry}).")
+                print(f"        Run: python3 {os.path.join(_skill_dir, 'sync_sicry.py')}")
+    except Exception:
+        pass
     sys.exit(0)
 
 # ── standalone: watch-check ───────────────────────────────────────
@@ -136,8 +170,17 @@ if args.watch_check:
     else:
         for a in alerts:
             new_flag = "[NEW]" if a.get("new") else "[unchanged]"
-            print(f"  {new_flag} [{a['job_id']}] {a.get('result_count', 0)} results "
-                  f"for query: {a.get('query')!r}")
+            last_run = a.get("last_run")
+            last_str = _time.strftime("%Y-%m-%d %H:%M", _time.localtime(last_run)) if last_run else "never"
+            interval_h = a.get("interval_hours", 6)
+            if last_run:
+                next_ts  = last_run + interval_h * 3600
+                next_str = _time.strftime("%Y-%m-%d %H:%M", _time.localtime(next_ts))
+            else:
+                next_str = "overdue"
+            print(f"  {new_flag} [{a['job_id']}] {a.get('result_count', 0)} results  "
+                  f"last={last_str}  next={next_str}")
+            print(f"       query: {a.get('query')!r}")
     sys.exit(0)
 
 # ── standalone: watch-list ────────────────────────────────────────────
@@ -156,14 +199,53 @@ if args.watch_list:
 
 # ── standalone: watch-disable ──────────────────────────────────────────
 if args.watch_disable:
+    _existing_ids = [j["id"] for j in sicry.watch_list()]
+    if args.watch_disable not in _existing_ids:
+        print(f"ERROR: no watch job with ID {args.watch_disable!r} — run --watch-list to see active jobs.",
+              file=sys.stderr)
+        sys.exit(1)
     sicry.watch_disable(args.watch_disable)
     print(f"Disabled watch job: {args.watch_disable}")
     sys.exit(0)
 
+# ── standalone: --modes ───────────────────────────────────────────────
+if args.modes:
+    print("Available modes  (--mode <name>):")
+    print()
+    for _m in MODES:
+        _mc = sicry.mode_config(_m)
+        _engs = _mc.get("engines") or ["(all alive engines)"]
+        _extra = len(_mc.get("extra_seeds") or [])
+        print(f"  {_m:<22}  engines : {', '.join(_engs)}")
+        print(f"  {'':22}  max_results={_mc.get('max_results', 30)}  "
+              f"scrape={_mc.get('scrape', 8)}"
+              + (f"  +{_extra} seed onion(s)" if _extra else ""))
+        print()
+    sys.exit(0)
+
+# ── standalone: --engine-stats ───────────────────────────────────────
+if args.engine_stats:
+    _scores = sicry.engine_reliability_scores()
+    _hist   = {_e: sicry.engine_health_history(_e, n=1) for _e in _scores}
+    if not _scores:
+        print("No engine history yet — run without --engine-stats first to trigger health checks.")
+    else:
+        print(f"  {'Engine':<24} {'Reliability':>12}  {'Last Latency':>14}  Last Seen")
+        print("  " + "─" * 62)
+        for _eng, _rel in sorted(_scores.items(), key=lambda x: -x[1]):
+            _last = (_hist.get(_eng) or [{}])[0]
+            _lat  = f"{_last.get('latency_ms')}ms" if _last.get("latency_ms") else "—"
+            _ts   = _last.get("ts")
+            _ts_s = _time.strftime("%Y-%m-%d %H:%M", _time.localtime(_ts)) if _ts else "—"
+            print(f"  {_eng:<24} {_rel:>10.0%}  {_lat:>14}  {_ts_s}")
+    sys.exit(0)
+
 # ── standalone: interactive mode (no --query required) ───────────
 if args.interactive and not args.query:
-    print("OnionClaw Interactive Mode  (type 'exit' to quit)")
-    print("=" * 55)
+    print("OnionClaw Interactive Mode  (type 'exit' to quit, 'help' for commands)")
+    print("=" * 65)
+    _session_history: list[str] = []
+    _last_results: list[dict] = []
     while True:
         try:
             q = input("\nQuery > ").strip()
@@ -175,34 +257,68 @@ if args.interactive and not args.query:
             break
         if not q:
             continue
-        results = sicry.search(q, max_results=20, mode=args.mode,
-                               _use_cache=not args.no_cache)
-        if not results:
-            print("  No results.")
+        # UX-7: help / ? command inside REPL
+        if q.lower() in ("help", "?"):
+            print("  Commands:")
+            print("    <query text>      Search the dark web")
+            print("    <number>          Fetch page N from the last result set")
+            print("    history           Show previous queries this session")
+            print("    exit / quit       Exit the REPL")
+            print("    help / ?          Show this help")
             continue
-        for i, r in enumerate(results, 1):
-            conf_str = f"  [{r.get('confidence', 0):.2f}]" if args.confidence else ""
-            print(f"  {i:>3}.{conf_str} [{r['engine']}] {r.get('title','')[:60]}")
-            print(f"       {r['url']}")
-        print("\n  Commands: <number> fetch page  |  new query = type it  |  'exit' quit")
-        cmd = input("  > ").strip()
-        if cmd.lower() in ("exit", "quit", "q"):
-            print("Goodbye.")
-            break
-        if cmd.isdigit():
-            idx = int(cmd) - 1
-            if 0 <= idx < len(results):
-                page = sicry.fetch(results[idx]["url"])
+        if q.lower() == "history":
+            if not _session_history:
+                print("  No queries yet.")
+            else:
+                for _i, _hq in enumerate(_session_history, 1):
+                    print(f"  {_i}. {_hq}")
+            continue
+        if q.isdigit():
+            idx = int(q) - 1
+            if _last_results and 0 <= idx < len(_last_results):
+                page = sicry.fetch(_last_results[idx]["url"])
                 if page["error"]:
                     print(f"  Error: {page['error']}")
                 else:
                     print(f"\n  === {page['title']} ===")
                     print(page["text"][:4000])
+            else:
+                print(f"  No result #{int(q)} — run a query first.")
+            continue
+        _session_history.append(q)
+        _last_results = sicry.search(q, max_results=20, mode=args.mode,
+                               _use_cache=not args.no_cache)
+        if not _last_results:
+            print("  No results.")
+            continue
+        for i, r in enumerate(_last_results, 1):
+            conf_str = f"  [{r.get('confidence', 0):.2f}]" if args.confidence else ""
+            print(f"  {i:>3}.{conf_str} [{r['engine']}] {r.get('title','')[:60]}")
+            print(f"       {r['url']}")
+        print("\n  Type a number to fetch a page, a new query to search, or 'help'.")
     sys.exit(0)
 
 # ── BUG-1: load checkpoint early so --resume can restore the query ────────
 _checkpoint: dict = {}
 _job_id = args.resume or str(uuid.uuid4())[:8]
+
+# ── standalone: --watch-daemon ────────────────────────────────────────
+if args.watch_daemon:
+    import signal
+    _poll_s = max(int(args.interval * 60), 60)  # min 60 s
+    print(f"[watch-daemon] Starting foreground daemon. Poll every {_poll_s}s. Ctrl+C to stop.")
+    def _daemon_sig(s, f): print("\n[watch-daemon] Stopped."); sys.exit(0)
+    signal.signal(signal.SIGINT, _daemon_sig)
+    while True:
+        _da = sicry.watch_check()
+        if _da:
+            for _a in _da:
+                print(f"  [ALERT] [{_a['job_id']}] {_a.get('result_count',0)} results  "
+                      f"query={_a.get('query')!r}")
+        else:
+            _nxt = _time.strftime("%H:%M:%S", _time.localtime(_time.time() + _poll_s))
+            print(f"  [{_time.strftime('%H:%M:%S')}] No due jobs. Next check at {_nxt}.")
+        _time.sleep(_poll_s)
 
 if args.resume:
     try:
@@ -433,6 +549,16 @@ if len(pages) < scrape_count:
 total_chars = sum(len(v) for v in pages.values())
 print(f"  Total content: {total_chars:,} chars")
 
+# BUG-3: re-score `best` using scraped page content for richer BM25 weighting.
+# Results with no scraped content keep their existing confidence score.
+if best and pages:
+    best = sicry.score_results(refined, best, texts=pages)
+    # tag results that had no scraped text so the display can show conf=N/A
+    _scraped_urls = set(pages.keys())
+    for _br in best:
+        if _br.get("url") not in _scraped_urls:
+            _br.setdefault("_no_content", True)
+
 if not pages:
     print("No pages could be scraped — all hidden services unreachable.")
     sys.exit(0)
@@ -483,8 +609,17 @@ print(report)
 # ─────────────────────────────────────────────────────────────────
 # Output file: --format controls encoding
 # ─────────────────────────────────────────────────────────────────
-if args.out:
+if args.out or args.output_dir:
+    # IMPROVE-8: --output-dir auto-names the file as <job_id>.<ext>
     fmt = args.format
+    if args.output_dir:
+        os.makedirs(args.output_dir, exist_ok=True)
+        _ext_map = {"json": "json", "csv": "csv", "stix": "json",
+                    "misp": "json", "md": "md"}
+        _out_path = os.path.join(args.output_dir,
+                                 f"{_job_id}.{_ext_map.get(fmt, 'txt')}")
+    else:
+        _out_path = args.out
     try:
         if fmt == "json":
             out_payload = json.dumps({
@@ -504,7 +639,9 @@ if args.out:
             )
         elif fmt == "misp":
             out_payload = json.dumps(
-                sicry.to_misp(best, query=refined, report_text=report),
+                sicry.to_misp(best, query=refined, report_text=report,
+                              threat_level=args.misp_threat_level,
+                              distribution=args.misp_distribution),
                 indent=2,
             )
         else:  # md (default)
@@ -529,9 +666,9 @@ if args.out:
                     for r in best
                 )
             )
-        with open(args.out, "w", encoding="utf-8") as fh:
+        with open(_out_path, "w", encoding="utf-8") as fh:
             fh.write(out_payload)
-        print(f"\nReport saved to: {args.out}  (format: {fmt})")
+        print(f"\nReport saved to: {_out_path}  (format: {fmt})")
     except Exception as _we:
         print(f"\nERROR: could not write output file: {_we}", file=sys.stderr)
         sys.exit(1)
@@ -541,7 +678,8 @@ if args.out:
 # ─────────────────────────────────────────────────────────────────
 if args.interactive:
     print("\n[interactive] Ask follow-up questions about the report above.")
-    print("  Type 'exit' to quit, 'fetch N' to fetch result N.\n")
+    print("  Type 'help' for commands, 'exit' to quit.\n")
+    _ifollup_history: list[str] = []
     while True:
         try:
             q = input("Follow-up > ").strip()
@@ -550,6 +688,21 @@ if args.interactive:
             break
         if q.lower() in ("exit", "quit", "q", ""):
             break
+        # UX-7: help and history inside follow-up REPL
+        if q.lower() in ("help", "?"):
+            print("  Commands:")
+            print("    <question text>   Search for follow-up results")
+            print("    fetch N           Fetch result N from the original search")
+            print("    history           Show follow-up queries this session")
+            print("    exit / quit       Exit")
+            continue
+        if q.lower() == "history":
+            if not _ifollup_history:
+                print("  No follow-up queries yet.")
+            else:
+                for _i, _hq in enumerate(_ifollup_history, 1):
+                    print(f"  {_i}. {_hq}")
+            continue
         if q.lower().startswith("fetch "):
             parts = q.split()
             if len(parts) > 1 and parts[1].isdigit():
@@ -562,6 +715,7 @@ if args.interactive:
                         print(f"\n=== {page['title']} ===")
                         print(page["text"][:4000])
             continue
+        _ifollup_history.append(q)
         follow_results = sicry.search(q, max_results=10, mode=args.mode)
         for i, r in enumerate(follow_results[:8], 1):
             conf_str = f"  [conf={r.get('confidence',0):.2f}]" if args.confidence else ""

@@ -2,7 +2,7 @@
 # Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/Sicry
 from __future__ import annotations
 
-__version__ = "2.1.4"
+__version__ = "2.1.5"
 
 """
 SICRY — Tor/Onion Network Access Layer for AI Agents
@@ -115,6 +115,7 @@ TOR_TIMEOUT        = int(os.getenv("TOR_TIMEOUT", "45"))
 MAX_CONTENT_CHARS  = int(os.getenv("SICRY_MAX_CHARS", "8000"))
 FETCH_CACHE_TTL    = int(os.getenv("SICRY_CACHE_TTL", "600"))  # seconds; 0 disables
 _FETCH_CACHE: dict = {}   # in-memory TTL cache: key → (timestamp, result)
+_SEARCH_MEM_CACHE: dict = {}  # BUG-6: in-process cache for search results (bypasses SQLite on warm hits)
 SEARCH_CACHE_TTL   = int(os.getenv("SICRY_SEARCH_CACHE_TTL", "1800"))  # cache search results 30 min
 ENGINE_CACHE_TTL   = int(os.getenv("SICRY_ENGINE_CACHE_TTL", "3600"))  # engine health history TTL
 
@@ -168,6 +169,9 @@ class _DB:
         if not getattr(self._local, "conn", None):
             self._local.conn = sqlite3.connect(self._path, check_same_thread=False)
             self._local.conn.row_factory = sqlite3.Row
+            # BUG-6: WAL mode reduces write-blocking; NORMAL sync avoids fsync on every commit
+            self._local.conn.execute("PRAGMA journal_mode=WAL;")
+            self._local.conn.execute("PRAGMA synchronous=NORMAL;")
         return self._local.conn
 
     def _init_schema(self) -> None:
@@ -785,20 +789,25 @@ def extract_keywords(text: str, top_n: int = 20) -> list[str]:
     return sorted(scored, key=scored.__getitem__, reverse=True)[:top_n]
 
 
-def score_results(query: str, results: list[dict]) -> list[dict]:
+def score_results(query: str, results: list[dict], texts: dict[str, str] | None = None) -> list[dict]:
     """Score each result by keyword overlap with `query` using BM25-lite.
     Adds a ``"score"`` key (0.0–1.0) to each result dict and returns them
     sorted descending. Safe to call without an LLM — all stdlib.
 
     Args:
-        query:   The investigation query.
+        query:   The investigation query (str or list of str).
         results: List of {title, url, engine, ...} dicts.
+        texts:   Optional {url: page_text} dict — when provided, BM25 scoring
+                 uses scraped page content for richer term matching (BUG-3 fix).
 
     Returns:
         Same dicts, each with ``"score": float``, sorted best-first.
     """
     if not results:
         return []
+    # BUG-1: guard against query arriving as a list (e.g. CLI args not joined)
+    if isinstance(query, list):
+        query = " ".join(str(t) for t in query)
     q_terms = set(re.findall(r"[a-z0-9]{3,}", query.lower())) - _STOPWORDS
     if not q_terms:
         for r in results:
@@ -808,10 +817,13 @@ def score_results(query: str, results: list[dict]) -> list[dict]:
     scored: list[tuple[float, dict]] = []
     for result in results:
         # Include snippet/description if available for richer scoring
+        # BUG-3: include scraped page content when available for richer BM25 scoring
+        _page_text = (texts.get(result.get("url", ""), "") or "")[:2000] if texts else ""
         doc = " ".join(filter(None, [
             result.get("title", ""),
             result.get("snippet", "") or result.get("description", ""),
             result.get("url", ""),
+            _page_text,
         ])).lower()
         doc_terms = re.findall(r"[a-z0-9]{3,}", doc)
         term_count = {t: doc_terms.count(t) for t in q_terms if t in doc_terms}
@@ -1586,12 +1598,17 @@ def search(
     # ── search result cache (SQLite, TTL=SEARCH_CACHE_TTL) ────────
     cache_key = f"{query.lower().strip()}|{','.join(sorted(engines or []))}|{max_results}"
     if _use_cache and SEARCH_CACHE_TTL > 0:
+        # BUG-6: check in-process memory cache before SQLite to avoid JSON parse overhead
+        _mem = _SEARCH_MEM_CACHE.get(cache_key)
+        if _mem and (time.time() - _mem[0]) < SEARCH_CACHE_TTL:
+            return list(_mem[1])  # return a copy to prevent mutation of cached list
         _cached = _db().cache_get(cache_key, "search", SEARCH_CACHE_TTL)
         if _cached is not None:
-            # BUG-2: normalize legacy cached results that stored "score" not "confidence"
+            # normalize legacy cached results that stored "score" not "confidence"
             for _r in _cached:
                 if "score" in _r and "confidence" not in _r:
                     _r["confidence"] = _r.pop("score")
+            _SEARCH_MEM_CACHE[cache_key] = (time.time(), _cached)  # BUG-6: populate memory cache
             return _cached
 
     # ── mode-based engine routing (issue #6) ─────────────────────
@@ -1691,6 +1708,7 @@ def search(
     # ── store in SQLite search cache ──────────────────────────────
     if _use_cache and SEARCH_CACHE_TTL > 0 and final:
         _db().cache_set(cache_key, "search", final)
+        _SEARCH_MEM_CACHE[cache_key] = (time.time(), final)  # BUG-6: keep memory cache in sync
 
     return final
 
@@ -2348,7 +2366,8 @@ def crawl(
         "usernames": [],
     }
     pages_crawled = 0
-    links_found: list[str] = []   # BUG-1 fix: collect actual URLs not a count
+    links_found: list[str] = []   # all distinct .onion URLs discovered during crawl
+    _seen_links: set[str] = set()  # BUG-2 fix: dedup guard for links_found
 
     _lock = threading.Lock()
 
@@ -2390,7 +2409,19 @@ def crawl(
             except Exception:
                 pass
 
-        # Collect child links
+        # BUG-2 fix: record ALL discovered .onion links for links_found regardless
+        # of crawl-queue filters (depth limit, domain scope, already-visited).
+        for _lk in result.get("links", []):
+            _href = _lk.get("href", "")
+            if not _href or ".onion" not in _href:
+                continue
+            _clean_href = _href.rstrip("/")
+            with _lock:
+                if _clean_href not in _seen_links:
+                    _seen_links.add(_clean_href)
+                    links_found.append(_clean_href)
+
+        # Collect child links for the crawl queue (respects depth/domain/visited filters)
         child_links: list[tuple[str, int]] = []
         if depth < max_depth:
             for link in result.get("links", []):
@@ -2407,7 +2438,6 @@ def crawl(
                 with _lock:
                     if clean not in visited:
                         visited.add(clean)
-                        links_found.append(clean)  # BUG-1 fix: store URL not count
                         _db().crawl_save_link(url, clean)
                         child_links.append((clean, depth + 1))
         return child_links
@@ -2447,13 +2477,41 @@ def crawl(
     )
 
 
-def crawl_export(job_id: str) -> dict:
-    """Export all crawled pages and links for a given job to a dict.
+def crawl_export(job_id: str, format: str = "json") -> dict | str:
+    """Export all crawled pages and links for a given job.
+
+    Args:
+        job_id:  The crawl job ID.
+        format:  Output format — ``"json"`` (dict, default), ``"stix"``,
+                 ``"misp"``, or ``"csv"`` (returns str for the last three).
 
     Returns:
-        Dict with ``job_id``, ``pages`` (list), and ``links`` (list).
+        Dict for ``"json"``; JSON string for ``"stix"``/``"misp"``; CSV str for
+        ``"csv"``.
+
+    Example::
+
+        # Save as STIX bundle
+        bundle_json = sicry.crawl_export(job_id, format="stix")
+        with open("crawl.stix.json", "w") as f:
+            f.write(bundle_json)
     """
-    return _db().crawl_export(job_id)
+    data = _db().crawl_export(job_id)
+    if format == "json":
+        return data
+    # Build result-like dicts from crawled pages for format converters
+    _results = [
+        {"url": p.get("url", ""), "title": p.get("title", ""),
+         "engine": "crawl", "confidence": 0.5}
+        for p in data.get("pages", []) if p.get("url")
+    ]
+    if format == "stix":
+        return json.dumps(to_stix(_results, query=job_id), indent=2)
+    elif format == "misp":
+        return json.dumps(to_misp(_results, query=job_id), indent=2)
+    elif format == "csv":
+        return to_csv(_results)
+    return data  # unknown format: fall back to dict
 
 
 def search_and_crawl(
@@ -2505,7 +2563,18 @@ def search_and_crawl(
         mode=mode,
         _use_cache=_use_cache,
     )
-    seeds = [r["url"] for r in search_results[:top_n] if r.get("url")]
+    # IMPROVE-6: deduplicate seeds by .onion domain before crawling
+    _seen_sd: set[str] = set()
+    seeds: list[str] = []
+    for _sr in search_results:
+        if not _sr.get("url"):
+            continue
+        _sd = urlparse(_sr["url"]).netloc
+        if _sd not in _seen_sd:
+            _seen_sd.add(_sd)
+            seeds.append(_sr["url"])
+        if len(seeds) >= top_n:
+            break
     crawl_results: dict = {}
     _lock = threading.Lock()
 
