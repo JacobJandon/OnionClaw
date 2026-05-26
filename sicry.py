@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/Sicry
 from __future__ import annotations
 
@@ -143,6 +143,11 @@ GEMINI_MODEL       = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
 OLLAMA_URL         = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL       = os.getenv("OLLAMA_MODEL", "llama3.2")
 LLAMACPP_URL       = os.getenv("LLAMACPP_BASE_URL", "http://127.0.0.1:8080")
+
+OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+OPENROUTER_MODEL    = os.getenv("OPENROUTER_MODEL", "openai/gpt-4.1")
+
 LLM_PROVIDER       = os.getenv("LLM_PROVIDER", "openai")
 
 # ─────────────────────────────────────────────────────────────────
@@ -598,6 +603,12 @@ SEARCH_ENGINES = [
     {"name": "OSS",              "url": "http://3fzh7yuupdfyjhwt3ugzqqof6ulbcl27ecev33knxe3u7goi3vfn2qqd.onion/oss/index.php?search={query}"},
     {"name": "Torgol",           "url": "http://torgolnpeouim56dykfob6jh5r2ps2j73enc42s2um4ufob3ny4fcdyd.onion/?q={query}"},
     {"name": "TheDeepSearches",  "url": "http://searchgf7gdtauh7bhnbyed4ivxqmuoat3nm6zfrg3ymkq6mtnpye3ad.onion/search?q={query}"},
+    {"name": "Kaizer",          "url": "http://kaizerwfvp5gxu6cppibp7jhcqptavq3iqef66wbxenh6a2fklibdvid.onion/search?q={query}"},
+    {"name": "Anima",           "url": "http://anima4ffe27xmakwnseih3ic2y7y3l6e7fucwk4oerdn4odf7k74tbid.onion/search?q={query}"},
+    {"name": "Tornado",         "url": "http://tornadoxn3viscgz647shlysdy7ea5zqzwda7hierekeuokh5eh5b3qd.onion/search?q={query}"},
+    {"name": "TorNet",          "url": "http://tornetupfu7gcgidt33ftnungxzyfq2pygui5qdoysss34xbgx2qruzid.onion/search?q={query}"},
+    {"name": "FindTor",         "url": "http://findtorroveq5wdnipkaojfpqulxnkhblymc7aramjzajcvpptd4rjqd.onion/search?q={query}"},
+    {"name": "Torgle",          "url": "http://iy3544gmoeclh5de6gez2256v6pjh4omhpqdh2wpeepp jtvqmjhkfwad.onion/torgle/?query={query}"},
     # dark.fail PGP-verified live addresses (March 13 2026):
     {"name": "DuckDuckGo-Tor",   "url": "https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/?q={query}&ia=web"},
     {"name": "Ahmia-clearnet",   "url": "https://ahmia.fi/search/?q={query}"},
@@ -2744,7 +2755,19 @@ def _call_llm(provider: str, system: str, prompt: str) -> str:
             r.raise_for_status()
             return r.json()["choices"][0]["message"]["content"] or ""
 
-        return f"[SICRY: Unknown LLM provider {provider!r}. Use: openai, anthropic, gemini, ollama, llamacpp]"
+        if provider == "openrouter":
+            if not OPENROUTER_API_KEY:
+                return "[SICRY: OPENROUTER_API_KEY not set. Add it to .env or set LLM_PROVIDER=ollama for local inference.]"
+            from openai import OpenAI
+            c = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_BASE_URL)
+            r = c.chat.completions.create(
+                model=OPENROUTER_MODEL,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+                max_tokens=4096,
+            )
+            return r.choices[0].message.content or ""
+
+        return f"[SICRY: Unknown LLM provider {provider!r}. Use: openai, anthropic, gemini, ollama, llamacpp, openrouter]"
     except Exception as e:
         return f"[SICRY: LLM call failed — {e}]"
 
