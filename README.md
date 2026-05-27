@@ -697,9 +697,11 @@ OnionClaw/
 ---
 ## License
 
-MIT License — Copyright (c) 2026 JacobJandon
+Apache License 2.0 — Copyright (c) 2026 JacobJandon
 
-"OnionClaw" and the OnionClaw logo are owned by JacobJandon.
+"OnionClaw" and the OnionClaw logo are trademarks (™) of JacobJandon.
+Use of the OnionClaw name or logo requires prior written permission from JacobJandon,
+except as permitted under Apache License 2.0 Section 6.
 
 See [LICENSE](LICENSE) for full text.
 
