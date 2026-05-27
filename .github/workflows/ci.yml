@@ -15,24 +15,27 @@ jobs:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install requests[socks] beautifulsoup4 python-dotenv stem
+        run: pip install requests[socks] beautifulsoup4 python-dotenv stem openai anthropic google-generativeai
 
       - name: Syntax check — sicry.py
-        run: python3 -m py_compile sicry.py && echo "sicry.py OK"
+        run: python3 -m py_compile sicry.py && echo "✓ sicry.py OK"
 
       - name: Syntax check — scripts
         run: |
           for f in ask.py check_engines.py check_tor.py fetch.py pipeline.py renew.py search.py sync_sicry.py; do
-            python3 -m py_compile "$f" && echo "$f OK"
+            python3 -m py_compile "$f" && echo "✓ $f OK"
           done
 
       - name: Import check — sicry
-        run: python3 -c "import sicry; print('sicry', sicry.__version__, 'imported OK')"
+        run: python3 -c "import sicry; print('✓ sicry', sicry.__version__, 'imported')"
+
+      - name: Tools schema (no Tor needed)
+        run: python3 sicry.py tools --format openai | python3 -c "import sys,json; d=json.load(sys.stdin); print('✓', len(d), 'tools defined')"
