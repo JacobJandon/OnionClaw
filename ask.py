@@ -92,7 +92,7 @@ if report.startswith("[SICRY:"):
     print("✗ LLM error:", report)
     print()
     print("  Set LLM_PROVIDER and API key in", os.path.join(_skill_dir, ".env"))
-    print("  Options: LLM_PROVIDER=openai|anthropic|gemini|ollama|llamacpp")
+    print("  Options: LLM_PROVIDER=openai|anthropic|gemini|ollama|llamacpp|openrouter")
     sys.exit(1)
 
 print(report)

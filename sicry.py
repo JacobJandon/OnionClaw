@@ -1,8 +1,8 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/Sicry
 from __future__ import annotations
 
-__version__ = "2.1.13"
+__version__ = "2.3.0"
 
 """
 SICRY — Tor/Onion Network Access Layer for AI Agents
@@ -143,6 +143,24 @@ GEMINI_MODEL       = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
 OLLAMA_URL         = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL       = os.getenv("OLLAMA_MODEL", "llama3.2")
 LLAMACPP_URL       = os.getenv("LLAMACPP_BASE_URL", "http://127.0.0.1:8080")
+
+OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+OPENROUTER_MODEL    = os.getenv("OPENROUTER_MODEL", "openai/gpt-4.1")
+
+TOGETHER_API_KEY    = os.getenv("TOGETHER_API_KEY", "")
+TOGETHER_BASE_URL   = os.getenv("TOGETHER_BASE_URL", "https://api.together.xyz/v1")
+TOGETHER_MODEL      = os.getenv("TOGETHER_MODEL", "meta-llama/Llama-3-70b-chat-hf")
+
+MISTRAL_API_KEY     = os.getenv("MISTRAL_API_KEY", "")
+MISTRAL_MODEL       = os.getenv("MISTRAL_MODEL", "mistral-large")
+
+PERPLEXITY_API_KEY  = os.getenv("PERPLEXITY_API_KEY", "")
+PERPLEXITY_MODEL    = os.getenv("PERPLEXITY_MODEL", "llama-3.1-70b-instruct")
+
+REPLICATE_API_KEY   = os.getenv("REPLICATE_API_KEY", "")
+REPLICATE_VERSION   = os.getenv("REPLICATE_VERSION", "")
+
 LLM_PROVIDER       = os.getenv("LLM_PROVIDER", "openai")
 
 # ─────────────────────────────────────────────────────────────────
@@ -598,6 +616,12 @@ SEARCH_ENGINES = [
     {"name": "OSS",              "url": "http://3fzh7yuupdfyjhwt3ugzqqof6ulbcl27ecev33knxe3u7goi3vfn2qqd.onion/oss/index.php?search={query}"},
     {"name": "Torgol",           "url": "http://torgolnpeouim56dykfob6jh5r2ps2j73enc42s2um4ufob3ny4fcdyd.onion/?q={query}"},
     {"name": "TheDeepSearches",  "url": "http://searchgf7gdtauh7bhnbyed4ivxqmuoat3nm6zfrg3ymkq6mtnpye3ad.onion/search?q={query}"},
+    {"name": "Kaizer",          "url": "http://kaizerwfvp5gxu6cppibp7jhcqptavq3iqef66wbxenh6a2fklibdvid.onion/search?q={query}"},
+    {"name": "Anima",           "url": "http://anima4ffe27xmakwnseih3ic2y7y3l6e7fucwk4oerdn4odf7k74tbid.onion/search?q={query}"},
+    {"name": "Tornado",         "url": "http://tornadoxn3viscgz647shlysdy7ea5zqzwda7hierekeuokh5eh5b3qd.onion/search?q={query}"},
+    {"name": "TorNet",          "url": "http://tornetupfu7gcgidt33ftnungxzyfq2pygui5qdoysss34xbgx2qruzid.onion/search?q={query}"},
+    {"name": "FindTor",         "url": "http://findtorroveq5wdnipkaojfpqulxnkhblymc7aramjzajcvpptd4rjqd.onion/search?q={query}"},
+    {"name": "Torgle",          "url": "http://iy3544gmoeclh5de6gez2256v6pjh4omhpqdh2wpeepp jtvqmjhkfwad.onion/torgle/?query={query}"},
     # dark.fail PGP-verified live addresses (March 13 2026):
     {"name": "DuckDuckGo-Tor",   "url": "https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/?q={query}&ia=web"},
     {"name": "Ahmia-clearnet",   "url": "https://ahmia.fi/search/?q={query}"},
@@ -1594,6 +1618,108 @@ def engine_reliability_scores() -> dict[str, float | None]:
     return {e["name"]: _db().engine_reliability(e["name"]) for e in SEARCH_ENGINES}
 
 
+def _deduplicate_results(results: list[dict]) -> list[dict]:
+    """Deduplicate search results by URL and normalize title/URL pairs.
+    
+    Removes near-duplicates by comparing:
+    - Exact URL matches (primary)
+    - Domain + title similarity (secondary, for partial mirrors)
+    
+    Results remain sorted by confidence (highest first).
+    """
+    seen_urls = set()
+    seen_domains = {}
+    dedup = []
+    
+    for r in results:
+        url = r.get("url", "")
+        if not url or url in seen_urls:
+            continue
+        
+        # Extract domain
+        domain_m = re.match(r"https?://([^/]+)", url)
+        domain = domain_m.group(1) if domain_m else url
+        
+        # Skip if we've already seen this domain with very similar title
+        title = r.get("title", "").lower()
+        if domain in seen_domains:
+            prev_title = seen_domains[domain]
+            # If titles share >80% of tokens, it's a mirror/duplicate
+            if _similarity_score(title, prev_title) > 0.8:
+                continue
+        
+        seen_urls.add(url)
+        seen_domains[domain] = title
+        dedup.append(r)
+    
+    return dedup
+
+
+def _similarity_score(s1: str, s2: str) -> float:
+    """Simple token-based similarity (Jaccard). Range: 0.0–1.0."""
+    t1 = set(s1.split())
+    t2 = set(s2.split())
+    if not t1 or not t2:
+        return 1.0 if s1 == s2 else 0.0
+    intersection = len(t1 & t2)
+    union = len(t1 | t2)
+    return intersection / union if union > 0 else 0.0
+
+
+def _rank_results_semantic(query: str, results: list[dict], 
+                           provider: Optional[str] = None) -> list[dict]:
+    """Re-rank search results using LLM semantic relevance scoring (v2.3.0).
+    
+    For each result, LLM scores relevance to the original query on a 0.0–1.0 scale.
+    Results are then re-sorted by LLM score (descending).
+    
+    This is optional and adds latency; useful for high-precision investigations.
+    """
+    if not results:
+        return results
+    
+    _provider = (provider or LLM_PROVIDER).lower()
+    
+    # Format results for LLM grading
+    result_text = "\n".join(
+        f"{i+1}. Title: {r.get('title', 'N/A')[:80]}... | URL: {r.get('url', 'N/A')[:60]}..."
+        for i, r in enumerate(results[:20])  # Grade top 20 only to save API calls
+    )
+    
+    system_prompt = """You are a search relevance expert. For each result, output a JSON line with the format: {"index": N, "score": 0.0-1.0}
+
+Score:  1.0 = highly relevant | 0.5 = somewhat relevant | 0.0 = irrelevant
+Be critical. Dark web results often have misleading titles."""
+    
+    prompt = f"""Query: {query}
+
+Results to grade:
+{result_text}
+
+Output JSON lines (one per result), no markdown or explanation."""
+    
+    try:
+        response = _call_llm(_provider, system_prompt, prompt)
+        scores = {}
+        for line in response.strip().split("\n"):
+            if not line.strip():
+                continue
+            try:
+                j = json.loads(line)
+                scores[j["index"]] = float(j["score"])
+            except (json.JSONDecodeError, KeyError, ValueError):
+                continue
+        
+        # Apply scores to results
+        for i, r in enumerate(results[:20]):
+            if (i+1) in scores:
+                r["confidence"] = scores[i+1]  # Override BM25 score with LLM score
+        
+        # Re-sort by confidence
+        return sorted(results, key=lambda x: x.get("confidence", 0.0), reverse=True)
+    except Exception as e:
+        # Fall back to original ordering if LLM ranking fails
+        return results
 
 
 def search(
@@ -1737,12 +1863,20 @@ def search(
                     lock_seen.add(clean)
                     results.append(item)
 
+    # ── deduplication (v2.3.0) ──────────────────────────────────
+    results = _deduplicate_results(results)
+
     # ── confidence scoring (issue #10) ───────────────────────────
     scored = score_results(query, results)
     # BUG-2: score_results() adds "score" key; rename to "confidence" for API
     for r in scored:
         if "score" in r and "confidence" not in r:
             r["confidence"] = r.pop("score")
+    
+    # ── semantic re-ranking (v2.3.0, optional) ──────────────────
+    # Uncomment to enable LLM-based re-ranking (adds latency, improves precision)
+    # scored = _rank_results_semantic(query, scored)
+    
     final = scored[:max_results]
 
     # ── store in SQLite search cache ──────────────────────────────
@@ -2744,7 +2878,65 @@ def _call_llm(provider: str, system: str, prompt: str) -> str:
             r.raise_for_status()
             return r.json()["choices"][0]["message"]["content"] or ""
 
-        return f"[SICRY: Unknown LLM provider {provider!r}. Use: openai, anthropic, gemini, ollama, llamacpp]"
+        if provider == "openrouter":
+            if not OPENROUTER_API_KEY:
+                return "[SICRY: OPENROUTER_API_KEY not set. Add it to .env or set LLM_PROVIDER=ollama for local inference.]"
+            from openai import OpenAI
+            c = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_BASE_URL)
+            r = c.chat.completions.create(
+                model=OPENROUTER_MODEL,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+                max_tokens=4096,
+            )
+            return r.choices[0].message.content or ""
+
+        if provider == "together":
+            if not TOGETHER_API_KEY:
+                return "[SICRY: TOGETHER_API_KEY not set. Add it to .env or set LLM_PROVIDER=ollama for local inference.]"
+            from openai import OpenAI
+            c = OpenAI(api_key=TOGETHER_API_KEY, base_url=TOGETHER_BASE_URL)
+            r = c.chat.completions.create(
+                model=TOGETHER_MODEL,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+                max_tokens=4096,
+            )
+            return r.choices[0].message.content or ""
+
+        if provider == "mistral":
+            if not MISTRAL_API_KEY:
+                return "[SICRY: MISTRAL_API_KEY not set. Add it to .env or set LLM_PROVIDER=ollama for local inference.]"
+            from mistralai.client import MistralClient
+            c = MistralClient(api_key=MISTRAL_API_KEY)
+            r = c.chat(
+                model=MISTRAL_MODEL,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+            )
+            return r.choices[0].message.content or ""
+
+        if provider == "perplexity":
+            if not PERPLEXITY_API_KEY:
+                return "[SICRY: PERPLEXITY_API_KEY not set. Add it to .env or set LLM_PROVIDER=ollama for local inference.]"
+            from openai import OpenAI
+            c = OpenAI(api_key=PERPLEXITY_API_KEY, base_url="https://api.perplexity.ai")
+            r = c.chat.completions.create(
+                model=PERPLEXITY_MODEL,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+                max_tokens=4096,
+            )
+            return r.choices[0].message.content or ""
+
+        if provider == "replicate":
+            if not REPLICATE_API_KEY or not REPLICATE_VERSION:
+                return "[SICRY: REPLICATE_API_KEY and REPLICATE_VERSION required for Replicate. Add to .env."
+            import replicate
+            replicate.api.api_token = REPLICATE_API_KEY
+            output = replicate.run(
+                REPLICATE_VERSION,
+                input={"prompt": f"System: {system}\n\nUser: {prompt}", "max_tokens": 4096}
+            )
+            return "".join(output) if isinstance(output, list) else str(output)
+
+        return f"[SICRY: Unknown LLM provider {provider!r}. Use: openai, anthropic, gemini, ollama, llamacpp, openrouter, together, mistral, perplexity, replicate]"
     except Exception as e:
         return f"[SICRY: LLM call failed — {e}]"
 
