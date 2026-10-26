@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>OnionClaw</title>
+  <meta name="description" content="OnionClaw gives AI agents full Tor access: search 17 .onion engines, fetch hidden services, rotate identity, and run a read-only monitoring swarm. Open source, Apache 2.0.">
+  <meta name="theme-color" content="#07050b">
+  <link rel="icon" type="image/png" href="/assets/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Geist+Mono:wght@400;500;700&family=Geist:wght@400;500&display=swap">
+  <script>
+    // Choose the experience before first paint so nothing flashes.
+    (function () {
+      var c = document.createElement("canvas");
+      var gl = null;
+      try { gl = c.getContext("webgl2") || c.getContext("webgl"); } catch (e) {}
+      var rm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var forced = /[?&]static\b/.test(location.search);   // ?static = readable document version
+      document.documentElement.classList.add(gl && !rm && !forced ? "mode-3d" : "mode-doc");
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip" href="#ch-0">Skip to content</a>
+
+  <!-- preloader: real progress from the loading manager -->
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader-inner">
+      <div class="loader-word" data-scr>ONIONCLAW</div>
+      <div class="loader-bar"><i id="loaderBar"></i></div>
+      <div class="loader-meta"><span data-scr>BUILDING CIRCUIT</span><span id="loaderPct">000</span></div>
+    </div>
+  </div>
+
+  <canvas id="gl" aria-hidden="true"></canvas>
+  <canvas id="overlay" aria-hidden="true"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <!-- four-corner HUD -->
+  <header class="hud hud-tl">
+    <a class="hud-brand" href="#ch-0" aria-label="OnionClaw, back to top">
+      <img src="/assets/onionclaw-96.webp" width="30" height="30" alt="">
+      <span data-scr>ONIONCLAW</span>
+    </a>
+    <div class="hud-sub"><span data-scr>TOR ACCESS FOR AI AGENTS</span></div>
+    <div class="hud-sub dim"><span data-scr>V2.4 · APACHE 2.0</span></div>
+  </header>
+
+  <div class="hud hud-tr" aria-hidden="true">
+    <div class="row"><span>CIRCUIT</span><b id="hudCircuit">GUARD ▸ MIDDLE ▸ EXIT</b></div>
+    <div class="row"><span>LAYER</span><b id="hudLayer">— / 03</b></div>
+    <div class="row"><span>ENGINES</span><b>17</b></div>
+    <div class="row"><span>CAMERA</span><b id="hudCam">0.00 0.00 0.00</b></div>
+    <div class="row"><span>STARS</span><b id="hudStars">—</b></div>
+  </div>
+
+  <div class="hud hud-bl" aria-hidden="true">
+    <div class="chapter-id"><span id="hudIndex">00</span><span id="hudName" data-scr>ENTRY</span></div>
+    <div class="hint" id="hint">SCROLL TO PEEL ↓</div>
+  </div>
+
+  <nav class="hud hud-br" aria-label="Chapters">
+    <ol class="ticks" id="ticks"></ol>
+    <a class="gh" href="https://github.com/JacobJandon/OnionClaw" target="_blank" rel="noopener">GITHUB ↗</a>
+  </nav>
+
+  <main id="story">
+    <section class="chapter" id="ch-0" data-name="ENTRY" data-layer="—">
+      <div class="panel panel-hero">
+        <p class="eyebrow">Open source · OpenClaw skill · built on SICRY™</p>
+        <h1><span data-scr>Full Tor access</span><br><span data-scr class="hl">for AI agents.</span></h1>
+        <p class="lede">OnionClaw gives an agent the whole dark-web OSINT toolkit. Scroll to peel the onion, one encryption layer at a time.</p>
+        <img class="doc-mascot" src="/assets/onionclaw.webp" width="280" height="280" alt="OnionClaw mascot, an onion with crab claws">
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-1" data-name="GUARD RELAY" data-layer="01">
+      <div class="panel">
+        <p class="eyebrow"><span class="num">01</span> Layer one · Guard</p>
+        <h2 data-scr>Search seventeen engines at once.</h2>
+        <p><code>search.py</code> sends one query to 17 .onion search engines in parallel. The results come back merged, deduplicated and ranked by relevance.</p>
+        <p class="mono-list">Ahmia · OnionLand · Amnesia · Torland · Excavator · Onionway · Tor66 · OSS · Torgol · TheDeepSearches · Kaizer · Anima · Tornado · FindTor · Torgle · DuckDuckGo-Tor · Ahmia-clearnet</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-2" data-name="MIDDLE RELAY" data-layer="02">
+      <div class="panel">
+        <p class="eyebrow"><span class="num">02</span> Layer two · Middle</p>
+        <h2 data-scr>Read any hidden service.</h2>
+        <p><code>fetch.py</code> loads any .onion or clearnet page through Tor and returns clean text, links and extracted entities. <code>renew.py</code> asks Tor for a new circuit, so the next request leaves from a different exit relay.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-3" data-name="EXIT RELAY" data-layer="03">
+      <div class="panel">
+        <p class="eyebrow"><span class="num">03</span> Layer three · Exit</p>
+        <h2 data-scr>From raw pages to a report.</h2>
+        <p><code>pipeline.py</code> runs a whole investigation in one command: refine the query, search, filter, scrape the top hits, then write an analyst report. It has four modes (threat intel, ransomware, corporate and identity exposure) and works with ten LLM providers, including local Ollama.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-4" data-name="CORE · SWARM" data-layer="00">
+      <div class="panel">
+        <p class="eyebrow"><span class="num">04</span> The core · v2.4</p>
+        <h2 data-scr>A swarm that watches while you don't.</h2>
+        <p>Five read-only collectors run in parallel and store what they see in SQLite. Each sweep reports only what changed: new leak-site victims, infrastructure going up or down, exploited CVEs newly tied to ransomware, and movement on tracked wallets.</p>
+        <p class="mono-list">leaksites · groupinfra · kev · wallets · onionsites</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-5" data-name="SIGNAL" data-layer="00">
+      <div class="panel">
+        <p class="eyebrow"><span class="num">05</span> Signal</p>
+        <h2 data-scr>Evidence, not guesses.</h2>
+        <p>Groups are linked only through hard evidence such as a shared wallet, a shared leak-site host or the same alias, and every link shows its proof. Findings export as STIX 2.1, validated against the OASIS reference library, and go out as signed webhooks, delivered exactly once. 71 tests run on real captured data.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-6" data-name="ONIONCLAW" data-layer="—">
+      <div class="panel panel-end">
+        <p class="eyebrow"><span class="num">06</span> Get started</p>
+        <h2 data-scr>Point an agent at the dark web.</h2>
+        <p>The only setup is a <code>.env</code> file. Install it as an OpenClaw skill, or run any command from a terminal.</p>
+        <div class="install">
+          <code id="cmd">cp -r OnionClaw ~/.openclaw/skills/onionclaw</code>
+          <button type="button" id="copy">COPY</button>
+        </div>
+        <a class="cta" href="https://github.com/JacobJandon/OnionClaw" target="_blank" rel="noopener">Open the repository <span id="ctaStars"></span> ↗</a>
+        <p class="fineprint">Built for OSINT, threat intelligence and security research. The collectors only read public data and never contact, negotiate with or deceive anyone. Accessing some hidden services may be unlawful where you live, and you are responsible for how you use this tool. OnionClaw™ by JacobJandon · Apache License 2.0.</p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
