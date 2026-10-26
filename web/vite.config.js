@@ -1,14 +1,8 @@
-import { resolve } from "node:path";
 import { defineConfig } from "vite";
 
-// The OnionClaw site (Peel) and the Peel × Planet hybrid, one build.
+// OnionClaw site (Peel). base "./" makes every asset path relative, so the built
+// site works whether it is served from a domain root or a subdirectory.
 export default defineConfig({
-  build: {
-    rollupOptions: {
-      input: {
-        peel: resolve(import.meta.dirname, "index.html"),
-        hybrid: resolve(import.meta.dirname, "hybrid/index.html"),
-      },
-    },
-  },
+  base: "./",
+  build: { target: "es2020", assetsInlineLimit: 2048 },
 });

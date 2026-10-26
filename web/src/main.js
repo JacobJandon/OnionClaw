@@ -6,7 +6,6 @@ import "lenis/dist/lenis.css";
 import "./style.css";
 import Lenis from "lenis";
 import { scramble, scrambleAll } from "./scramble.js";
-import { mountSwitcher } from "./shared.js";
 
 const root = document.documentElement;
 const $ = (s) => document.querySelector(s);
@@ -16,7 +15,6 @@ const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a
 
 wireCopy();
 wireStars();
-mountSwitcher("Peel", "dark");
 
 if (root.classList.contains("mode-3d")) {
   start3d().catch((err) => {

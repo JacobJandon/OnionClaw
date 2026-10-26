@@ -93,7 +93,7 @@ export class World {
 
   async load(progress = () => {}) {
     const mgr = new THREE.LoadingManager();
-    const img = await new Promise((res, rej) => new THREE.ImageLoader(mgr).load("/assets/mascot-sample.png", res, undefined, rej));
+    const img = await new Promise((res, rej) => new THREE.ImageLoader(mgr).load(import.meta.env.BASE_URL + "assets/mascot-sample.png", res, undefined, rej));
     progress(0.35);
 
     const pmrem = new THREE.PMREMGenerator(this.renderer);
