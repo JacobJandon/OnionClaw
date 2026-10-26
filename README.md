@@ -14,7 +14,7 @@
 
 OnionClaw gives AI agents full access to the Tor network and .onion hidden services. It runs as an [OpenClaw](https://github.com/openclaw/openclaw) skill (drop-in, zero config beyond a `.env` file) and also works standalone from any terminal.
 
-Based on the [SICRY](https://github.com/JacobJandon/Sicry) engine — 18 dark web search engines, Robin OSINT pipeline, four LLM analysis modes.
+Based on the [SICRY](https://github.com/JacobJandon/Sicry) engine — 17 dark web search engines, Robin OSINT pipeline, four LLM analysis modes.
 
 ```bash
 # As an OpenClaw skill:
@@ -101,8 +101,8 @@ Seven commands expose the complete Tor OSINT toolkit:
 |---|---|
 | `check_tor.py` | Verify Tor is active, show current exit IP |
 | `renew.py` | Rotate Tor circuit — new exit node, new identity |
-| `check_engines.py` | Ping all 18 dark web search engines, show latency |
-| `search.py` | Search up to 18 engines simultaneously, deduplicated results |
+| `check_engines.py` | Ping all 17 dark web search engines, show latency |
+| `search.py` | Search up to 17 engines simultaneously, deduplicated results |
 | `fetch.py` | Fetch any `.onion` or clearnet URL through Tor |
 | `ask.py` | LLM OSINT analysis of scraped content (4 modes) |
 | `pipeline.py` | Full Robin pipeline: refine → search → filter → scrape → analyse |
@@ -298,7 +298,7 @@ Run before a large search session. Use the alive engine names as arguments to `-
 ### `search.py` — search dark web
 
 ```bash
-# All 18 engines (default)
+# All 17 engines (default)
 python3 search.py --query "ransomware healthcare leak"
 
 # Specific engines (faster — use alive engines from check_engines output)
@@ -441,6 +441,77 @@ git add sicry.py && git commit -m "chore: sync sicry.py to SICRY v1.2.0"
 > trigger a notice — plain git tags and pre-releases are silently ignored.
 
 ---
+
+## Monitoring swarm (v2.4)
+
+Everything above answers *"what is on this page?"*. The swarm answers *"what changed since I last looked?"* —
+continuously, persistently, and read-only.
+
+```bash
+python3 swarm.py                                  # one sweep → prioritised digest
+python3 swarm.py --watch healthcare --watch US    # flag matching events PRIORITY (whole-word match)
+python3 swarm.py --wallet bc1q...                 # always track an address on-chain
+python3 swarm.py --onion http://xyz.onion         # monitor a hidden-service page (needs Tor)
+python3 swarm.py --loop 900                       # sweep every 15 min
+python3 swarm.py --webhook https://hooks.slack.com/... --webhook-format slack
+python3 stix.py -o bundle.json                    # STIX 2.1 export (MISP / OpenCTI)
+python3 graph.py                                  # evidence-based group correlation
+python3 graph.py --activity                       # time-decayed group activity ranking
+python3 crawl.py --url http://xyz.onion --depth 2 # concurrent single-site crawl
+```
+
+| Collector | Source | Detects |
+|---|---|---|
+| `leaksites` | ransomware.live | new victim disclosures; wallets in ransom notes |
+| `groupinfra` | ransomware.live | leak sites going up / down / moving |
+| `kev` | CISA KEV | new exploited CVEs, and CVEs **newly linked to ransomware** |
+| `wallets` | mempool.space | balance / tx movement on tracked ransom wallets |
+| `onionsites` | your URLs, via Tor | content change and new wallets / emails on a page |
+
+State lives in `onionclaw.db` (SQLite). The first run baselines silently; later runs report only changes.
+A failing source is reported and never stops the others.
+
+**Read-only by design.** Collectors only fetch public data. Nothing here contacts, negotiates with, or
+deceives a threat actor, and no feature is planned that would.
+
+**Alerts** (`--webhook`): `KEV_RANSOMWARE`, `WALLET_MOVEMENT`, `WALLET_LINK`, `WATCHLIST_HIT` (HIGH);
+`CRITICAL_VICTIM`, `ONION_CHANGE` (MEDIUM); `INFRA_CHANGE` (LOW). Delivery is exactly-once per webhook,
+retried until the receiver answers 2xx, and `generic` payloads can be HMAC-signed (`--webhook-secret`).
+
+**Correlation is a lead, not attribution.** `graph.py` links groups only through hard identifiers (shared
+wallet, shared leak-site host, normalised alias, shared victim) and shows the evidence for every edge.
+A host shared by three or more groups is weighted low, since that usually means a shared platform.
+
+### ⚠ ransomware.live terms
+The free v2 API is limited to **personal use** (not corporate/business), **1 request/minute/endpoint**,
+and returns victims delayed versus PRO. OnionClaw enforces the rate limit across processes and tells you
+when it is on the free tier. For business use, get a PRO key and set `RANSOMWARE_LIVE_API_KEY`,
+`RANSOMWARE_LIVE_BASE`, and `RANSOMWARE_LIVE_KEY_HEADER`. *The PRO auth header name and paths could not be
+verified from public documentation — the `X-API-KEY` default is unconfirmed; check the PRO docs.*
+
+### Known limits
+- `.onion` fetching (`onionsites`, `crawl.py`) needs Tor; the test suite covers that logic against a local
+  server but does not exercise the Tor transport.
+- STIX 2.1 has no standard cryptocurrency-wallet observable; wallets use a custom
+  `x-cryptocurrency-wallet` pattern that generic consumers will not match.
+- ransom-note wallet harvesting depends on what the tracker publishes; many victims carry none.
+
+## Website
+
+The project site lives in `web/` (Vite + three.js, all versions pinned):
+
+```bash
+cd web
+npm install
+npm run dev        # http://127.0.0.1:5173  — live reload
+npm run build      # static site in web/dist/, deploy anywhere
+npm run preview    # serve the built site at http://127.0.0.1:4173
+```
+
+- `/` — **Peel**: scroll through the three Tor encryption layers of a glass onion down to the swarm core.
+- `/hybrid/` — **Hybrid**: a toon "onion planet" whose stations are the tools; orbit it chapter by
+  chapter, then explore it freely.
+- Add `?static` for a readable version without WebGL (used automatically with reduced motion).
 
 ## Investigation flows
 
@@ -622,7 +693,7 @@ How OnionClaw’s pieces fit together — from a command-line invocation all the
 ┌──────────────────────────────────────────────────────────────┐
 │                  Dark Web / Tor Network                         │
 │                                                                  │
-│   18 search engines (.onion)    Clearnet via Tor exit nodes      │
+│   17 search engines (.onion)    Clearnet via Tor exit nodes      │
 │   Ahmia · DuckDuckGo-Tor        Any HTTPS/HTTP URL               │
 │   Tor66 · + 15 more…                                             │
 └──────────────────────────────────────────────────────────────┘
@@ -676,7 +747,7 @@ OnionClaw/
 ├── README.md             ← This file
 ├── check_tor.py          ← Verify Tor / show exit IP
 ├── renew.py              ← Rotate Tor circuit
-├── check_engines.py      ← Ping all 18 engines
+├── check_engines.py      ← Ping all 17 engines
 ├── search.py             ← Search dark web
 ├── fetch.py              ← Fetch .onion pages
 ├── ask.py                ← OSINT analysis via LLM

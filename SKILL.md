@@ -1,6 +1,6 @@
 ---
 name: onionclaw
-description: Search the Tor dark web, fetch .onion hidden service pages, rotate Tor identity, and run structured OSINT investigations. Use when user asks to search dark web, investigate .onion sites, find if data appeared on dark web, conduct Tor-based OSINT, look up dark web leaks, fetch any .onion URL, check for leaked credentials, or investigate ransomware groups.
+description: Search the Tor dark web, fetch and crawl .onion hidden service pages, rotate Tor identity, run structured OSINT investigations, and monitor ransomware leak sites for changes. Use when user asks to search dark web, investigate .onion sites, find if data appeared on dark web, conduct Tor-based OSINT, look up dark web leaks, fetch or crawl any .onion URL, check for leaked credentials, investigate or monitor ransomware groups, watch for new victims in a sector, or export threat intel as STIX 2.1.
 homepage: https://github.com/JacobJandon/OnionClaw
 metadata:
   {
@@ -11,9 +11,9 @@ metadata:
         "bins": ["python3", "pip3"],
         "pip": ["requests[socks]", "beautifulsoup4", "python-dotenv", "stem"]
       },
-      "version": "1.0.0",
+      "version": "2.4.0",
       "author": "JacobJandon",
-      "license": "MIT",
+      "license": "Apache-2.0",
       "repo": "https://github.com/JacobJandon/OnionClaw"
     }
   }
@@ -21,9 +21,9 @@ metadata:
 
 # OnionClaw — Tor / Dark Web Access
 
-**by JacobJandon** · MIT License · [github.com/JacobJandon/OnionClaw](https://github.com/JacobJandon/OnionClaw)
+**by JacobJandon** · Apache License 2.0 · [github.com/JacobJandon/OnionClaw](https://github.com/JacobJandon/OnionClaw)
 
-OnionClaw routes all requests through the Tor network. It searches 12 verified-live dark web search engines simultaneously, fetches .onion hidden service pages, rotates Tor circuits, and produces structured OSINT reports using the Robin investigation pipeline.
+OnionClaw routes all requests through the Tor network. It searches 17 dark web search engines simultaneously, fetches .onion hidden service pages, rotates Tor circuits, and produces structured OSINT reports using the Robin investigation pipeline.
 
 ## Setup (run once after install)
 
@@ -88,7 +88,7 @@ Output: `success: true/false`. If false, the user needs to ensure ControlPort 90
 
 ### Search the dark web
 
-Search all 12 verified-live dark web engines simultaneously. Returns deduplicated `{title, url, engine}` results.
+Search all 17 dark web engines simultaneously. Returns deduplicated `{title, url, engine}` results.
 
 **Basic search:**
 ```bash
@@ -199,6 +199,49 @@ python3 {baseDir}/pipeline.py --query "INVESTIGATION_QUERY" --no-llm
 
 ---
 
+### Crawl one hidden service
+
+Follow links within a single .onion site and collect checksum-validated entities (BTC/ETH/XMR wallets, emails, .onion links, Tox IDs, PGP blocks). Pages in a level are fetched concurrently.
+
+```bash
+python3 {baseDir}/crawl.py --url "http://example.onion" --depth 2 --max-pages 15
+python3 {baseDir}/crawl.py --url "http://example.onion" --json
+```
+
+Abuse material is never crawled; every refusal is listed with its reason in the output.
+
+---
+
+### Monitor for changes (swarm)
+
+Read-only collectors run in parallel and report only what changed since the last sweep. State is kept in `{baseDir}/onionclaw.db`; the first run records a quiet baseline.
+
+```bash
+python3 {baseDir}/swarm.py                                  # one sweep → prioritised digest
+python3 {baseDir}/swarm.py --watch healthcare --watch US    # flag matching events as PRIORITY
+python3 {baseDir}/swarm.py --wallet bc1q...                 # track a Bitcoin address on-chain
+python3 {baseDir}/swarm.py --onion http://xyz.onion         # watch a hidden-service page (needs Tor)
+python3 {baseDir}/swarm.py --json                           # machine-readable digest
+```
+
+Collectors: `leaksites` (ransomware.live victims), `groupinfra` (leak-site up/down), `kev` (CISA KEV, incl. CVEs newly tied to ransomware), `wallets` (mempool.space), `onionsites` (your URLs via Tor). Clearnet sources work without Tor.
+
+Alerts: `--webhook URL --webhook-format slack|discord|generic` (exactly-once per webhook, optional `--webhook-secret` HMAC signing).
+
+---
+
+### Export STIX 2.1 and correlate groups
+
+```bash
+python3 {baseDir}/stix.py -o bundle.json          # STIX 2.1 bundle for MISP / OpenCTI
+python3 {baseDir}/graph.py                         # groups linked by shared wallet / host / alias, with evidence
+python3 {baseDir}/graph.py --activity              # groups ranked by time-decayed activity
+```
+
+Correlation is a lead for an analyst, not attribution — present the evidence with every link.
+
+---
+
 ## Typical investigation flows
 
 ### "Search the dark web for X"
@@ -216,6 +259,10 @@ python3 {baseDir}/pipeline.py --query "INVESTIGATION_QUERY" --no-llm
 1. `python3 {baseDir}/check_tor.py`
 2. `python3 {baseDir}/pipeline.py --query "GROUP_NAME ransomware" --mode ransomware`
 
+### "Watch for new ransomware victims in sector X"
+1. `python3 {baseDir}/swarm.py --watch "X"` — the first run baselines; later runs report only changes
+2. Present the PRIORITY events first, then the rest of the digest
+
 ### "Fetch this .onion URL"
 1. `python3 {baseDir}/check_tor.py`
 2. `python3 {baseDir}/fetch.py --url "URL"`
@@ -229,6 +276,8 @@ python3 {baseDir}/pipeline.py --query "INVESTIGATION_QUERY" --no-llm
 - .onion sites are frequently offline — if fetch returns `status: 0`, the site is temporarily down.
 - Dark web search indexes go down often — run `check_engines.py` first and filter by alive engines.
 - LLM tools (`ask`) require an API key in `{baseDir}/.env`. Search and fetch work without any key.
+- The swarm's collectors only read public data; never use OnionClaw to contact, negotiate with, or deceive anyone.
+- ransomware.live's free API is for personal use and allows 1 request/minute per endpoint; OnionClaw enforces the limit. Business use needs a PRO key (`RANSOMWARE_LIVE_API_KEY`).
 - Use responsibly and lawfully — OSINT, security research, and threat intelligence only.
 
 ---
