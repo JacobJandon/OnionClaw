@@ -23,6 +23,8 @@ Run from the OnionClaw root directory.
 
 import sys
 import os
+import re
+import hashlib
 import argparse
 
 try:
@@ -34,6 +36,11 @@ except Exception as _e:
 UPSTREAM_RAW  = "https://raw.githubusercontent.com/JacobJandon/Sicry/{ref}/sicry.py"
 SICRY_TAGS_API = "https://api.github.com/repos/JacobJandon/Sicry/tags?per_page=50"
 DEST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sicry.py")
+
+
+def _top_level_defs(src: str) -> set:
+    """Names of top-level functions/classes — used to detect a regressive sync."""
+    return set(re.findall(r"^(?:def|class) ([A-Za-z_][A-Za-z0-9_]*)", src, re.M))
 
 
 def _fetch_sicry_tags() -> str:
@@ -62,9 +69,11 @@ def _fetch_sicry_tags() -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Sync bundled sicry.py from upstream SICRY™")
-    parser.add_argument("--version", action="version", version="OnionClaw sync_sicry 2.1.13")
+    parser.add_argument("--version", action="version", version="OnionClaw sync_sicry 2.4.0")
     parser.add_argument("--tag",     default="main", help="git ref / tag to fetch (default: main)")
     parser.add_argument("--dry-run", action="store_true", help="print what would happen without writing")
+    parser.add_argument("--force", action="store_true",
+                        help="overwrite even if the bundled sicry.py has functions upstream lacks")
     parser.add_argument("--check-bundled", action="store_true",
                         help="Compare bundled sicry.py version to latest upstream tag and exit")
     args = parser.parse_args()
@@ -90,6 +99,20 @@ def main():
             )
             print(f"Bundled  : v{bundled_version}")
             print(f"Upstream : {latest_name}")
+            try:
+                up = requests.get(UPSTREAM_RAW.format(ref="main"), timeout=15)
+                if up.ok and os.path.isfile(DEST):
+                    with open(DEST, "rb") as _bf:
+                        local_sha = hashlib.sha256(_bf.read()).hexdigest()[:12]
+                    up_sha = hashlib.sha256(up.content).hexdigest()[:12]
+                    print(f"Content  : bundled sha256 {local_sha}  upstream/main {up_sha}"
+                          f"  ({'identical' if local_sha == up_sha else 'DIFFERENT'})")
+                    if local_sha != up_sha and _v(bundled_version) == _v(latest_name):
+                        print("\nNOTICE: version strings match but file CONTENT differs — "
+                              "the copies have drifted.")
+                        sys.exit(2)
+            except requests.RequestException:
+                pass
             if _v(bundled_version) < _v(latest_name):
                 print("\nNOTICE: bundled sicry.py is BEHIND upstream. Run sync_sicry.py before tagging.")
                 sys.exit(2)  # non-zero ⟶ CI / release scripts can catch this
@@ -136,6 +159,22 @@ def main():
             break
 
     print(f"Upstream version: {version}")
+
+    # Regression guard: refuse to replace a bundled file that is AHEAD of upstream.
+    # (v2.3.0 shipped with its CHANGELOG but not its code upstream; a blind sync
+    # would have silently deleted the only working implementation.)
+    if os.path.isfile(DEST):
+        with open(DEST, encoding="utf-8") as _f:
+            bundled_src = _f.read()
+        lost = sorted(_top_level_defs(bundled_src) - _top_level_defs(new_content))
+        if lost and not args.force:
+            print(f"REFUSING to sync: bundled sicry.py defines {len(lost)} top-level "
+                  f"name(s) that upstream '{args.tag}' lacks:", file=sys.stderr)
+            for n in lost[:15]:
+                print(f"    - {n}", file=sys.stderr)
+            print("  Port them upstream first, or re-run with --force to overwrite anyway.",
+                  file=sys.stderr)
+            sys.exit(3)
 
     if args.dry_run:
         print(f"[dry-run] Would write {len(new_content)} bytes to {DEST}")
