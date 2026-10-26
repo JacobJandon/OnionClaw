@@ -1,0 +1,648 @@
+{
+"title": "CISA Catalog of Known Exploited Vulnerabilities",
+"catalogVersion": "2026.10.23",
+"dateReleased": "2026-10-23T19:30:18.9209Z",
+"count": 40,
+"vulnerabilities": [
+{
+"cveID": "CVE-2026-59310",
+"vendorProject": "Broadcom",
+"product": "VMware vCenter",
+"vulnerabilityName": "Broadcom VMware vCenter Path Traversal Vulnerability",
+"dateAdded": "2026-08-18",
+"shortDescription": "Broadcom VMware vCenter contains a path traversal vulnerability which could allo",
+"requiredAction": "",
+"dueDate": "2026-08-21",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-22"
+]
+},
+{
+"cveID": "CVE-2026-63077",
+"vendorProject": "JetBrains",
+"product": "TeamCity",
+"vulnerabilityName": "JetBrains TeamCity Deserialization of Untrusted Data Vulnerability",
+"dateAdded": "2026-08-05",
+"shortDescription": "JetBrains TeamCity contains a deserialization of untrusted data vulnerability th",
+"requiredAction": "",
+"dueDate": "2026-08-08",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-502"
+]
+},
+{
+"cveID": "CVE-2026-20316",
+"vendorProject": "Cisco",
+"product": "Secure Firewall Management Center (FMC)",
+"vulnerabilityName": "Cisco Secure Firewall Management Center Use of Hard-coded Password Vulnerability",
+"dateAdded": "2026-07-29",
+"shortDescription": "Cisco Secure Firewall Management Center (FMC) formerly known as Firepower Manage",
+"requiredAction": "",
+"dueDate": "2026-08-01",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-259"
+]
+},
+{
+"cveID": "CVE-2026-15409",
+"vendorProject": "SonicWall",
+"product": "SMA1000 Appliances",
+"vulnerabilityName": "SonicWall SMA1000 Appliances Server-Side Request Forgery Vulnerability",
+"dateAdded": "2026-07-14",
+"shortDescription": "SonicWall SMA1000 Appliances contain a server-side request forgery vulnerability",
+"requiredAction": "",
+"dueDate": "2026-07-17",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-918"
+]
+},
+{
+"cveID": "CVE-2026-15410",
+"vendorProject": "SonicWall",
+"product": "SMA1000 Appliances",
+"vulnerabilityName": "SonicWall SMA1000 Appliances Code Injection Vulnerability",
+"dateAdded": "2026-07-14",
+"shortDescription": "SonicWall SMA1000 Appliances contain a code injection vulnerability which in spe",
+"requiredAction": "",
+"dueDate": "2026-07-17",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-94"
+]
+},
+{
+"cveID": "CVE-2026-45659",
+"vendorProject": "Microsoft",
+"product": "SharePoint Server",
+"vulnerabilityName": "Microsoft SharePoint Server Deserialization of Untrusted Data Vulnerability",
+"dateAdded": "2026-07-01",
+"shortDescription": "Microsoft SharePoint Server contains a deserialization of untrusted data vulnera",
+"requiredAction": "",
+"dueDate": "2026-07-04",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-502"
+]
+},
+{
+"cveID": "CVE-2026-12569",
+"vendorProject": "PTC",
+"product": "Windchill and FlexPLM",
+"vulnerabilityName": "PTC Windchill and FlexPLM Improper Input Validation Vulnerability",
+"dateAdded": "2026-06-25",
+"shortDescription": "PTC Windchill and FlexPLM contains an improper input validation vulnerability al",
+"requiredAction": "",
+"dueDate": "2026-06-28",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-20",
+"CWE-502"
+]
+},
+{
+"cveID": "CVE-2026-35273",
+"vendorProject": "Oracle",
+"product": " PeopleSoft Enterprise PeopleTools",
+"vulnerabilityName": "Oracle PeopleSoft Enterprise PeopleTools Missing Authentication for Critical Function Vulnerability",
+"dateAdded": "2026-06-12",
+"shortDescription": "Oracle PeopleSoft Enterprise PeopleTools contains a missing authentication for c",
+"requiredAction": "",
+"dueDate": "2026-06-15",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-306"
+]
+},
+{
+"cveID": "CVE-2026-50751",
+"vendorProject": "Check Point",
+"product": "Security Gateway",
+"vulnerabilityName": "Check Point Security Gateway Improper Authentication Vulnerability",
+"dateAdded": "2026-06-08",
+"shortDescription": "Check Point Security Gateway contains an improper authentication vulnerability i",
+"requiredAction": "",
+"dueDate": "2026-06-11",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-287"
+]
+},
+{
+"cveID": "CVE-2026-0257",
+"vendorProject": "Palo Alto Networks",
+"product": "PAN-OS",
+"vulnerabilityName": "Palo Alto Networks PAN-OS Authentication Bypass Vulnerability",
+"dateAdded": "2026-05-29",
+"shortDescription": "Palo Alto Networks PAN-OS contains an authentication bypass vulnerability that a",
+"requiredAction": "",
+"dueDate": "2026-06-01",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-565"
+]
+},
+{
+"cveID": "CVE-2026-48027",
+"vendorProject": "Nx",
+"product": "Nx Console",
+"vulnerabilityName": "Nx Console Embedded Malicious Code Vulnerability",
+"dateAdded": "2026-05-27",
+"shortDescription": "Nx Console contains an embedded malicious code vulnerability that allowed a mali",
+"requiredAction": "",
+"dueDate": "2026-06-10",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-506"
+]
+},
+{
+"cveID": "CVE-2026-45321",
+"vendorProject": "TanStack",
+"product": "TanStack",
+"vulnerabilityName": "TanStack Unspecified Vulnerability",
+"dateAdded": "2026-05-27",
+"shortDescription": "TanStack contains an unspecified vulnerability that allowed malicious versions o",
+"requiredAction": "",
+"dueDate": "2026-06-10",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "No",
+"notes": "",
+"cwes": []
+},
+{
+"cveID": "CVE-2026-41940",
+"vendorProject": "WebPros",
+"product": "cPanel & WHM and WP2 (WordPress Squared)",
+"vulnerabilityName": "WebPros cPanel & WHM and WP2 (WordPress Squared) Missing Authentication for Critical Function Vulnerability",
+"dateAdded": "2026-04-30",
+"shortDescription": "WebPros cPanel & WHM (WebHost Manager) and WP2 (WordPress Squared) contain an au",
+"requiredAction": "",
+"dueDate": "2026-05-03",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-306"
+]
+},
+{
+"cveID": "CVE-2024-1708",
+"vendorProject": "ConnectWise",
+"product": "ScreenConnect",
+"vulnerabilityName": "ConnectWise ScreenConnect Path Traversal Vulnerability",
+"dateAdded": "2026-04-28",
+"shortDescription": "ConnectWise ScreenConnect contains a path traversal vulnerability which could al",
+"requiredAction": "",
+"dueDate": "2026-05-12",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-22"
+]
+},
+{
+"cveID": "CVE-2024-57728",
+"vendorProject": "SimpleHelp ",
+"product": "SimpleHelp",
+"vulnerabilityName": "SimpleHelp Path Traversal Vulnerability",
+"dateAdded": "2026-04-24",
+"shortDescription": "SimpleHelp contains a path traversal vulnerability that allows admin users to up",
+"requiredAction": "",
+"dueDate": "2026-05-08",
+"knownRansomwareCampaignUse": "Known",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-22"
+]
+},
+{
+"cveID": "CVE-2026-114625",
+"vendorProject": "Arista",
+"product": "VeloCloud Orchestrator",
+"vulnerabilityName": "Arista VeloCloud Orchestrator SQL Injection Vulnerability",
+"dateAdded": "2026-10-23",
+"shortDescription": "Arista VeloCloud Orchestrator on-prem contains a SQL injection vulnerability tha",
+"requiredAction": "",
+"dueDate": "2026-10-26",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-89"
+]
+},
+{
+"cveID": "CVE-2026-110447",
+"vendorProject": "Collabora",
+"product": "Collabora Online \u2013 Built-in CODE Server",
+"vulnerabilityName": "Collabora Online \u2013 Built-in CODE Server OS Command Injection Vulnerability",
+"dateAdded": "2026-10-23",
+"shortDescription": "Collabora Collabora Online \u2013 Built-in CODE Server when used within the NextCloud",
+"requiredAction": "",
+"dueDate": "2026-10-26",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-78"
+]
+},
+{
+"cveID": "CVE-2026-106931",
+"vendorProject": "EG Secure Solutions",
+"product": "SiteGuard Server Edition",
+"vulnerabilityName": "EG Secure Solutions SiteGuard Server Edition OS Command Injection Vulnerability",
+"dateAdded": "2026-10-20",
+"shortDescription": "EG Secure Solutions SiteGuard Server Edition contains an OS command injection vu",
+"requiredAction": "",
+"dueDate": "2026-10-23",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-78"
+]
+},
+{
+"cveID": "CVE-2026-96656",
+"vendorProject": "Plex",
+"product": "Media Server",
+"vulnerabilityName": "Plex Media Server External Control of File Name or Path Vulnerability",
+"dateAdded": "2026-10-20",
+"shortDescription": "Plex Media Server contains an external control of file name or path vulnerabilit",
+"requiredAction": "",
+"dueDate": "2026-10-23",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-73"
+]
+},
+{
+"cveID": "CVE-2026-96655",
+"vendorProject": "Plex",
+"product": "Media Server",
+"vulnerabilityName": "Plex Media Server Server-Side Request Forgery (SSRF) Vulnerability",
+"dateAdded": "2026-10-20",
+"shortDescription": "Plex Media Server contains a server-side request forgery (SSRF) vulnerability th",
+"requiredAction": "",
+"dueDate": "2026-11-03",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-918"
+]
+},
+{
+"cveID": "CVE-2026-96654",
+"vendorProject": "Plex",
+"product": "Media Server",
+"vulnerabilityName": "Plex Media Server Improper Neutralization of Encoded URI Schemes in a Web Page Vulnerability",
+"dateAdded": "2026-10-20",
+"shortDescription": "Plex Media Server contains an improper neutralization of encoded URI schemes in ",
+"requiredAction": "",
+"dueDate": "2026-10-23",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-84"
+]
+},
+{
+"cveID": "CVE-2026-96652",
+"vendorProject": "Plex",
+"product": "Media Server",
+"vulnerabilityName": "Plex Media Server Server-Side Request Forgery (SSRF) Vulnerability",
+"dateAdded": "2026-10-20",
+"shortDescription": "Plex Media Server contains a server-side request forgery (SSRF) vulnerability wh",
+"requiredAction": "",
+"dueDate": "2026-11-03",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-918"
+]
+},
+{
+"cveID": "CVE-2026-110936",
+"vendorProject": "Siemens",
+"product": "Software Center",
+"vulnerabilityName": "Siemens Software Center Uncontrolled Search Path Element Vulnerability",
+"dateAdded": "2026-10-20",
+"shortDescription": "Siemens Software Center contains an uncontrolled search path element vulnerabili",
+"requiredAction": "",
+"dueDate": "2026-11-03",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-427"
+]
+},
+{
+"cveID": "CVE-2026-102764",
+"vendorProject": "BeyondTrust",
+"product": "Remote Support",
+"vulnerabilityName": "BeyondTrust Remote Support Authentication Bypass by Spoofing Vulnerability",
+"dateAdded": "2026-10-16",
+"shortDescription": "BeyondTrust Remote Support contains an authentication bypass by spoofing vulnera",
+"requiredAction": "",
+"dueDate": "2026-10-19",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-290"
+]
+},
+{
+"cveID": "CVE-2025-61624",
+"vendorProject": "Fortinet",
+"product": "Multiple Products",
+"vulnerabilityName": "Fortinet Multiple Products Path Traversal Vulnerability",
+"dateAdded": "2026-10-16",
+"shortDescription": "FortiOS, FortiPAM, FortiProxy, and FortiSwitchManager contain a path traversal v",
+"requiredAction": "",
+"dueDate": "2026-10-19",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-22"
+]
+},
+{
+"cveID": "CVE-2026-21589",
+"vendorProject": "Atlassian",
+"product": "Multiple Products",
+"vulnerabilityName": "Atlassian Multiple Products Files or Directories Accessible to External Parties Vulnerability",
+"dateAdded": "2026-10-15",
+"shortDescription": "Multiple Atlassian products (Bitbucket Data Center ,Confluence Data Center, Jira",
+"requiredAction": "",
+"dueDate": "2026-10-18",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-552"
+]
+},
+{
+"cveID": "CVE-2026-105134",
+"vendorProject": "Ahsay",
+"product": "AhsayCBS",
+"vulnerabilityName": "Ahsay AhsayCBS Command Injection Vulnerability",
+"dateAdded": "2026-10-14",
+"shortDescription": "Ahsay AhsayCBS contains a command injection vulnerability that could allow a rem",
+"requiredAction": "",
+"dueDate": "2026-10-17",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-77",
+"CWE-78"
+]
+},
+{
+"cveID": "CVE-2026-76519",
+"vendorProject": "Cisco",
+"product": "Secure Email Gateway",
+"vulnerabilityName": "Cisco Secure Email Gateway Relative Path Traversal Vulnerability",
+"dateAdded": "2026-10-14",
+"shortDescription": "Cisco Secure Email Gateway contains a relative path traversal vulnerability that",
+"requiredAction": "",
+"dueDate": "2026-10-17",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-23"
+]
+},
+{
+"cveID": "CVE-2026-105133",
+"vendorProject": "Ahsay",
+"product": "AhsayCBS",
+"vulnerabilityName": "Ahsay AhsayCBS Improper Authentication Vulnerability",
+"dateAdded": "2026-10-14",
+"shortDescription": "Ahsay AhsayCBS contains an improper authentication vulnerability that could allo",
+"requiredAction": "",
+"dueDate": "2026-10-17",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-287"
+]
+},
+{
+"cveID": "CVE-2026-0322",
+"vendorProject": "Palo Alto Networks",
+"product": "PAN-OS",
+"vulnerabilityName": "Palo Alto Networks PAN-OS Code Injection Vulnerability",
+"dateAdded": "2026-10-14",
+"shortDescription": "Palo Alto Networks PAN-OS contains a code injection vulnerability that could all",
+"requiredAction": "",
+"dueDate": "2026-10-17",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-94"
+]
+},
+{
+"cveID": "CVE-2026-104935",
+"vendorProject": "Ivanti",
+"product": "Connect Secure",
+"vulnerabilityName": "Ivanti Connect Secure Authentication Bypass by Spoofing Vulnerability",
+"dateAdded": "2026-10-13",
+"shortDescription": "Ivanti Connect Secure contains an authentication bypass by spoofing vulnerabilit",
+"requiredAction": "",
+"dueDate": "2026-10-16",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-290"
+]
+},
+{
+"cveID": "CVE-2026-96951",
+"vendorProject": "Microsoft",
+"product": "Windows",
+"vulnerabilityName": "Microsoft Windows Command Injection Vulnerability",
+"dateAdded": "2026-10-13",
+"shortDescription": "Microsoft Windows Shell contains a command injection vulnerability that allows a",
+"requiredAction": "",
+"dueDate": "2026-10-16",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-77"
+]
+},
+{
+"cveID": "CVE-2015-5477",
+"vendorProject": "ISC",
+"product": "BIND",
+"vulnerabilityName": " ISC BIND Data Processing Errors Vulnerability",
+"dateAdded": "2026-10-08",
+"shortDescription": "ISC BIND contains a data processing errors vulnerability that could allow remote",
+"requiredAction": "",
+"dueDate": "2026-10-11",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-19"
+]
+},
+{
+"cveID": "CVE-2016-3081",
+"vendorProject": "Apache",
+"product": "Struts",
+"vulnerabilityName": "Apache Struts Command Injection Vulnerability",
+"dateAdded": "2026-10-08",
+"shortDescription": "Apache Struts contains a command injection vulnerability that could allow remote",
+"requiredAction": "",
+"dueDate": "2026-10-11",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-77"
+]
+},
+{
+"cveID": "CVE-2023-22894",
+"vendorProject": "Strapi",
+"product": "Strapi",
+"vulnerabilityName": "Strapi Cleartext Storage of Sensitive Information Vulnerability",
+"dateAdded": "2026-10-08",
+"shortDescription": "Strapi contains a cleartext storage of sensitive information vulnerability that ",
+"requiredAction": "",
+"dueDate": "2026-10-11",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-312"
+]
+},
+{
+"cveID": "CVE-2021-3199",
+"vendorProject": "ONLYOFFICE",
+"product": "Docs",
+"vulnerabilityName": "ONLYOFFICE Docs Server Path Traversal Vulnerability",
+"dateAdded": "2026-10-08",
+"shortDescription": "ONLYOFFICE Docs contains a path traversal vulnerability that can occur when JWT ",
+"requiredAction": "",
+"dueDate": "2026-10-11",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-22"
+]
+},
+{
+"cveID": "CVE-2015-3306",
+"vendorProject": "ProFTPD",
+"product": "ProFTPD",
+"vulnerabilityName": "ProFTPD Improper Access Control Vulnerability",
+"dateAdded": "2026-10-08",
+"shortDescription": "ProFTPD contains an improper access control vulnerability that could allow remot",
+"requiredAction": "",
+"dueDate": "2026-10-11",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-284"
+]
+},
+{
+"cveID": "CVE-2026-88779",
+"vendorProject": "Citrix",
+"product": "NetScaler",
+"vulnerabilityName": "Citrix NetScaler Improper Restriction of Operations within the Bounds of a Memory Buffer Vulnerability",
+"dateAdded": "2026-10-04",
+"shortDescription": "Citrix NetScaler ADC (formerly Citrix ADC) and Citrix NetScaler Gateway (formerl",
+"requiredAction": "",
+"dueDate": "2026-10-07",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "No",
+"notes": "",
+"cwes": [
+"CWE-119"
+]
+},
+{
+"cveID": "CVE-2026-102490",
+"vendorProject": "Zammad GmbH",
+"product": "Zammad",
+"vulnerabilityName": "Zammad GmbH Zammad Improper Privilege Management Vulnerability",
+"dateAdded": "2026-10-02",
+"shortDescription": "Zammad GmbH Zammad contains an improper privilege management vulnerability that ",
+"requiredAction": "",
+"dueDate": "2026-10-05",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-269"
+]
+},
+{
+"cveID": "CVE-2026-102489",
+"vendorProject": "Zammad GmbH",
+"product": "Zammad",
+"vulnerabilityName": "Zammad GmbH Zammad Session Fixation Vulnerability",
+"dateAdded": "2026-10-02",
+"shortDescription": "Zammad GmbH Zammad contains a session fixation vulnerability that can lead to re",
+"requiredAction": "",
+"dueDate": "2026-10-05",
+"knownRansomwareCampaignUse": "Unknown",
+"forensicTriage": "Yes",
+"notes": "",
+"cwes": [
+"CWE-384"
+]
+}
+]
+}

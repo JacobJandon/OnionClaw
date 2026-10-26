@@ -1,0 +1,3062 @@
+[
+{
+"added_date": "2026-02-04",
+"altname": null,
+"description": "",
+"locations": [
+{
+"available": false,
+"enabled": true,
+"fqdn": "scbrksw5fgjtujc2ah42roo6bij2unr2tggfcynpbql5a7yp3s22taid.onion",
+"slug": "http://scbrksw5fgjtujc2ah42roo6bij2unr2tggfcynpbql5a7yp3s22taid.onion",
+"title": "",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "shadowxn303kvvkbjyaoe33emqxrtadijp7xybizbht2thb6x5dvfhad.onion",
+"slug": "http://shadowxn303kvvkbjyaoe33emqxrtadijp7xybizbht2thb6x5dvfhad.onion",
+"title": "",
+"type": "DLS"
+}
+],
+"name": "The Green Blood Group",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/thegreenbloodgroup"
+},
+{
+"added_date": "2023-07-01",
+"altname": null,
+"description": "Cyclops emerged in May 2023 as a cross-platform RaaS operation targeting Windows",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "knight3xppu263m7g4ag3xlit2qxpryjwueobh7vjdc3zrscqlfu3pqd.onion",
+"slug": "http://knight3xppu263m7g4ag3xlit2qxpryjwueobh7vjdc3zrscqlfu3pqd.onion",
+"title": "Please wait...",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "nt3rrzq5hcyznvdkpslvqbbc2jqecqrinhi5jtwoae2x7psqtcb6dcad.onion",
+"slug": "http://nt3rrzq5hcyznvdkpslvqbbc2jqecqrinhi5jtwoae2x7psqtcb6dcad.onion",
+"title": "Blog | Knight",
+"type": "DLS"
+}
+],
+"name": "cyclops",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/cyclops"
+},
+{
+"added_date": "2024-04-21",
+"altname": null,
+"description": "Embargo is a Rust-based ransomware-as-a-service group that emerged in April 2024",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "nbgvwttzh35irjtnxgeaydqob6ixorgabbufb4ociefv4zklyppu5lad.onion",
+"slug": "http://nbgvwttzh35irjtnxgeaydqob6ixorgabbufb4ociefv4zklyppu5lad.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "jolfnfw6lmcjsppgjfimhimqt2t7viybk67yc5zkxip6fxrcgo7mv4id.onion",
+"slug": "http://jolfnfw6lmcjsppgjfimhimqt2t7viybk67yc5zkxip6fxrcgo7mv4id.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "wg55rcy2chmbpeh6pl5pftnveac2lqfxbletrtzanfjhhmvcjnn5tcqd.onion",
+"slug": "http://wg55rcy2chmbpeh6pl5pftnveac2lqfxbletrtzanfjhhmvcjnn5tcqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "3kt5ouf4qxdkuzsct6zp3jxsqmtaqjsun3uvfdwbeuo2yizjp73ripyd.onion",
+"slug": "http://3kt5ouf4qxdkuzsct6zp3jxsqmtaqjsun3uvfdwbeuo2yizjp73ripyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "4q5tsu5o3msmv4am4dfhupwhzlyg7wv3lpswbvbhcrknr4ega7xetxad.onion",
+"slug": "http://4q5tsu5o3msmv4am4dfhupwhzlyg7wv3lpswbvbhcrknr4ega7xetxad.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "qrthxx5hkttfl3pk57eou6ddqi34pxsibxvndq7vt5pblqbaurkmxbqd.onion",
+"slug": "http://qrthxx5hkttfl3pk57eou6ddqi34pxsibxvndq7vt5pblqbaurkmxbqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "olpvpdu4dotl54dereuembantzyjqzftjqj2ovvlfgcvw23qknuxzjad.onion",
+"slug": "http://olpvpdu4dotl54dereuembantzyjqzftjqj2ovvlfgcvw23qknuxzjad.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "7lxwbzlkpjyuahuvngwwkc4mycj2a4flh45ksqjo2ezfdbkmxmlxikad.onion",
+"slug": "http://7lxwbzlkpjyuahuvngwwkc4mycj2a4flh45ksqjo2ezfdbkmxmlxikad.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "z2b75lk7xf6kme3zfvlmdmpwiaansnkcuhsojd23dgub5md24fhogcyd.onion",
+"slug": "http://z2b75lk7xf6kme3zfvlmdmpwiaansnkcuhsojd23dgub5md24fhogcyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "7t635vqx6zm733ryjj5jm6hnavlw2it3umi3zmbq6gd6nhaeaylsbsyd.onion",
+"slug": "http://7t635vqx6zm733ryjj5jm6hnavlw2it3umi3zmbq6gd6nhaeaylsbsyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "vh2wkazjlflm6pvwtvw2fnztu3dcw4346lasvikzeg25yhx6bjvl5pqd.onion",
+"slug": "http://vh2wkazjlflm6pvwtvw2fnztu3dcw4346lasvikzeg25yhx6bjvl5pqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "7jkcp27353enwfwdemqgsevyjbtz5cxv66n5ctfgd37h2mdxbhhiluyd.onion",
+"slug": "http://7jkcp27353enwfwdemqgsevyjbtz5cxv66n5ctfgd37h2mdxbhhiluyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "kk3puzzmu6jfzll6sllchr5olxf4bg4tl7uyq7wtiqqpntkreya3qxqd.onion",
+"slug": "http://kk3puzzmu6jfzll6sllchr5olxf4bg4tl7uyq7wtiqqpntkreya3qxqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "rlseptkjo5yt2c3m4ov7hmhxmb2uia3cic3ohq2u5tmb2uv4enovhfid.onion",
+"slug": "http://rlseptkjo5yt2c3m4ov7hmhxmb2uia3cic3ohq2u5tmb2uv4enovhfid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "ec6edgevw2lzqy4ipafpbvjuu7r6ugqbljqokl3pvecc6c3a5ix3wgyd.onion",
+"slug": "http://ec6edgevw2lzqy4ipafpbvjuu7r6ugqbljqokl3pvecc6c3a5ix3wgyd.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "wsw3zgmaw32cjt4j4iwwpg7td7qgrh2fp2p34pvhupyqke6ilepsnqad.onion",
+"slug": "http://wsw3zgmaw32cjt4j4iwwpg7td7qgrh2fp2p34pvhupyqke6ilepsnqad.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "orxo6qmizqa43suoox3xteu6645y4zf2bpvnsutb2yq3n2lpprw2x7yd.onion",
+"slug": "http://orxo6qmizqa43suoox3xteu6645y4zf2bpvnsutb2yq3n2lpprw2x7yd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "tamvd5fdyvpekhaf2sdg5sum73ra2abc4h2iqihijpvw4hythnlmuhid.onion",
+"slug": "http://tamvd5fdyvpekhaf2sdg5sum73ra2abc4h2iqihijpvw4hythnlmuhid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "qk5nd25xdnygqrey7al2tb3xop5brk7kxua7xr2zrgftzked43bku4yd.onion",
+"slug": "http://qk5nd25xdnygqrey7al2tb3xop5brk7kxua7xr2zrgftzked43bku4yd.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "5dw7bszmidrhpoltqbqmpixpz6mvgez3mr6xc7ktval2glrmbxkwopad.onion",
+"slug": "http://5dw7bszmidrhpoltqbqmpixpz6mvgez3mr6xc7ktval2glrmbxkwopad.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "clqt3b3ldzxyemjrkvgsm5so2tyus7f7i2ia5qvikt4623srq5w3d7ad.onion",
+"slug": "http://clqt3b3ldzxyemjrkvgsm5so2tyus7f7i2ia5qvikt4623srq5w3d7ad.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "22g3uiuyqqa4txxuyvzmlyvlou4crrgfvgnvodrv3wrxcedtvjgx6aid.onion",
+"slug": "http://22g3uiuyqqa4txxuyvzmlyvlou4crrgfvgnvodrv3wrxcedtvjgx6aid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "y6kyfs2unbfcyodzjrxadn4w5vyulhyotdi5dtiqulxbduujehupunqd.onion",
+"slug": "http://y6kyfs2unbfcyodzjrxadn4w5vyulhyotdi5dtiqulxbduujehupunqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "zs3swtx3pkpi6qy3umpei5ophcvblu6zo3uwi3v2zda7h4lv2iup2iqd.onion",
+"slug": "http://zs3swtx3pkpi6qy3umpei5ophcvblu6zo3uwi3v2zda7h4lv2iup2iqd.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "bjy6kwjxxepe6v3vjlxhir4qzdpl7jvwvxua6wvemyfm44di2cxdd4qd.onion",
+"slug": "http://bjy6kwjxxepe6v3vjlxhir4qzdpl7jvwvxua6wvemyfm44di2cxdd4qd.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "fvbobs6fcm5lske2xhfyx5sazn3i5cbxrbdyozoio23ouhnmortg5fyd.onion",
+"slug": "http://fvbobs6fcm5lske2xhfyx5sazn3i5cbxrbdyozoio23ouhnmortg5fyd.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "v6pggtfljylf5cekfssrdhcyaxsk6m5xoudrqnvskw73iueyvaexsnad.onion",
+"slug": "http://v6pggtfljylf5cekfssrdhcyaxsk6m5xoudrqnvskw73iueyvaexsnad.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "rngjexyyyl5mek5kg2lkxilqfef5nr6bpa4u24i5ei5hb3ydsh5drpid.onion",
+"slug": "http://rngjexyyyl5mek5kg2lkxilqfef5nr6bpa4u24i5ei5hb3ydsh5drpid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "byodkksxj3pdnn4dvkouo6oshztjgc45accwvbd7e53heil7s2tfrtyd.onion",
+"slug": "http://byodkksxj3pdnn4dvkouo6oshztjgc45accwvbd7e53heil7s2tfrtyd.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "gvhj726josrtcuig76yfme5x72d7xqbevgsqm26ua3qcmskxddnx3oid.onion",
+"slug": "http://gvhj726josrtcuig76yfme5x72d7xqbevgsqm26ua3qcmskxddnx3oid.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "g7hva5likuonhljhh3sp2nvg7pezpu45vpxjccgihevwpb4fi2napqad.onion",
+"slug": "http://g7hva5likuonhljhh3sp2nvg7pezpu45vpxjccgihevwpb4fi2napqad.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "n56t64ldkhzygjk5cqa2f3r4xxjqzaftusjy56z25qcnun6ab4cijeqd.onion",
+"slug": "http://n56t64ldkhzygjk5cqa2f3r4xxjqzaftusjy56z25qcnun6ab4cijeqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "katqzwogbio5ro3glh4k5cmbz2zxeac5az2pebzg4e6n7gw66di7ihad.onion",
+"slug": "http://katqzwogbio5ro3glh4k5cmbz2zxeac5az2pebzg4e6n7gw66di7ihad.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "yunznlzrpp7oa45og6unujpp4t3f4m2sqh2b4vuhct3kmbxxj6lwqbqd.onion",
+"slug": "http://yunznlzrpp7oa45og6unujpp4t3f4m2sqh2b4vuhct3kmbxxj6lwqbqd.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "rdur3c3dxhjjpfxebaiba6fuj6lqrcdtqfzengynkg5ptyelcclgvdid.onion",
+"slug": "http://rdur3c3dxhjjpfxebaiba6fuj6lqrcdtqfzengynkg5ptyelcclgvdid.onion",
+"title": "Index of /",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "6cs2fy7brjjx3fza7ny2vyhbkaxtn6rdx4p4js2lbgyhke7z4aslxtid.onion",
+"slug": "http://6cs2fy7brjjx3fza7ny2vyhbkaxtn6rdx4p4js2lbgyhke7z4aslxtid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "73klffkonzmo6csfca75k67rniemcvlc2ydnfnkk54cqnkmdk2yqxqad.onion",
+"slug": "http://73klffkonzmo6csfca75k67rniemcvlc2ydnfnkk54cqnkmdk2yqxqad.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "embargobe3n5okxyzqphpmk3moinoap2snz5k6765mvtkk7hhi544jid.onion",
+"slug": "http://embargobe3n5okxyzqphpmk3moinoap2snz5k6765mvtkk7hhi544jid.onion",
+"title": "EMBARGO",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "76yl7gfmz2kkjglcevxps4tleyeqnqhfcxh6rnstxj27oxhoxird3hyd.onion",
+"slug": "http://76yl7gfmz2kkjglcevxps4tleyeqnqhfcxh6rnstxj27oxhoxird3hyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "fanr4dyego253yx5pmbc7krct6qzq3hqfrchvj5fafiwalvjijfgsmid.onion",
+"slug": "http://fanr4dyego253yx5pmbc7krct6qzq3hqfrchvj5fafiwalvjijfgsmid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "dr4zejrunmmijebc4jhz6xwplapeltdqdchvbvikiwitvrtjedcezmad.onion",
+"slug": "http://dr4zejrunmmijebc4jhz6xwplapeltdqdchvbvikiwitvrtjedcezmad.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "p474ku5ehoex7mfsbdenppakbb4twvrnvggjzhp53xw4z5qq6glm4yad.onion",
+"slug": "http://p474ku5ehoex7mfsbdenppakbb4twvrnvggjzhp53xw4z5qq6glm4yad.onion",
+"title": "Index of /",
+"type": "Files"
+}
+],
+"name": "embargo",
+"tools": [
+{
+"DefenseEvasion": [
+"s4killer (Minifilter Driver)"
+],
+"LOLBAS": [
+"BCDEdit",
+"ServiceControl (sc.exe)"
+]
+}
+],
+"ttps": [],
+"url": "https://www.ransomware.live/group/embargo"
+},
+{
+"added_date": "2023-09-06",
+"altname": null,
+"description": "[Cyclops](group/cyclops) rebrand",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "knight3xppu263m7g4ag3xlit2qxpryjwueobh7vjdc3zrscqlfu3pqd.onion",
+"slug": "http://knight3xppu263m7g4ag3xlit2qxpryjwueobh7vjdc3zrscqlfu3pqd.onion",
+"title": "Please wait...",
+"type": "DLS"
+}
+],
+"name": "knight",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/knight"
+},
+{
+"added_date": "2023-01-11",
+"altname": null,
+"description": "Medusa is a ransomware-as-a-service operation active since June 2021 that has ta",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "dlmfciajg5s4vliyo5dhs5jyzhi2xr2fnkebul46lpf4xudtqiue4nid.onion",
+"slug": "http://dlmfciajg5s4vliyo5dhs5jyzhi2xr2fnkebul46lpf4xudtqiue4nid.onion",
+"title": "503 Service Temporarily Unavailable",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "medusaxko7jxtrojdkxo66j7ck4q5tgktf7uqsqyfry4ebnxlcbkccyd.onion",
+"slug": "http://medusaxko7jxtrojdkxo66j7ck4q5tgktf7uqsqyfry4ebnxlcbkccyd.onion/",
+"title": "Human Verify",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "7aqabivkwmpvjkyefonf3gpy5gsubopqni7kcirsrq3pflckxq5zz4id.onion",
+"slug": "http://7aqabivkwmpvjkyefonf3gpy5gsubopqni7kcirsrq3pflckxq5zz4id.onion",
+"title": "",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "s7lmmhlt3iwnwirxvgjidl6omcblvw2rg75txjfduy73kx5brlmiulad.onion",
+"slug": "http://s7lmmhlt3iwnwirxvgjidl6omcblvw2rg75txjfduy73kx5brlmiulad.onion",
+"title": "Human Verify",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "kyfiw76eol6ph2mq7pi5e5tdvce37bicddhai62qhdc5ja6jdchz4qqd.onion",
+"slug": "http://kyfiw76eol6ph2mq7pi5e5tdvce37bicddhai62qhdc5ja6jdchz4qqd.onion",
+"title": "Human Verify",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "hupxs7ps7md24kpz4lwsbra64abgxjx3pcc2wuca5ibawf2g5hlpfyqd.onion",
+"slug": "http://hupxs7ps7md24kpz4lwsbra64abgxjx3pcc2wuca5ibawf2g5hlpfyqd.onion",
+"title": "",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "xfv4jzckytb4g3ckwemcny3ihv4i5p4lqzdpi624cxisu35my5fwi5qd.onion",
+"slug": "http://xfv4jzckytb4g3ckwemcny3ihv4i5p4lqzdpi624cxisu35my5fwi5qd.onion",
+"title": "Human Verify",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "cx5u7zxbvrfyoj6ughw76oa264ucuuizmmzypwum6ear7pct4yc723qd.onion",
+"slug": "http://cx5u7zxbvrfyoj6ughw76oa264ucuuizmmzypwum6ear7pct4yc723qd.onion",
+"title": "Human Verify",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "medusakxxtp3uo7vusntvubnytaph4d3amxivbggl3hnhpk2nmus34yd.onion",
+"slug": "http://medusakxxtp3uo7vusntvubnytaph4d3amxivbggl3hnhpk2nmus34yd.onion",
+"title": "Medusa Chat",
+"type": "Chat"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "62foekhv5humjrfwjdyd2dgextpbf5i7obguhwvfoghmu3nxpkmxlcid.onion",
+"slug": "http://62foekhv5humjrfwjdyd2dgextpbf5i7obguhwvfoghmu3nxpkmxlcid.onion",
+"title": "",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "45.9.148.39",
+"slug": "http://45.9.148.39:8001",
+"title": "",
+"type": "DLS"
+}
+],
+"name": "medusa",
+"tools": [
+{
+"CredentialTheft": [
+"Mimikatz"
+],
+"DefenseEvasion": [
+"EDRSandBlast",
+"KillAV",
+"ThrottleStop driver"
+],
+"DiscoveryEnum": [
+"Advanced IP Scanner",
+"Navicat",
+"PDQ Inventory",
+"RoboCopy",
+"SoftPerfect NetScan"
+],
+"Exfiltration": [
+"RClone"
+],
+"LOLBAS": [
+"BITSAdmin",
+"Process Explorer",
+"PsExec"
+],
+"Networking": [
+"Cloudflared",
+"FRP",
+"Ligolo",
+"PuTTY",
+"RevSocks"
+],
+"RMM-Tools": [
+"AnyDesk",
+"Atera",
+"HCL BigFix",
+"N-Able",
+"PDQ Deploy",
+"ScreenConnect",
+"SimpleHelp",
+"Splashtop",
+"eHorus"
+]
+}
+],
+"ttps": [
+{
+"tactic_id": "TA0001",
+"tactic_name": "Initial Access",
+"techniques": [
+{
+"technique_details": "Initial access through brute force or compromised credentials of legitimate RDP accounts.",
+"technique_id": "T1078",
+"technique_name": "Valid Accounts"
+},
+{
+"technique_details": "Accesses the victim's network via an RDP service.",
+"technique_id": "T1133",
+"technique_name": "External Remote Services"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has leveraged public facing vulnerabilities in their campaigns against victim organizations to gain initial access.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)(Citation: Broadcom Medusa Ransomware Medusa Group March 2025) [Medusa Group](https://attack.mitre.org/groups/G1051) has also utilized CVE-2024-1709 in ScreenConnect, and CVE-2023-48788 in Fortinet EMS for initial access to victim environments.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1190",
+"technique_name": "Exploit Public-Facing Application"
+},
+{
+"technique_details": "Initial access through phishing email attachments.",
+"technique_id": "T1566",
+"technique_name": "Phishing"
+}
+]
+},
+{
+"tactic_id": "TA0002",
+"tactic_name": "Execution",
+"techniques": [
+{
+"technique_details": "Uses a series of Windows commands, such as bcdedit.exe and vssadmin.",
+"technique_id": "T1047",
+"technique_name": "Windows Management Instrumentation"
+},
+{
+"technique_details": "Uses a series of Windows commands, such as bcdedit.exe and vssadmin.",
+"technique_id": "T1059",
+"technique_name": "Command and Scripting Interpreter"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has leveraged PowerShell for execution and defense evasion.(Citation: Check Point Medusa Ransomware April 2025)(Citation: CISA Medusa Group Medusa Ransomware March 2025)(Citation: Intel471 Medusa Ransomware May 2025) [Medusa Group](https://attack.mitre.org/groups/G1051) has also utilized PowerShell to execute a bitsadmin transfer from file hosting site.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)",
+"technique_id": "T1059.001",
+"technique_name": "Command and Scripting Interpreter: PowerShell"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has used Windows Command Prompt to control and execute commands on the system to include ingress, network, and filesystem enumeration activities.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1059.003",
+"technique_name": "Command and Scripting Interpreter: Windows Command Shell"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized software deployment and management solutions to deploy their encryption payload to include BigFix and PDQ Deploy.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1072",
+"technique_name": "Software Deployment Tools"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has leveraged Windows Native API functions to execute payloads.(Citation: Security Scorecard Medusa Ransomware January 2024)",
+"technique_id": "T1106",
+"technique_name": "Native API"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has leveraged Component Object Model (COM) to bypass UAC.(Citation: Intel471 Medusa Ransomware May 2025)",
+"technique_id": "T1559.001",
+"technique_name": "Inter-Process Communication: Component Object Model"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized [PsExec](https://attack.mitre.org/software/S0029) to execute scripts and commands within victim environments.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)(Citation: CISA Medusa Group Medusa Ransomware March 2025)(Citation: Broadcom Medusa Ransomware Medusa Group March 2025) [Medusa Group](https://attack.mitre.org/groups/G1051) has also used the Windows service RoboCopy to search and copy data for exfiltration.(Citation: Broadcom Medusa Ransomware Medusa Group March 2025)",
+"technique_id": "T1569.002",
+"technique_name": "System Services: Service Execution"
+},
+{
+"technique_details": "Medusa actors abuse ESXi administration services to force root passwords to Medusa-controlled passwords on Linux machines.",
+"technique_id": "T1675",
+"technique_name": "ESXi Administration Command"
+}
+]
+},
+{
+"tactic_id": "TA0003",
+"tactic_name": "Persistence",
+"techniques": [
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has modified Registry keys to elevate privileges, maintain persistence and allow remote access.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1112",
+"technique_name": "Modify Registry"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has created a domain account within the victim environment.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1136.002",
+"technique_name": "Create Account: Domain Account"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized webshells to an exploited Microsoft Exchange Server.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)",
+"technique_id": "T1505.003",
+"technique_name": "Server Software Component: Web Shell"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has used vulnerable or signed drivers to modify security solutions on victim devices.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1543.003",
+"technique_name": "Create or Modify System Process: Windows Service"
+}
+]
+},
+{
+"tactic_id": "TA0004",
+"tactic_name": "Privilege Escalation",
+"techniques": [
+{
+"technique_details": "Medusa actors made changes to Active Directory Default Domain Policy settings to override Group Policy settings.",
+"technique_id": "T1484.001",
+"technique_name": "Domain or Tenant Policy Modification: Group Policy Modification"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has used vulnerable or signed drivers to modify security solutions on victim devices.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1543.003",
+"technique_name": "Create or Modify System Process: Windows Service"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has attempted to bypass UAC using Component Object Model (COM) interface.(Citation: Intel471 Medusa Ransomware May 2025)",
+"technique_id": "T1548.002",
+"technique_name": "Abuse Elevation Control Mechanism: Bypass User Account Control"
+}
+]
+},
+{
+"tactic_id": "TA0005",
+"tactic_name": "Stealth",
+"techniques": [
+{
+"technique_details": "Medusa actors use vssadmin to bypass Windows file access controls and file system monitoring tools to obtain copies of registry hives.",
+"technique_id": "T1006",
+"technique_name": "Direct Volume Access"
+},
+{
+"technique_details": "Medusa actors obfuscate a string by slicing it into pieces and referencing it via a variable.",
+"technique_id": "T1027",
+"technique_name": "Obfuscated Files or Information"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has packed the code of dropped kernel drivers using the packer ASM Guard.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)",
+"technique_id": "T1027.002",
+"technique_name": "Obfuscated Files or Information: Software Packing"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has obfuscated PowerShell scripts with Base64 encoding.(Citation: CISA Medusa Group Medusa Ransomware March 2025) [Medusa Group](https://attack.mitre.org/groups/G1051) has also obfuscated the code of dropped kernel drivers using a software known as Safengine Shielden which randomized the code through code mutations and then leveraged an embedded virtual machine interpreter to execute the code.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)",
+"technique_id": "T1027.010",
+"technique_name": "Obfuscated Files or Information: Command Obfuscation"
+},
+{
+"technique_details": "Medusa actors use a well-known stealth technique that executes a base64 encrypted command.",
+"technique_id": "T1027.013",
+"technique_name": "Obfuscated Files or Information: Encrypted/Encoded File"
+},
+{
+"technique_details": "Medusa actors delete their previous work and tools installed.",
+"technique_id": "T1070",
+"technique_name": "Indicator Removal"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has cleared command history by running the PowerShell command `Remove-Item (Get-PSReadlineOption).HistorySavePath`.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1070.003",
+"technique_name": "Indicator Removal: Clear Command History"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has deleted previously installed tools.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1070.004",
+"technique_name": "Indicator Removal: File Deletion"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has leveraged Microsoft Management Console (MMC) to facilitate lateral movement and to interact locally or remotely with victim devices using the command `mmc.exe compmgmt.msc /computer:{hostname/ip}`.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1218.014",
+"technique_name": "System Binary Proxy Execution: MMC"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized the `ShowWindow` API function to hide the current window.(Citation: Security Scorecard Medusa Ransomware January 2024)",
+"technique_id": "T1564.003",
+"technique_name": "Hide Artifacts: Hidden Window"
+},
+{
+"technique_details": "Medusa actors operate in pre-existing excluded folders within Windows Defender.",
+"technique_id": "T1564.012",
+"technique_name": "Hide Artifacts: File/Path Exclusions"
+}
+]
+},
+{
+"tactic_id": "TA0005",
+"tactic_name": "Defense Evasion",
+"techniques": [
+{
+"technique_details": "Employs Windows Management Instrumentation (WMIC) command-line to delete shadow copies.",
+"technique_id": "T1562",
+"technique_name": "Impair Defenses"
+},
+{
+"technique_details": "Terminates services or processes related to antivirus/security tools.",
+"technique_id": "T1562.001",
+"technique_name": "Disable or Modify Tools"
+},
+{
+"technique_details": "Abuses Safe Mode to evade endpoint detection.",
+"technique_id": "T1562.009",
+"technique_name": "Safe Mode Boot"
+}
+]
+},
+{
+"tactic_id": "TA0006",
+"tactic_name": "Credential Access",
+"techniques": [
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has leveraged [Mimikatz](https://attack.mitre.org/software/S0002) to dump LSASS to harvest credentials.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1003.001",
+"technique_name": "OS Credential Dumping: LSASS Memory"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has accessed the ntds.dit file to engage in credential dumping.(Citation: Broadcom Medusa Ransomware Medusa Group March 2025)",
+"technique_id": "T1003.003",
+"technique_name": "OS Credential Dumping: NTDS"
+},
+{
+"technique_details": "Uses brute force on local RDP account passwords.",
+"technique_id": "T1110",
+"technique_name": "Brute Force"
+},
+{
+"technique_details": "Medusa actors steal credentials by copying Windows database files and using them to create forged Kerberos tickets.",
+"technique_id": "T1558",
+"technique_name": "Steal or Forge Kerberos Tickets"
+}
+]
+},
+{
+"tactic_id": "TA0007",
+"tactic_name": "Discovery",
+"techniques": [
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has obtained host network details utilizing the command `cmd.exe /c ipconfig /all`.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1016",
+"technique_name": "System Network Configuration Discovery"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has used PDQ Inventory to get an inventory of the endpoints on the network.(Citation: Broadcom Medusa Ransomware Medusa Group March 2025)",
+"technique_id": "T1018",
+"technique_name": "Remote System Discovery"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized [PsExec](https://attack.mitre.org/software/S0029) to execute `quser` to discover the user session information.(Citation: Broadcom Medusa Ransomware Medusa Group March 2025)",
+"technique_id": "T1033",
+"technique_name": "System Owner/User Discovery"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has the capability to use living off the land (LOTL) binaries to perform network enumeration.(Citation: CISA Medusa Group Medusa Ransomware March 2025) [Medusa Group](https://attack.mitre.org/groups/G1051) has also utilized the publicly available scanning tool SoftPerfect Network Scanner (`netscan.exe`) to discover device hostnames and network services.(Citation: Broadcom Medusa Ransomware Medusa Group March 2025)",
+"technique_id": "T1046",
+"technique_name": "Network Service Discovery"
+},
+{
+"technique_details": "Medusa actors use the command netstat -a to gather a listing of network connections.",
+"technique_id": "T1049",
+"technique_name": "System Network Connections Discovery"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized a hard-coded security tool process list that identifies and terminates using an undocumented IOCTL code 0x222094.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)",
+"technique_id": "T1057",
+"technique_name": "Process Discovery"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized the `net group` command to query domain groups within the victim environment.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1069.002",
+"technique_name": "Permission Groups Discovery: Domain Groups"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has leveraged `cmd.exe` to identify system info `cmd.exe /c systeminfo`.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1082",
+"technique_name": "System Information Discovery"
+},
+{
+"technique_details": "Queries specified files, folders, and file extensions.",
+"technique_id": "T1083",
+"technique_name": "File and Directory Discovery"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has leveraged `net user` for account discovery.(Citation: Broadcom Medusa Ransomware Medusa Group March 2025)",
+"technique_id": "T1087.001",
+"technique_name": "Account Discovery: Local Account"
+},
+{
+"technique_details": "Enumerates network shares.",
+"technique_id": "T1135",
+"technique_name": "Network Share Discovery"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has detected security solutions for termination or deletion within the victim device using hard-coded lists of strings containing security product executables.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)",
+"technique_id": "T1518.001",
+"technique_name": "Software Discovery: Security Software Discovery"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has queried drivers on the victim device through the command `driverquery`.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1652",
+"technique_name": "Device Driver Discovery"
+}
+]
+},
+{
+"tactic_id": "TA0008",
+"tactic_name": "Lateral Movement",
+"techniques": [
+{
+"technique_details": "Uses remote services for login and lateral movement via RDP and SMB.",
+"technique_id": "T1021",
+"technique_name": "Remote Services"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has used RDP to conduct lateral movement and exfiltrate data.(Citation: CISA Medusa Group Medusa Ransomware March 2025) [Medusa Group](https://attack.mitre.org/groups/G1051) has also utilized the Windows executable `mstsc.exe` for RDP activities through the command `mstsc.exe /v:{hostname/ip}`.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1021.001",
+"technique_name": "Remote Services: Remote Desktop Protocol"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized software deployment and management solutions to deploy their encryption payload to include BigFix and PDQ Deploy.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1072",
+"technique_name": "Software Deployment Tools"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized legitimate software services such as PDQ Deploy to transfer malicious binaries and tools to other victimized hosts within the target environment.(Citation: Broadcom Medusa Ransomware Medusa Group March 2025)",
+"technique_id": "T1570",
+"technique_name": "Lateral Tool Transfer"
+}
+]
+},
+{
+"tactic_id": "TA0010",
+"tactic_name": "Exfiltration",
+"techniques": [
+{
+"technique_details": "Transfers data to attacker-controlled servers via an existing command-and-control (C2) channel.",
+"technique_id": "T1045",
+"technique_name": "Exfiltration Over C2 Channel"
+},
+{
+"technique_details": "Exfiltrates data using alternative protocols, such as FTP/SFTP, to avoid detection by traditional methods.",
+"technique_id": "T1048",
+"technique_name": "Exfiltration Over Alternative Protocol"
+},
+{
+"technique_details": "Exfiltrates data using web services like cloud services (e.g., Google Drive, Dropbox, etc.).",
+"technique_id": "T1567",
+"technique_name": "Exfiltration Over Web Service"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized [Rclone](https://attack.mitre.org/software/S1040) to exfiltrate data from victim environments to cloud storage.(Citation: CISA Medusa Group Medusa Ransomware March 2025)(Citation: Broadcom Medusa Ransomware Medusa Group March 2025)",
+"technique_id": "T1567.002",
+"technique_name": "Exfiltration Over Web Service: Exfiltration to Cloud Storage"
+}
+]
+},
+{
+"tactic_id": "TA0011",
+"tactic_name": "Command and Control",
+"techniques": [
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has communicated through reverse or bind shells over port 443 (HTTPS).(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1071.001",
+"technique_name": "Application Layer Protocol: Web Protocols"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has used TOR nodes for communications.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)(Citation: Check Point Medusa Ransomware April 2025)(Citation: Broadcom Medusa Ransomware Medusa Group March 2025)",
+"technique_id": "T1090.003",
+"technique_name": "Proxy: Multi-hop Proxy"
+},
+{
+"technique_details": "Uses certutil to download malicious files.",
+"technique_id": "T1105",
+"technique_name": "Ingress Tool Transfer"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has leveraged Remote Access Software for lateral movement and data exfiltration.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)(Citation: CISA Medusa Group Medusa Ransomware March 2025)(Citation: Broadcom Medusa Ransomware Medusa Group March 2025)(Citation: Security Scorecard Medusa Ransomware January 2024) [Medusa Group](https://attack.mitre.org/groups/G1051) has also been known to utilize Remote Access Software such as AnyDesk, Atera, ConnectWise, eHorus, N-Able, PDQ Deploy, PDQ Inventory, SimpleHelp and Splashtop.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1219",
+"technique_name": "Remote Access Tools"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has used HTTPS for command and control.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1573.002",
+"technique_name": "Encrypted Channel: Asymmetric Cryptography"
+}
+]
+},
+{
+"tactic_id": "TA0040",
+"tactic_name": "Impact",
+"techniques": [
+{
+"technique_details": "Uses the AES-256 algorithm to encrypt files on the computer.",
+"technique_id": "T1486",
+"technique_name": "Data Encrypted for Impact"
+},
+{
+"technique_details": "Terminates processes and services related to database servers, email servers, and backups.",
+"technique_id": "T1489",
+"technique_name": "Service Stop"
+},
+{
+"technique_details": "Deletes shadow copies and disables the Windows System Restore feature.",
+"technique_id": "T1490",
+"technique_name": "Inhibit System Recovery"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has manually turned off and encrypted virtual machines.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1529",
+"technique_name": "System Shutdown/Reboot"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has stolen and encrypted victims' data in order to extort victims into paying a ransom.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)(Citation: Check Point Medusa Ransomware April 2025)(Citation: CISA Medusa Group Medusa Ransomware March 2025)(Citation: Intel471 Medusa Ransomware May 2025)(Citation: Broadcom Medusa Ransomware Medusa Group March 2025)(Citation: Security Scorecard Medusa Ransomware January 2024)",
+"technique_id": "T1657",
+"technique_name": "Financial Theft"
+}
+]
+},
+{
+"tactic_id": "TA0042",
+"tactic_name": "Resource Development",
+"techniques": [
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized a file hosting service named filemail[.]com to host a zip file that contained malicious payloads that facilitated follow-on actions.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)",
+"technique_id": "T1583.006",
+"technique_name": "Acquire Infrastructure: Web Services"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has created social media accounts including Telegram and X to publicize their activities.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)(Citation: Check Point Medusa Ransomware April 2025)",
+"technique_id": "T1585.001",
+"technique_name": "Establish Accounts: Social Media Accounts"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has created email accounts used in ransomware negotiations.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1585.002",
+"technique_name": "Establish Accounts: Email Accounts"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has obtained and leveraged numerous RMM services, along with publicly available tools used for scanning.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)(Citation: CISA Medusa Group Medusa Ransomware March 2025)(Citation: Broadcom Medusa Ransomware Medusa Group March 2025) [Medusa Group](https://attack.mitre.org/groups/G1051) has utilized tools such as Advanced IP Scanner and SoftPerfect Network scanner for user, system and network discovery.(Citation: CISA Medusa Group Medusa Ransomware March 2025) [Medusa Group](https://attack.mitre.org/groups/G1051) has also acquired tools for command and control and defense evasion which include tunneling tools Ligolo and Cloudflared.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1588.002",
+"technique_name": "Obtain Capabilities: Tool"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized a file hosting service called filemail[.]com to host a zip file that contained a RMM service such as ConnectWise.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)",
+"technique_id": "T1608.002",
+"technique_name": "Stage Capabilities: Upload Tool"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has purchased user credentials and other sensitive data from Initial Access Brokers (IABs).(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)(Citation: Check Point Medusa Ransomware April 2025)(Citation: CISA Medusa Group Medusa Ransomware March 2025)(Citation: Intel471 Medusa Ransomware May 2025)",
+"technique_id": "T1650",
+"technique_name": "Acquire Access"
+}
+]
+},
+{
+"tactic_id": "TA0112",
+"tactic_name": "Defense Impairment",
+"techniques": [
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has modified Registry keys to elevate privileges, maintain persistence and allow remote access.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1112",
+"technique_name": "Modify Registry"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized vulnerable or signed drivers to kill or delete services associated with endpoint detection and response (EDR) tools.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1553.002",
+"technique_name": "Subvert Trust Controls: Code Signing"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has terminated antivirus services utilizing the gaze.exe executable and utilizing `psexec.exe`.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)(Citation: CISA Medusa Group Medusa Ransomware March 2025)(Citation: Broadcom Medusa Ransomware Medusa Group March 2025) [Medusa Group](https://attack.mitre.org/groups/G1051) has also leveraged I/O control codes (IOCTLs) for terminating and deleting processes of identified security tools.(Citation: Palo Alto Unit 42 Medusa Group Medusa Ransomware January 2024)",
+"technique_id": "T1685",
+"technique_name": "Disable or Modify Tools"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has utilized [PsExec](https://attack.mitre.org/software/S0029) to execute batch scripts that modify firewall settings.(Citation: CISA Medusa Group Medusa Ransomware March 2025)  [Medusa Group](https://attack.mitre.org/groups/G1051) has also enabled and modified firewall rules to allow for RDP connections for lateral movement and device interactions.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1686",
+"technique_name": "Disable or Modify System Firewall"
+},
+{
+"technique_details": "[Medusa Group](https://attack.mitre.org/groups/G1051) has removed PowerShell command history through the use of the PSReadLine module by running the PowerShell command `Remove-Item (Get-PSReadlineOption).HistorySavePath`.(Citation: CISA Medusa Group Medusa Ransomware March 2025)",
+"technique_id": "T1690",
+"technique_name": "Prevent Command History Logging"
+}
+]
+}
+],
+"url": "https://www.ransomware.live/group/medusa"
+},
+{
+"added_date": "2022-11-15",
+"altname": null,
+"description": "Medusa is a DDoS bot written in .NET 2.0. In its current incarnation its C&C pro",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "t33zoj4qwv455fog7qnb2azi5xcdxkixughmmduzbw2rtdgryqfbh6id.onion",
+"slug": "http://t33zoj4qwv455fog7qnb2azi5xcdxkixughmmduzbw2rtdgryqfbh6id.onion",
+"title": "File Manager",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "95.143.191.148:3000",
+"slug": "http://95.143.191.148:3000/",
+"title": "Medusa Chat",
+"type": "Chat"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "z6wkgghtoawog5noty5nxulmmt2zs7c3yvwr22v4czbffdoly2kl4uad.onion",
+"slug": "http://z6wkgghtoawog5noty5nxulmmt2zs7c3yvwr22v4czbffdoly2kl4uad.onion",
+"title": "Ransomware blog \u2013 We will not give ourselves a name. Just watch out for the leakage of your data:)",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "medusaxko7jxtrojdkxo66j7ck4q5tgktf7uqsqyfry4ebnxlcbkccyd.onion",
+"slug": "http://medusaxko7jxtrojdkxo66j7ck4q5tgktf7uqsqyfry4ebnxlcbkccyd.onion/",
+"title": "Human Verify",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "qd7pcafncosqfqu3ha6fcx4h6sr7tzwagzpcdcnytiw3b6varaeqv5yd.onion",
+"slug": "https://qd7pcafncosqfqu3ha6fcx4h6sr7tzwagzpcdcnytiw3b6varaeqv5yd.onion",
+"title": "",
+"type": "DLS"
+}
+],
+"name": "medusalocker",
+"tools": [
+{
+"CredentialTheft": [
+"Invoke-TheHash",
+"Mimikatz"
+],
+"DefenseEvasion": [
+"HRSword",
+"PCHunter",
+"ProcessHacker"
+],
+"DiscoveryEnum": [
+"Advanced IP Scanner",
+"Advanced Port Scanner",
+"SoftPerfect NetScan"
+],
+"LOLBAS": [
+"PsExec"
+],
+"Offsec": [
+"Impacket"
+],
+"RMM-Tools": [
+"Remote Desktop Plus (RDP+)"
+]
+}
+],
+"ttps": [
+{
+"tactic_id": "TA0004",
+"tactic_name": "Privilege Escalation",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1134.004",
+"technique_name": "Parent PID Spoofing"
+}
+]
+}
+],
+"url": "https://www.ransomware.live/group/medusalocker"
+},
+{
+"added_date": "2025-09-10",
+"altname": null,
+"description": "Radar (also known as Dispossessor), active since August 2023 and led by an actor",
+"locations": [
+{
+"available": false,
+"enabled": true,
+"fqdn": "3bnusfu2lgk5at43ceu7cdok5yv4gfbono2jv57ho74ucjvc7czirfid.onion",
+"slug": "http://3bnusfu2lgk5at43ceu7cdok5yv4gfbono2jv57ho74ucjvc7czirfid.onion/leaked-data",
+"title": "RADAR",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "4q5tsu5o3msmv4am4dfhupwhzlyg7wv3lpswbvbhcrknr4ega7xetxad.onion",
+"slug": "http://4q5tsu5o3msmv4am4dfhupwhzlyg7wv3lpswbvbhcrknr4ega7xetxad.onion",
+"title": "",
+"type": "Files"
+}
+],
+"name": "radar",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/radar"
+},
+{
+"added_date": "2023-08-21",
+"altname": null,
+"description": "RansomedVC was a short-lived extortion group active from August to November 2023",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "f6amq3izzsgtna4vw24rpyhy3ofwazlgex2zqdssavevvkklmtudxjad.onion",
+"slug": "http://f6amq3izzsgtna4vw24rpyhy3ofwazlgex2zqdssavevvkklmtudxjad.onion",
+"title": "Ransomedvc \u2013 Leading Agency In Digital Peace \u2013 Ran",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "g6ocfx3bb3pvdfawbgrbt3fqoht5t6dwc3hfmmueo76hz46qepidnxid.onion",
+"slug": "http://g6ocfx3bb3pvdfawbgrbt3fqoht5t6dwc3hfmmueo76hz46qepidnxid.onion",
+"title": "Ransomed",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "k63fo4qmdnl4cbt54sso3g6s5ycw7gf7i6nvxl3wcf3u6la2mlawt5qd.onion",
+"slug": "http://k63fo4qmdnl4cbt54sso3g6s5ycw7gf7i6nvxl3wcf3u6la2mlawt5qd.onion",
+"title": "404 Not Found",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "ransomed.vc",
+"slug": "https://ransomed.vc/",
+"title": "",
+"type": "DLS"
+}
+],
+"name": "ransomed",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/ransomed"
+},
+{
+"added_date": "2023-12-17",
+"altname": null,
+"description": "RANSOMED.VC aka Raznatovic",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "f6amq3izzsgtna4vw24rpyhy3ofwazlgex2zqdssavevvkklmtudxjad.onion",
+"slug": "http://f6amq3izzsgtna4vw24rpyhy3ofwazlgex2zqdssavevvkklmtudxjad.onion/market.html",
+"title": "404 Not Found",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "ransomed.vc",
+"slug": "https://ransomed.vc",
+"title": "",
+"type": "DLS"
+}
+],
+"name": "raznatovic",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/raznatovic"
+},
+{
+"added_date": "2025-07-08",
+"altname": "RansomedVC2",
+"description": "RebornVC is a rebrand of RansomedVC re-emerging in July 2025 under new leadershi",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "ransomed.biz",
+"slug": "http://ransomed.biz",
+"title": "Test Page for the HTTP Server on AlmaLinux",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "ransomed.vc",
+"slug": "http://ransomed.vc",
+"title": "",
+"type": "DLS"
+}
+],
+"name": "rebornvc",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/rebornvc"
+},
+{
+"added_date": "2026-01-29",
+"altname": null,
+"description": "The Green Blood Group is an emerging ransomware operation first identified in ea",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "scbrksw5fgjtujc2ah42roo6bij2unr2tggfcynpbql5a7yp3s22taid.onion",
+"slug": "http://scbrksw5fgjtujc2ah42roo6bij2unr2tggfcynpbql5a7yp3s22taid.onion:8000",
+"title": "",
+"type": "DLS"
+}
+],
+"name": "thegreenbloodgroup",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/thegreenbloodgroup"
+},
+{
+"added_date": "2026-01-28",
+"altname": null,
+"description": "The group appears unreliable. Most, if not all, of its alleged victims cannot be",
+"locations": [
+{
+"available": false,
+"enabled": true,
+"fqdn": "oaptxiyisljt2kv3we2we34kuudmqda7f2geffoylzpeo7ourhtz4dad.onion",
+"slug": "http://oaptxiyisljt2kv3we2we34kuudmqda7f2geffoylzpeo7ourhtz4dad.onion",
+"title": "404 - Compromised",
+"type": "DLS"
+}
+],
+"name": "0apt",
+"tools": [],
+"ttps": [
+{
+"tactic_id": "TA0001",
+"tactic_name": "Initial Access",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1078",
+"technique_name": "Valid Accounts"
+},
+{
+"technique_details": "",
+"technique_id": "T1133",
+"technique_name": "External Remote Services"
+},
+{
+"technique_details": "",
+"technique_id": "T1566",
+"technique_name": "Phishing"
+},
+{
+"technique_details": "",
+"technique_id": "T1566.001",
+"technique_name": "Phishing: Spearphishing Attachment"
+}
+]
+},
+{
+"tactic_id": "TA0002",
+"tactic_name": "Execution",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1047",
+"technique_name": "Windows Management Instrumentation"
+},
+{
+"technique_details": "",
+"technique_id": "T1059.001",
+"technique_name": "Command and Scripting Interpreter: PowerShell"
+},
+{
+"technique_details": "",
+"technique_id": "T1204.002",
+"technique_name": "User Execution: Malicious File"
+}
+]
+},
+{
+"tactic_id": "TA0003",
+"tactic_name": "Persistence",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1053.005",
+"technique_name": "Scheduled Task/Job: Scheduled Task"
+},
+{
+"technique_details": "",
+"technique_id": "T1547.001",
+"technique_name": "Boot or Logon Autostart Execution: Registry Run Keys"
+}
+]
+},
+{
+"tactic_id": "TA0005",
+"tactic_name": "Defense Evasion",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1014",
+"technique_name": "Rootkit"
+},
+{
+"technique_details": "",
+"technique_id": "T1027",
+"technique_name": "Obfuscated Files or Information"
+},
+{
+"technique_details": "",
+"technique_id": "T1036",
+"technique_name": "Masquerading"
+},
+{
+"technique_details": "",
+"technique_id": "T1055",
+"technique_name": "Process Injection"
+},
+{
+"technique_details": "",
+"technique_id": "T1070",
+"technique_name": "Indicator Removal"
+},
+{
+"technique_details": "",
+"technique_id": "T1140",
+"technique_name": "Deobfuscate/Decode Files or Information"
+},
+{
+"technique_details": "",
+"technique_id": "T1562.001",
+"technique_name": "Impair Defenses: Disable or Modify Tools"
+},
+{
+"technique_details": "",
+"technique_id": "T1564",
+"technique_name": "Hidden Artifacts"
+},
+{
+"technique_details": "",
+"technique_id": "T1622",
+"technique_name": "Debugger Evasion"
+},
+{
+"technique_details": "",
+"technique_id": "T1672",
+"technique_name": "Email Spoofing"
+},
+{
+"technique_details": "",
+"technique_id": "T1678",
+"technique_name": "Delay Execution"
+}
+]
+},
+{
+"tactic_id": "TA0006",
+"tactic_name": "Credential Access",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1003",
+"technique_name": "OS Credential Dumping"
+},
+{
+"technique_details": "",
+"technique_id": "T1003.001",
+"technique_name": "OS Credential Dumping: LSASS Memory"
+},
+{
+"technique_details": "",
+"technique_id": "T1555",
+"technique_name": "Credentials from Password Stores"
+}
+]
+},
+{
+"tactic_id": "TA0007",
+"tactic_name": "Discovery",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1082",
+"technique_name": "System Information Discovery"
+},
+{
+"technique_details": "",
+"technique_id": "T1083",
+"technique_name": "File and Directory Discovery"
+},
+{
+"technique_details": "",
+"technique_id": "T1135",
+"technique_name": "Network Share Discovery"
+},
+{
+"technique_details": "",
+"technique_id": "T1526",
+"technique_name": "Cloud Service Discovery"
+}
+]
+},
+{
+"tactic_id": "TA0008",
+"tactic_name": "Lateral Movement",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1021.001",
+"technique_name": "Remote Services: Remote Desktop Protocol"
+},
+{
+"technique_details": "",
+"technique_id": "T1021.002",
+"technique_name": "Remote Services: SMB/Windows Admin Shares"
+},
+{
+"technique_details": "",
+"technique_id": "T1570",
+"technique_name": "Lateral Tool Transfer"
+}
+]
+},
+{
+"tactic_id": "TA0009",
+"tactic_name": "Collection",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1005",
+"technique_name": "Data from Local System"
+},
+{
+"technique_details": "",
+"technique_id": "T1039",
+"technique_name": "Data from Network Shared Drive"
+},
+{
+"technique_details": "",
+"technique_id": "T1056",
+"technique_name": "Input Capture"
+},
+{
+"technique_details": "",
+"technique_id": "T1119",
+"technique_name": "Automated Collection"
+},
+{
+"technique_details": "",
+"technique_id": "T1560",
+"technique_name": "Archive Collected Data"
+}
+]
+},
+{
+"tactic_id": "TA0010",
+"tactic_name": "Exfiltration",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1041",
+"technique_name": "Exfiltration Over C2 Channel"
+},
+{
+"technique_details": "",
+"technique_id": "T1567",
+"technique_name": "Exfiltration Over Web Service"
+}
+]
+},
+{
+"tactic_id": "TA0011",
+"tactic_name": "Command and Control",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1071.001",
+"technique_name": "Application Layer Protocol: Web Protocols"
+},
+{
+"technique_details": "",
+"technique_id": "T1573",
+"technique_name": "Encrypted Channel"
+}
+]
+},
+{
+"tactic_id": "TA0040",
+"tactic_name": "Impact",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1485",
+"technique_name": "Data Destruction"
+},
+{
+"technique_details": "",
+"technique_id": "T1486",
+"technique_name": "Data Encrypted for Impact"
+},
+{
+"technique_details": "",
+"technique_id": "T1489",
+"technique_name": "Service Stop"
+},
+{
+"technique_details": "",
+"technique_id": "T1490",
+"technique_name": "Inhibit System Recovery"
+}
+]
+}
+],
+"url": "https://www.ransomware.live/group/0apt"
+},
+{
+"added_date": "2026-05-28",
+"altname": null,
+"description": "",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "odaygplp3zhyx7zl45egetl6dzc4reduisnoyym34rjdmaryfaz5doqd.onion",
+"slug": "http://odaygplp3zhyx7zl45egetl6dzc4reduisnoyym34rjdmaryfaz5doqd.onion",
+"title": "0day | Command Ops",
+"type": "DLS"
+}
+],
+"name": "0day Syndicate",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/0daysyndicate"
+},
+{
+"added_date": "2022-07-14",
+"altname": null,
+"description": "0mega is a double-extortion ransomware group that emerged in May 2022, targeting",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "omegalock5zxwbhswbisc42o2q2i54vdulyvtqqbudqousisjgc7j7yd.onion",
+"slug": "http://omegalock5zxwbhswbisc42o2q2i54vdulyvtqqbudqousisjgc7j7yd.onion",
+"title": "0mega | Blog",
+"type": "DLS"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "0mega.cc",
+"slug": "http://0mega.cc",
+"title": "",
+"type": "DLS"
+}
+],
+"name": "0mega",
+"tools": [],
+"ttps": [
+{
+"tactic_id": "TA0001",
+"tactic_name": "Initial Access",
+"techniques": [
+{
+"technique_details": "Access was obtained through the compromise of global Microsoft SaaS administrator accounts that were weakly protected.",
+"technique_id": "T1078",
+"technique_name": "Valid Accounts"
+}
+]
+},
+{
+"tactic_id": "TA0004",
+"tactic_name": "Privilege Escalation",
+"techniques": [
+{
+"technique_details": "After gaining initial access, the group created a new user in Active Directory (AD) named \"0mega\" with multiple administrator roles (e.g., Global Administrator, SharePoint Administrator) to maintain maximum control.",
+"technique_id": "T1136",
+"technique_name": "Create Account: Cloud Account"
+}
+]
+},
+{
+"tactic_id": "TA0005",
+"tactic_name": "Defense Evasion",
+"techniques": [
+{
+"technique_details": "The group systematically deleted over 220 corporate administrator accounts within a two-hour period, impairing the victim's ability to respond and recover.",
+"technique_id": "T1531",
+"technique_name": "Account Access Removal"
+}
+]
+},
+{
+"tactic_id": "TA0009",
+"tactic_name": "Collection",
+"techniques": [
+{
+"technique_details": "The group collected sensitive data using the obtained permissions.",
+"technique_id": "T1119",
+"technique_name": "Automated Collection"
+}
+]
+},
+{
+"tactic_id": "TA0010",
+"tactic_name": "Exfiltration",
+"techniques": [
+{
+"technique_details": "Data was exfiltrated from environments such as the victim's SharePoint, consistent with a double extortion tactic.",
+"technique_id": "T1041",
+"technique_name": "Exfiltration Over C2 Channel"
+}
+]
+},
+{
+"tactic_id": "TA0040",
+"tactic_name": "Impact",
+"techniques": [
+{
+"technique_details": "The attack used AES-256 or RSA encryption on critical files after network mapping, blocking legitimate access. In some cases, the focus was solely on exfiltration and extortion without encryption.",
+"technique_id": "T1486",
+"technique_name": "Data Encrypted for Impact"
+},
+{
+"technique_details": "The ransomware searched for and disabled connected or online backups to prevent quick data recovery without paying the ransom.",
+"technique_id": "T1490",
+"technique_name": "Inhibit System Recovery"
+}
+]
+}
+],
+"url": "https://www.ransomware.live/group/0mega"
+},
+{
+"added_date": "2026-10-15",
+"altname": null,
+"description": "",
+"locations": [
+{
+"available": false,
+"enabled": true,
+"fqdn": "oxooxmnl67z5t5cctt3uw7ukqoy6k7kr6x5vn2yyhcfpbuj5ddq2hjid.onion",
+"slug": "http://oxooxmnl67z5t5cctt3uw7ukqoy6k7kr6x5vn2yyhcfpbuj5ddq2hjid.onion",
+"title": "Important Notice \u2014 English | \u0420\u0443\u0441\u0441\u043a\u0438\u0439 | \u4e2d\u6587",
+"type": "DLS"
+}
+],
+"name": "0x00",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/0x00"
+},
+{
+"added_date": "2023-05-23",
+"altname": null,
+"description": "The 8base Ransomware group made its first appearance in early March 2022, remain",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "92.118.36.204.",
+"slug": "http://92.118.36.204",
+"title": "Home",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "basemmnnqwxevlymli5bs36o5ynti55xojzvn246spahniugwkff2pad.onion",
+"slug": "http://basemmnnqwxevlymli5bs36o5ynti55xojzvn246spahniugwkff2pad.onion/",
+"title": "Home",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "xb6q2aggycmlcrjtbjendcnnwpmmwbosqaugxsqb4nx6cmod3emy7sad.onion",
+"slug": "http://xb6q2aggycmlcrjtbjendcnnwpmmwbosqaugxsqb4nx6cmod3emy7sad.onion",
+"title": "This site has been seized",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "xfycpauc22t5jsmfjcaz2oydrrrfy75zuk6chr32664bsscq4fgyaaqd.onion",
+"slug": "http://xfycpauc22t5jsmfjcaz2oydrrrfy75zuk6chr32664bsscq4fgyaaqd.onion",
+"title": "This site has been seized",
+"type": "DLS"
+}
+],
+"name": "8base",
+"tools": [
+{
+"CredentialTheft": [
+"LaZagne",
+"Mimikatz",
+"NirSoft VNCPassView",
+"NirSoft WebBrowserPassView",
+"PasswordFox",
+"ProcDump"
+],
+"DefenseEvasion": [
+"GMER",
+"PCHunter",
+"ProcessHacker"
+],
+"Exfiltration": [
+"RClone"
+],
+"LOLBAS": [
+"PsExec"
+]
+}
+],
+"ttps": [
+{
+"tactic_id": "TA0002",
+"tactic_name": "Execution",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1053",
+"technique_name": "Scheduled Task/Job"
+},
+{
+"technique_details": "",
+"technique_id": "T1059",
+"technique_name": "Command and Scripting Interpreter"
+},
+{
+"technique_details": "",
+"technique_id": "T1129",
+"technique_name": "Shared Modules"
+}
+]
+},
+{
+"tactic_id": "TA0003",
+"tactic_name": "Persistence",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1053",
+"technique_name": "Scheduled Task/Job"
+},
+{
+"technique_details": "",
+"technique_id": "T1547",
+"technique_name": "Boot or Logon Autostart Execution"
+},
+{
+"technique_details": "",
+"technique_id": "T1547.001",
+"technique_name": "Registry Run Keys/Startup Folder"
+}
+]
+},
+{
+"tactic_id": "TA0004",
+"tactic_name": "Privilege Escalation",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1053",
+"technique_name": "Scheduled Task/Job"
+},
+{
+"technique_details": "",
+"technique_id": "T1134.001",
+"technique_name": "Token Impersonation/Theft"
+},
+{
+"technique_details": "",
+"technique_id": "T1547",
+"technique_name": "Boot or Logon Autostart Execution"
+},
+{
+"technique_details": "",
+"technique_id": "T1547.001",
+"technique_name": "Registry Run Keys/Startup Files"
+}
+]
+},
+{
+"tactic_id": "TA0005",
+"tactic_name": "Defense Evasion",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1027",
+"technique_name": "Obfuscated Files or Information"
+},
+{
+"technique_details": "",
+"technique_id": "T1027.002",
+"technique_name": "Software Packing"
+},
+{
+"technique_details": "",
+"technique_id": "T1036",
+"technique_name": "Masquerading"
+},
+{
+"technique_details": "",
+"technique_id": "T1070.004",
+"technique_name": "File Deletion"
+},
+{
+"technique_details": "",
+"technique_id": "T1112",
+"technique_name": "Modify Registry"
+},
+{
+"technique_details": "",
+"technique_id": "T1202",
+"technique_name": "Indirect Command Execution"
+},
+{
+"technique_details": "",
+"technique_id": "T1497",
+"technique_name": "Virtualization/Sandbox Evasion"
+},
+{
+"technique_details": "",
+"technique_id": "T1562.001",
+"technique_name": "Disable or Modify Tools"
+},
+{
+"technique_details": "",
+"technique_id": "T1564.001",
+"technique_name": "Hidden Files and Directories"
+}
+]
+},
+{
+"tactic_id": "TA0006",
+"tactic_name": "Credential Access",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1003",
+"technique_name": "OS Credential Dumping"
+},
+{
+"technique_details": "",
+"technique_id": "T1056",
+"technique_name": "Input Capture"
+}
+]
+},
+{
+"tactic_id": "TA0007",
+"tactic_name": "Discovery",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1057",
+"technique_name": "Process Discovery"
+},
+{
+"technique_details": "",
+"technique_id": "T1082",
+"technique_name": "System Information Discovery"
+},
+{
+"technique_details": "",
+"technique_id": "T1083",
+"technique_name": "File and Directory Discovery"
+},
+{
+"technique_details": "",
+"technique_id": "T1135",
+"technique_name": "Network Share Discovery"
+},
+{
+"technique_details": "",
+"technique_id": "T1497",
+"technique_name": "Virtualization/Sandbox Evasion"
+},
+{
+"technique_details": "",
+"technique_id": "T1518.001",
+"technique_name": "Security Software Discovery"
+}
+]
+},
+{
+"tactic_id": "TA0008",
+"tactic_name": "Lateral Movement",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1080",
+"technique_name": "Taint Shared Content"
+}
+]
+},
+{
+"tactic_id": "TA0009",
+"tactic_name": "Collection",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1005",
+"technique_name": "Data from Local System"
+},
+{
+"technique_details": "",
+"technique_id": "T1056",
+"technique_name": "Input Capture"
+},
+{
+"technique_details": "",
+"technique_id": "T1074",
+"technique_name": "Data Staged"
+}
+]
+},
+{
+"tactic_id": "TA0040",
+"tactic_name": "Impact",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1485",
+"technique_name": "Data Destruction"
+},
+{
+"technique_details": "",
+"technique_id": "T1486",
+"technique_name": "Data Encrypted for Impact"
+},
+{
+"technique_details": "",
+"technique_id": "T1490",
+"technique_name": "Inhibit System Recovery"
+}
+]
+}
+],
+"url": "https://www.ransomware.live/group/8base"
+},
+{
+"added_date": "2026-03-21",
+"altname": null,
+"description": "\u26a0\ufe0f The group appears unreliable. Most, if not all, of its alleged victims cannot",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "b4riuxx7ypobdptctf6lyfcvgi6vn74iurzdh4kn2agbk7472dvywgyd.onion",
+"slug": "http://b4riuxx7ypobdptctf6lyfcvgi6vn74iurzdh4kn2agbk7472dvywgyd.onion",
+"title": "ALP-001",
+"type": "DLS"
+}
+],
+"name": "ALP-001",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/alp-001"
+},
+{
+"added_date": null,
+"altname": null,
+"description": "Abraham's Ax is an Iranian-linked hacktivist persona tied to Moses Staff that em",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "abrahamm32umasogaqojib3ey2w2nwoafffrguq43tsyke4s3fz3w4yd.onion",
+"slug": "http://abrahamm32umasogaqojib3ey2w2nwoafffrguq43tsyke4s3fz3w4yd.onion",
+"title": "Database Error",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "abrahams-ax.se",
+"slug": "http://abrahams-ax.se",
+"title": "\u062a\u0628\u0631 \u0627\u0628\u0631\u0627\u0647\u06cc\u0645 \u2013 Abraham's Ax",
+"type": "DLS"
+}
+],
+"name": "Abrahams_Ax",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/abrahams_ax"
+},
+{
+"added_date": "2026-03-03",
+"altname": null,
+"description": "AiLock is a ransomware operation that emerged in early 2025, marketing itself as",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "dhnsppqjaaa22lsqxl2tfhji4ca43743kubltnodvsft3hkvai77p6ad.onion",
+"slug": "http://dhnsppqjaaa22lsqxl2tfhji4ca43743kubltnodvsft3hkvai77p6ad.onion",
+"title": "AiLock Data Leaks",
+"type": "DLS"
+}
+],
+"name": "AiLock",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/ailock"
+},
+{
+"added_date": "2025-01-01",
+"altname": null,
+"description": "",
+"locations": [
+{
+"available": false,
+"enabled": true,
+"fqdn": "sr3b2uzrzzubagq64savzjjarul6bacpk6onddobj72gqkdjgm5z4qyd.onion",
+"slug": "http://sr3b2uzrzzubagq64savzjjarul6bacpk6onddobj72gqkdjgm5z4qyd.onion",
+"title": "",
+"type": "DLS"
+}
+],
+"name": "Aptlock",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/aptlock"
+},
+{
+"added_date": "2026-04-08",
+"altname": null,
+"description": "AuditTeam is a small ransomware group with approximately 5 known victims, primar",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "6tdqqaxftvradka5d2frzgwixis7fmro7rfh4ettzcx7jfapkebe6jad.onion",
+"slug": "http://6tdqqaxftvradka5d2frzgwixis7fmro7rfh4ettzcx7jfapkebe6jad.onion",
+"title": "/// DATA EXPOSURE TERMINAL ///",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "cjg2avmzoly7k6mw7xobnyre354jxro4qegkoazhsmigdk2j3aziexyd.onion",
+"slug": "http://cjg2avmzoly7k6mw7xobnyre354jxro4qegkoazhsmigdk2j3aziexyd.onion",
+"title": "[ SYSTEM ERROR ]",
+"type": "Files"
+}
+],
+"name": "AuditTeam",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/auditteam"
+},
+{
+"added_date": "2026-10-05",
+"altname": null,
+"description": "",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "byodxn5s7sua6oyyjj74rycgn6afncfckprt5ezskt3cni6lg3wdrgad.onion",
+"slug": "http://byodxn5s7sua6oyyjj74rycgn6afncfckprt5ezskt3cni6lg3wdrgad.onion",
+"title": "BYOD",
+"type": "DLS"
+}
+],
+"name": "BYOD",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/byod"
+},
+{
+"added_date": "2026-08-06",
+"altname": null,
+"description": "",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "uvm6hk4wwstfddja5z5htgtlehmfyflffijz6iozsuqyacyibzxefkqd.onion",
+"slug": "http://uvm6hk4wwstfddja5z5htgtlehmfyflffijz6iozsuqyacyibzxefkqd.onion/leaks",
+"title": "BARRACUDA",
+"type": "DLS"
+}
+],
+"name": "Barracuda",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/barracuda"
+},
+{
+"added_date": "2026-06-02",
+"altname": null,
+"description": "",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "blackxppq2jvqyg4slyg3sbszv7ib2avaaycvhff5qipgdoepqi57xyd.onion",
+"slug": "http://blackxppq2jvqyg4slyg3sbszv7ib2avaaycvhff5qipgdoepqi57xyd.onion",
+"title": "Black X",
+"type": "DLS"
+}
+],
+"name": "Black X",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/blackx"
+},
+{
+"added_date": "2026-09-04",
+"altname": null,
+"description": "",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "ybvjht7qcuhcml4pjcs7fgk57tzysplqtfq4i7yrwc6vjilin2dt2qad.onion",
+"slug": "http://ybvjht7qcuhcml4pjcs7fgk57tzysplqtfq4i7yrwc6vjilin2dt2qad.onion",
+"title": "BLACKLOCKS",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "ybvjht7qcuhcml4pjcs7fgk57tzysplqtfq4i7yrwc6vjilin2dt2qad.onion/leaks",
+"slug": "http://ybvjht7qcuhcml4pjcs7fgk57tzysplqtfq4i7yrwc6vjilin2dt2qad.onion/leaks",
+"title": "BLACKLOCKS",
+"type": "DLS"
+}
+],
+"name": "BlackLocks",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/blacklocks"
+},
+{
+"added_date": "2026-06-29",
+"altname": null,
+"description": "",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "2mgkz2ntx5vpgt4jj4gir77eqx7g6owapm2mkzpjswyl74fni7jgdmyd.onion",
+"slug": "http://2mgkz2ntx5vpgt4jj4gir77eqx7g6owapm2mkzpjswyl74fni7jgdmyd.onion",
+"title": "BlackField - Ransomware Leak Site",
+"type": "DLS"
+}
+],
+"name": "Blackfield",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/blackfield"
+},
+{
+"added_date": "2026-08-14",
+"altname": null,
+"description": "",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "bluewh6bk2qt6wjib7qxdtplhgbwbi3p7cgofwnshfl5xo3xgwgstrid.onion",
+"slug": "http://bluewh6bk2qt6wjib7qxdtplhgbwbi3p7cgofwnshfl5xo3xgwgstrid.onion",
+"title": "BlueWhale",
+"type": "DLS"
+}
+],
+"name": "BlueWhale",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/bluewhale"
+},
+{
+"added_date": "2026-08-01",
+"altname": "Bolt",
+"description": "",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "3pxt6o2ipwnfbgqvknydkizry5fysq4jmktxmrnfdgiii4fdkwfsliqd.onion",
+"slug": "http://3pxt6o2ipwnfbgqvknydkizry5fysq4jmktxmrnfdgiii4fdkwfsliqd.onion",
+"title": "502 Bad Gateway",
+"type": "DLS"
+}
+],
+"name": "Bolt Team",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/boltteam"
+},
+{
+"added_date": "2026-07-06",
+"altname": "Booba Team",
+"description": "Booba",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "d77tnb4bkmj3e366msrzllnwsi2t5e54e4yqh7zm7y5hlfwugnwzswad.onion",
+"slug": "http://d77tnb4bkmj3e366msrzllnwsi2t5e54e4yqh7zm7y5hlfwugnwzswad.onion",
+"title": "Booba Storage",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "culappkcuogv2omb37253e236mvmsfzvl4yw3p3incyzeoixhc6ocxqd.onion",
+"slug": "http://culappkcuogv2omb37253e236mvmsfzvl4yw3p3incyzeoixhc6ocxqd.onion",
+"title": "Booba Storage",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "eazk7las3xsvsyxgww3jgzammqjevso2ydnmlopdhl3u2muyrmmilrqd.onion",
+"slug": "http://eazk7las3xsvsyxgww3jgzammqjevso2ydnmlopdhl3u2muyrmmilrqd.onion",
+"title": "Booba Chat",
+"type": "Chat"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "7t3zi3e7ki6iseun77ofqtr6wmbpgnpc2ada6gstcxp54lw6q2zb7jad.onion",
+"slug": "http://7t3zi3e7ki6iseun77ofqtr6wmbpgnpc2ada6gstcxp54lw6q2zb7jad.onion",
+"title": "Booba Project",
+"type": "DLS"
+}
+],
+"name": "Booba Project",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/boobaproject"
+},
+{
+"added_date": "2024-07-01",
+"altname": null,
+"description": "Brain Cipher emerged in July 2024. Both Windows and Linux variants are available",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "x3nb7qcygpem2j5xzstyzdtgzofzkwkx4eko3ug4r73i6uhcgvyffjyd.onion",
+"slug": "http://x3nb7qcygpem2j5xzstyzdtgzofzkwkx4eko3ug4r73i6uhcgvyffjyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "a4vbe7yp4kluped6khuhpr5nmzshiimx2jt5j22ozriiq6ngsm3fcpyd.onion",
+"slug": "http://a4vbe7yp4kluped6khuhpr5nmzshiimx2jt5j22ozriiq6ngsm3fcpyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "cjuogz6kvmozrapbw6cgf3ovfxgxe2fy3ajlgxm53w3xjve5x5sichyd.onion",
+"slug": "http://cjuogz6kvmozrapbw6cgf3ovfxgxe2fy3ajlgxm53w3xjve5x5sichyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "keoz3i32ljvnfrsxo3cwolzv2mhkvbi5y5wlwtn5ngbswu4qzdnjvrqd.onion",
+"slug": "http://keoz3i32ljvnfrsxo3cwolzv2mhkvbi5y5wlwtn5ngbswu4qzdnjvrqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "urvvoj7wlkh476p2tgntzez3nuke2ylfdkekpnkajxfz43o7jqkokeyd.onion",
+"slug": "http://urvvoj7wlkh476p2tgntzez3nuke2ylfdkekpnkajxfz43o7jqkokeyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "aj3ocrawf43r6u5miezvmzh5sjtuv2rx6na3tm26fao3laobu5unfhyd.onion",
+"slug": "http://aj3ocrawf43r6u5miezvmzh5sjtuv2rx6na3tm26fao3laobu5unfhyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "zfpcqpp6kfe5wl72b2cfb5qbp4kkzi4oj6if4r226idr3efvtocgd6id.onion",
+"slug": "http://zfpcqpp6kfe5wl72b2cfb5qbp4kkzi4oj6if4r226idr3efvtocgd6id.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "kxlw35vctxgbmwtz6474xwtkm2kywifg4efs6ixmvgdgbgi2uaurenid.onion",
+"slug": "http://kxlw35vctxgbmwtz6474xwtkm2kywifg4efs6ixmvgdgbgi2uaurenid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "vkvsgl7lhipjirmz6j5ubp3w3bwvxgcdbpi3fsbqngfynetqtw4w5hyd.onion",
+"slug": "http://vkvsgl7lhipjirmz6j5ubp3w3bwvxgcdbpi3fsbqngfynetqtw4w5hyd.onion",
+"title": "Brain Cipher Dataleak",
+"type": "DLS"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "hv5on6i3k3g24qtu3ac6vtbrcgl2imz3sasakhfslhbnbqbcri73mqad.onion",
+"slug": "http://hv5on6i3k3g24qtu3ac6vtbrcgl2imz3sasakhfslhbnbqbcri73mqad.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "4ldgw2wuidqu5ef3rzx4byonf3y7rdnh43jiw2z4sbtjiwic6gkov7yd.onion",
+"slug": "http://4ldgw2wuidqu5ef3rzx4byonf3y7rdnh43jiw2z4sbtjiwic6gkov7yd.onion/",
+"title": "Not Found",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "7n4vqiaqxenaqy4t47ayqvurbmg6vfg2ir7iobwjazwizjncwyt7jhad.onion",
+"slug": "http://7n4vqiaqxenaqy4t47ayqvurbmg6vfg2ir7iobwjazwizjncwyt7jhad.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "77nrxelcwh47yikvpaz2rvtsten4sen2elybo5r5st6wlxsbitv255qd.onion",
+"slug": "http://77nrxelcwh47yikvpaz2rvtsten4sen2elybo5r5st6wlxsbitv255qd.onion/",
+"title": "BrainCipher Client Area",
+"type": "Chat"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "alkkq3vhb7epl3jh6qzutj2vyyfdgvs2nukw5hwdsijl5la3jrinrryd.onion",
+"slug": "http://alkkq3vhb7epl3jh6qzutj2vyyfdgvs2nukw5hwdsijl5la3jrinrryd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "nxetaioe4eelwhdwagi3ikv6ee6tttwvnqikalgkrslz7bwvuwqzdeqd.onion",
+"slug": "http://nxetaioe4eelwhdwagi3ikv6ee6tttwvnqikalgkrslz7bwvuwqzdeqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "mejouwrwja4iou7myj34rqi7cixyhn7vsa42e2n2dhxzc5mmkiaki3yd.onion",
+"slug": "http://mejouwrwja4iou7myj34rqi7cixyhn7vsa42e2n2dhxzc5mmkiaki3yd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "brain4zoadgr6clxecixffvxjsw43cflyprnpfeak72nfh664kqqriyd.onion",
+"slug": "http://brain4zoadgr6clxecixffvxjsw43cflyprnpfeak72nfh664kqqriyd.onion/",
+"title": "BrainCipher Client Area",
+"type": "Chat"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "zztabnlnggxpbeiyvpievqtxl6te4amttfobwusmgo2l3hcabfpcgyad.onion",
+"slug": "http://zztabnlnggxpbeiyvpievqtxl6te4amttfobwusmgo2l3hcabfpcgyad.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "gkwqyosd75hpu72jfalfo7xepdebl5p5rhorbxzfwswyg53jckg7wxad.onion",
+"slug": "http://gkwqyosd75hpu72jfalfo7xepdebl5p5rhorbxzfwswyg53jckg7wxad.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "7ept6u4u3bczpq5sagycyd2mapv47ctkehzzc3ybugs7vtjl23i52gid.onion",
+"slug": "http://7ept6u4u3bczpq5sagycyd2mapv47ctkehzzc3ybugs7vtjl23i52gid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "bosgzz4d53h6tqoaidjogoiq4jaxszll6q2puiepchxhxxop6dxoozqd.onion",
+"slug": "http://bosgzz4d53h6tqoaidjogoiq4jaxszll6q2puiepchxhxxop6dxoozqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "ipkxv2cccgrklc2tktzpqe6nm76mikdmvqqgauklvqvv5rl4ib3nmryd.onion",
+"slug": "http://ipkxv2cccgrklc2tktzpqe6nm76mikdmvqqgauklvqvv5rl4ib3nmryd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "ao63qafejccvb2fdfn5vb7dxaeptxnyroktllnxhzh4ru3df26wivoid.onion",
+"slug": "http://ao63qafejccvb2fdfn5vb7dxaeptxnyroktllnxhzh4ru3df26wivoid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "ljex7r7uv7j6lek6jef7o2pqw23ojauom5q7nhgyxjhoebwilbc3eqqd.onion",
+"slug": "http://ljex7r7uv7j6lek6jef7o2pqw23ojauom5q7nhgyxjhoebwilbc3eqqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "tbspzruwy3qhjg3p3pyl2f6zqa5x4tcn6gpask4rvb672hgjzlkrnpyd.onion",
+"slug": "http://tbspzruwy3qhjg3p3pyl2f6zqa5x4tcn6gpask4rvb672hgjzlkrnpyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "ovw7qnv4pfmah7lae42rynehsrr2v2cvrq6g3uf2nhhpasbr2u3xrwid.onion",
+"slug": "http://ovw7qnv4pfmah7lae42rynehsrr2v2cvrq6g3uf2nhhpasbr2u3xrwid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "jxyphr6ipbeeusnf64sbqubpl57n7cvao3ef3zi5p64lqaggs6nydgid.onion",
+"slug": "http://jxyphr6ipbeeusnf64sbqubpl57n7cvao3ef3zi5p64lqaggs6nydgid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "mwf23uiaoiyyg3jgh3diwpmcn2qgg6i7kadivsbyncycz2mw2nyuwtqd.onion",
+"slug": "http://mwf23uiaoiyyg3jgh3diwpmcn2qgg6i7kadivsbyncycz2mw2nyuwtqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "cuuhrxbg52c5agytmtjpwfu7mrs4xtaitc4mukkiy2kqdxeqbcmuhaid.onion",
+"slug": "http://cuuhrxbg52c5agytmtjpwfu7mrs4xtaitc4mukkiy2kqdxeqbcmuhaid.onion/",
+"title": "BrainCipher Storage",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "6ft2dfh26wm3w44orpjcgviutvfp25ez2iyh5ego5egvfmifrws7vvqd.onion",
+"slug": "http://6ft2dfh26wm3w44orpjcgviutvfp25ez2iyh5ego5egvfmifrws7vvqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "guonv3yxlb5t7mptz2cwxsqrsnmsocrufkz3z3nvuv45h66submxe4yd.onion",
+"slug": "http://guonv3yxlb5t7mptz2cwxsqrsnmsocrufkz3z3nvuv45h66submxe4yd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "rpoeu7zimfpwxbwmjmjyprqaprtvkj3ykfczhbc4x3voydopffn337id.onion",
+"slug": "http://rpoeu7zimfpwxbwmjmjyprqaprtvkj3ykfczhbc4x3voydopffn337id.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "zktnif5vckhmz5tyrukp5bamatbfhkxjnb23rspsanyzywcrx3bvtqad.onion",
+"slug": "http://zktnif5vckhmz5tyrukp5bamatbfhkxjnb23rspsanyzywcrx3bvtqad.onion/",
+"title": "BrainCipher Storage",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "upiqcdsgvh6v5owteasjzyxbj2xug574dj4fctthehd7zjq7wmuxbwqd.onion",
+"slug": "http://upiqcdsgvh6v5owteasjzyxbj2xug574dj4fctthehd7zjq7wmuxbwqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "p6wmotxzvg34tdmpwm4beqgrcyp5iys43snkccsahnw74la3k3xx6pad.onion",
+"slug": "http://p6wmotxzvg34tdmpwm4beqgrcyp5iys43snkccsahnw74la3k3xx6pad.onion/",
+"title": "BrainCipher Client Area",
+"type": "Chat"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "emdnfl2fv32jhssxcbxlo6dzg2at4d7qbw2md6inz63qzdfgyln5cwyd.onion",
+"slug": "http://emdnfl2fv32jhssxcbxlo6dzg2at4d7qbw2md6inz63qzdfgyln5cwyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "psv5ejeysrncs6ltu4pkjyazswcmw3atmxi4eg44a6luudin5ufchcqd.onion",
+"slug": "http://psv5ejeysrncs6ltu4pkjyazswcmw3atmxi4eg44a6luudin5ufchcqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "lhsxojxowgtwdqlryl72d2v5cpgqv3sll4d47yyqdisersigvfbl5uid.onion",
+"slug": "http://lhsxojxowgtwdqlryl72d2v5cpgqv3sll4d47yyqdisersigvfbl5uid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "3fg2gfwrdks46drwvejpgpak5klrflclsjjo35dxtqfk3poeez6oezad.onion",
+"slug": "http://3fg2gfwrdks46drwvejpgpak5klrflclsjjo35dxtqfk3poeez6oezad.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "zijgmuqjzb6dc7pofxhtaiz36qqyg35lhutybmzaz6whzgei2casjgid.onion",
+"slug": "http://zijgmuqjzb6dc7pofxhtaiz36qqyg35lhutybmzaz6whzgei2casjgid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "3frnhzcnlkjnw5q3tm6elzizinm2k3bmrtf2xwqjzpcxzeqwn2tv6wyd.onion",
+"slug": "http://3frnhzcnlkjnw5q3tm6elzizinm2k3bmrtf2xwqjzpcxzeqwn2tv6wyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "sjyd42k47guvygfiyfdv5dmllytpgdzr3ioiqsuytz726is6ss67imid.onion",
+"slug": "http://sjyd42k47guvygfiyfdv5dmllytpgdzr3ioiqsuytz726is6ss67imid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "ltxnzpfvmr3c3rcbw5x4q2ejy6fmbp7kc35oql3gooyydg7belfmnyad.onion",
+"slug": "http://ltxnzpfvmr3c3rcbw5x4q2ejy6fmbp7kc35oql3gooyydg7belfmnyad.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "pcmhzcqprvp3zyiez5tphrjzjqiydaod76idk6k66usmdyvdcb72l4id.onion",
+"slug": "http://pcmhzcqprvp3zyiez5tphrjzjqiydaod76idk6k66usmdyvdcb72l4id.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "mybmtbgd7aprdnw2ekxht5qap5daam2wch25coqerrq2zdioanob34ad.onion",
+"slug": "http://mybmtbgd7aprdnw2ekxht5qap5daam2wch25coqerrq2zdioanob34ad.onion",
+"title": "Brain Cipher Client Area",
+"type": "Chat"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "inzk64xcf3sm6qzkehmio7piwhkslhnab3rlviniyg7alcgsxvy7kcyd.onion",
+"slug": "http://inzk64xcf3sm6qzkehmio7piwhkslhnab3rlviniyg7alcgsxvy7kcyd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "n2yygycbmyeguft4n6tfokfkbvgkyzchlyn4jbpg7har6goel4eskfqd.onion",
+"slug": "http://n2yygycbmyeguft4n6tfokfkbvgkyzchlyn4jbpg7har6goel4eskfqd.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "h4zmek6bf3lebauy7dtyxmui67n6ro5t4zdrooddpw3kyfktg2nmhgid.onion",
+"slug": "http://h4zmek6bf3lebauy7dtyxmui67n6ro5t4zdrooddpw3kyfktg2nmhgid.onion",
+"title": "",
+"type": "Files"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "dkeqrg3fxrijolpgpbsmk6eacare4bg5awrracxdiestki2onyz5bnyd.onion",
+"slug": "http://dkeqrg3fxrijolpgpbsmk6eacare4bg5awrracxdiestki2onyz5bnyd.onion",
+"title": "",
+"type": "Files"
+}
+],
+"name": "BrainCipher",
+"tools": [],
+"ttps": [
+{
+"tactic_id": "TA0002",
+"tactic_name": "Execution",
+"techniques": [
+{
+"technique_details": "Executes a malicious file on the victim's system.",
+"technique_id": "T1204.002",
+"technique_name": "User Execution"
+}
+]
+},
+{
+"tactic_id": "TA0005",
+"tactic_name": "Defense Evasion",
+"techniques": [
+{
+"technique_details": "The ransomware self-deletes after execution.",
+"technique_id": "T1070.004",
+"technique_name": "Indicator Removal: File Deletion"
+},
+{
+"technique_details": "Disables Windows Defender (if it is running).",
+"technique_id": "T1562.001",
+"technique_name": "Impair Defenses: Disable or Modify Tools"
+}
+]
+},
+{
+"tactic_id": "TA0007",
+"tactic_name": "Discovery",
+"techniques": [
+{
+"technique_details": "Enumerates directories to encrypt files.",
+"technique_id": "T1083",
+"technique_name": "File and Directory Discovery"
+}
+]
+},
+{
+"tactic_id": "TA0040",
+"tactic_name": "Impact",
+"techniques": [
+{
+"technique_details": "Uses data encryption as a means of extorting the victim.",
+"technique_id": "T1486",
+"technique_name": "Data Encrypted for Impact"
+}
+]
+}
+],
+"url": "https://www.ransomware.live/group/braincipher"
+},
+{
+"added_date": "2026-05-02",
+"altname": null,
+"description": "CMD is a new kind of company that specializes in corporate system security and i",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "cmdnkiqjije2tllr3biee2sjgj3i4robg2cbtilbnytdhh2wy3syrlyd.onion",
+"slug": "http://cmdnkiqjije2tllr3biee2sjgj3i4robg2cbtilbnytdhh2wy3syrlyd.onion",
+"title": "CMD // home",
+"type": "DLS"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "cmdofficial.com",
+"slug": "https://cmdofficial.com",
+"title": "Suspected Phishing | Cloudflare",
+"type": "DLS"
+}
+],
+"name": "CMDOrganization",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/cmdorganization"
+},
+{
+"added_date": "2026-07-09",
+"altname": "CRPx0",
+"description": "CRPxO is actively recruiting affiliates, offering:\n\ud83d\udd39 70% revenue share\n\ud83d\udd39 XMR/BTC",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "crpx0.su/affiliate",
+"slug": "https://crpx0.su/affiliate",
+"title": "\u0420\u0430\u0431\u043e\u0442\u0430 \u0441\u0430\u0439\u0442\u0430 \u043f\u0440\u0438\u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u0430",
+"type": "DLS"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "crpx0.su",
+"slug": "https://crpx0.su",
+"title": "",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "xburs4nr6cbuktokhqwefeh5hsjakz6usll5o7z5uhrfcnolakj4ptad.onion",
+"slug": "http://xburs4nr6cbuktokhqwefeh5hsjakz6usll5o7z5uhrfcnolakj4ptad.onion",
+"title": "CRPX0 C2 Login",
+"type": "Admin"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "tlxoddx4odmc2qvsmtsbgwwsv5j45osb5sox7mz6izxliuju5mkulzad.onion",
+"slug": "http://tlxoddx4odmc2qvsmtsbgwwsv5j45osb5sox7mz6izxliuju5mkulzad.onion",
+"title": "CRPxO \u2013 Data Leak Blog - We publish what they hide",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": true,
+"fqdn": "kqi5yty6ipuhwz4anutty6hob6et7dvnnxg6kcnulwedjaz5oton2zyd.onion",
+"slug": "http://kqi5yty6ipuhwz4anutty6hob6et7dvnnxg6kcnulwedjaz5oton2zyd.onion",
+"title": "",
+"type": "DLS"
+}
+],
+"name": "CRPxO",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/crpxo"
+},
+{
+"added_date": null,
+"altname": "",
+"description": "RAAS - Ransomware int\u00e9gr\u00e9 \u00e0 un fichier PDF, \u00e0 faire ouvrir \u00e0 vos victimes ou \u00e0 i",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "zprxx7sfc26rufggreanowmme5qqouqegr2efnko6erycquwvpq5egid.onion",
+"slug": "http://zprxx7sfc26rufggreanowmme5qqouqegr2efnko6erycquwvpq5egid.onion",
+"title": "ContFR - RAAS",
+"type": "DLS"
+}
+],
+"name": "ContFR",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/contfr"
+},
+{
+"added_date": "2026-08-24",
+"altname": "Leek Road",
+"description": "Leak of GTA VI",
+"locations": [
+{
+"available": false,
+"enabled": false,
+"fqdn": "leekrdlpsy3xcxwcvfje7ovj34fo4y2xqaghdikhf3t7hatev346h6qd.onion",
+"slug": "http://leekrdlpsy3xcxwcvfje7ovj34fo4y2xqaghdikhf3t7hatev346h6qd.onion",
+"title": "Leek Road // Community Hub",
+"type": "DLS"
+}
+],
+"name": "Cyberleek",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/cyberleek"
+},
+{
+"added_date": "2026-07-13",
+"altname": null,
+"description": "D1R Claims Synopsys and Bosch Breaches, but Synopsys Disputes Intrusion",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "dirone3rl3vvq64ckcnrvhe2ogrhjrwu5u7hqzrlotu3rfvmqmmbsuqd.onion/items",
+"slug": "http://dirone3rl3vvq64ckcnrvhe2ogrhjrwu5u7hqzrlotu3rfvmqmmbsuqd.onion/items/",
+"title": "Items \u2013 D1R",
+"type": "DLS"
+}
+],
+"name": "D1R",
+"tools": [],
+"ttps": [
+{
+"tactic_id": "TA0001",
+"tactic_name": "Initial Access",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1078",
+"technique_name": "Valid Accounts"
+},
+{
+"technique_details": "",
+"technique_id": "T1190",
+"technique_name": "Exploit Public-Facing Application"
+}
+]
+},
+{
+"tactic_id": "TA0003",
+"tactic_name": "Persistence",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1078",
+"technique_name": "Valid Accounts"
+}
+]
+},
+{
+"tactic_id": "TA0004",
+"tactic_name": "Privilege Escalation",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1078",
+"technique_name": "Valid Accounts"
+}
+]
+},
+{
+"tactic_id": "TA0005",
+"tactic_name": "Stealth",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1078",
+"technique_name": "Valid Accounts"
+}
+]
+},
+{
+"tactic_id": "TA0006",
+"tactic_name": "Credential Access",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1111",
+"technique_name": "Multi-Factor Authentication Interception"
+},
+{
+"technique_details": "",
+"technique_id": "T1649",
+"technique_name": "Steal or Forge Authentication Certificates"
+}
+]
+},
+{
+"tactic_id": "TA0009",
+"tactic_name": "Collection",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1213",
+"technique_name": "Data from Information Repositories"
+},
+{
+"technique_details": "",
+"technique_id": "T1530",
+"technique_name": "Data from Cloud Storage"
+}
+]
+},
+{
+"tactic_id": "TA0010",
+"tactic_name": "Exfiltration",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1020",
+"technique_name": "Automated Exfiltration"
+},
+{
+"technique_details": "",
+"technique_id": "T1041",
+"technique_name": "Exfiltration Over C2 Channel"
+},
+{
+"technique_details": "",
+"technique_id": "T1048",
+"technique_name": "Exfiltration Over Alternative Protocol"
+},
+{
+"technique_details": "",
+"technique_id": "T1567",
+"technique_name": "Exfiltration Over Web Service"
+}
+]
+},
+{
+"tactic_id": "TA0040",
+"tactic_name": "Impact",
+"techniques": [
+{
+"technique_details": "",
+"technique_id": "T1486",
+"technique_name": "Data Encrypted for Impact"
+},
+{
+"technique_details": "",
+"technique_id": "T1657",
+"technique_name": "Financial Theft"
+}
+]
+}
+],
+"url": "https://www.ransomware.live/group/d1r"
+},
+{
+"added_date": "2026-08-20",
+"altname": null,
+"description": "Suspicious group. We did not manage to confirm any victims.",
+"locations": [
+{
+"available": true,
+"enabled": true,
+"fqdn": "normalhunters0x.surge.sh",
+"slug": "https://normalhunters0x.surge.sh/",
+"title": "Chrome Dino Game",
+"type": "DLS"
+},
+{
+"available": false,
+"enabled": false,
+"fqdn": "y3maveiwszbnrziufbbberx74cvrdcsf72nxzuqxzv7ppdmmqzffazid.onion",
+"slug": "http://y3maveiwszbnrziufbbberx74cvrdcsf72nxzuqxzv7ppdmmqzffazid.onion",
+"title": "DYSPHOR1A Ransomware Group",
+"type": "DLS"
+},
+{
+"available": true,
+"enabled": true,
+"fqdn": "null.yzz.me",
+"slug": "https://null.yzz.me",
+"title": "DNS Resolution Error - Domain Not Found, Or Domain not added to hosting account",
+"type": "DLS"
+}
+],
+"name": "DYSPHOR1A",
+"tools": [],
+"ttps": [],
+"url": "https://www.ransomware.live/group/dysphor1a"
+}
+]
