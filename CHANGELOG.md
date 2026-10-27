@@ -49,6 +49,11 @@ Versioning follows [Semantic Versioning](https://semver.org).
 - **Cross-process rate-limit guard** for ransomware.live (1 req/min/endpoint) and a free-tier terms notice;
   PRO key support via `RANSOMWARE_LIVE_API_KEY` / `_BASE` / `_KEY_HEADER` (header name unverified).
 
+### Changed
+- **`search.py --alive`** — search only the engines the last `check_engines.py` run found
+  alive. Every dead index costs the full `TOR_TIMEOUT`; measured on live Tor with 11 of 17
+  engines up, `--alive` returned in 3s while the unscoped search did not finish in 280s.
+
 ### Fixed
 - **[SAFETY] Abuse filter refused legitimate victims.** The old denylist substring-matched
   `child`, so it refused ransomware disclosures for children's hospitals. New `safety.py`:

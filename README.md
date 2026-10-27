@@ -23,7 +23,7 @@ cp -r OnionClaw ~/.openclaw/skills/onionclaw
 
 # Standalone:
 python3 check_tor.py        # verify Tor
-python3 search.py --query "ransomware healthcare"
+python3 check_engines.py && python3 search.py --query "ransomware healthcare" --alive
 python3 pipeline.py --query "acme.com data leak" --mode corporate
 ```
 

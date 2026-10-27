@@ -105,6 +105,18 @@ python3 {baseDir}/search.py --query "SEARCH_TERM" --max 30
 python3 {baseDir}/search.py --query "SEARCH_TERM" --engines Ahmia Tor66 Ahmia-clearnet
 ```
 
+**Only engines known to be alive (recommended):**
+```bash
+python3 {baseDir}/check_engines.py          # refresh the health list
+python3 {baseDir}/search.py --query "SEARCH_TERM" --alive
+```
+
+Dark web indexes go down constantly. Every dead engine costs the full `TOR_TIMEOUT`
+(45s by default), so a default all-engine search can block for minutes. Measured on a
+live Tor circuit with 11 of 17 engines up: `--alive` returned in **3 seconds**, the
+unscoped search did not finish within 280. Prefer `--alive` and tell the user how many
+engines answered.
+
 Available engines: Ahmia, OnionLand, Amnesia, Torland, Excavator, Onionway, Tor66, OSS, Torgol, TheDeepSearches, DuckDuckGo-Tor, Ahmia-clearnet
 
 **Tip:** Use short keyword queries (≤5 words). Dark web indexes respond better to focused keywords than natural-language questions.
@@ -315,7 +327,7 @@ comes from what a leak site published, not analysis — present it as a lead.
 
 - All traffic routes through Tor — tell the user this when relevant.
 - .onion sites are frequently offline — if fetch returns `status: 0`, the site is temporarily down.
-- Dark web search indexes go down often — run `check_engines.py` first and filter by alive engines.
+- Dark web search indexes go down often — run `check_engines.py` first, then search with `--alive`. Each dead engine costs the full `TOR_TIMEOUT`, so this is the difference between seconds and minutes.
 - LLM tools (`ask`) require an API key in `{baseDir}/.env`. Search and fetch work without any key.
 - The swarm's collectors only read public data; never use OnionClaw to contact, negotiate with, or deceive anyone.
 - ransomware.live's free API is for personal use and allows 1 request/minute per endpoint; OnionClaw enforces the limit. Business use needs a PRO key (`RANSOMWARE_LIVE_API_KEY`).
