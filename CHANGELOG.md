@@ -22,7 +22,7 @@ Versioning follows [Semantic Versioning](https://semver.org).
 - **`entities.py`** — entity extraction with real validation: Bitcoin base58check and
   bech32/bech32m (taproot) checksums; ETH, XMR, email, `.onion`, Tox ID, PGP detection.
 - **`crawl.py`** — deep-crawl of a single hidden service (level-by-level, concurrent).
-- **Tests** — 71 tests; fixtures are real captured ransomware.live and CISA KEV responses.
+- **Tests** — 96 tests; fixtures are real captured ransomware.live and CISA KEV responses.
 
 - **`kev` collector** — CISA Known Exploited Vulnerabilities; flags CVEs added to KEV with known
   ransomware use, and CVEs whose ransomware flag flips from Unknown to Known.
@@ -32,6 +32,15 @@ Versioning follows [Semantic Versioning](https://semver.org).
   victim) with per-edge evidence and honest confidence; time-decayed group activity ranking.
 - **`alerts.py`** — severity-ranked alerts to Slack / Discord / generic webhooks; exactly-once per sink,
   retried until 2xx, optional HMAC-SHA256 signing, 24h lookback so an outage never loses alerts.
+- **`ttp.py`** (adapted from PRISM-Intel's TTP tracker) — MITRE ATT&CK techniques and tools per group from
+  ransomware.live's published ATT&CK data, plus low-confidence whole-word keyword hits from ransom notes,
+  each with its evidence sentence. The `groupinfra` collector records group profiles and reports when a
+  group's techniques change (new `TTP_CHANGE` alert, MEDIUM).
+- **`risk.py`** (adapted from PRISM-Intel's risk scorer and confidence decay) — transparent group priority
+  score from observed data (volume, critical sectors, reach, capability, evidence links) times PRISM's
+  decay curve. Replaces PRISM's hand-picked "high-severity groups" list with factors you can inspect.
+- **STIX 2.1** now includes `attack-pattern` (MITRE external refs + kill-chain phases) and `tool` objects
+  with `uses` relationships from each threat actor.
 - **Cross-process rate-limit guard** for ransomware.live (1 req/min/endpoint) and a free-tier terms notice;
   PRO key support via `RANSOMWARE_LIVE_API_KEY` / `_BASE` / `_KEY_HEADER` (header name unverified).
 
@@ -45,6 +54,8 @@ Versioning follows [Semantic Versioning](https://semver.org).
 - **`--watch` matched every victim** when the term appeared in the tracker's own URL domain; victim keys
   are no longer searched. Substring matching also replaced with whole-word matching ("hospital" vs
   "Hospitality").
+- **PRISM's TTP keyword matcher used substrings**, so "tor" fired on "sector" and "monitor"; the adapted
+  matcher uses whole words and drops unsound mappings ("password" is not evidence of brute force).
 - Leak-site hosts shared by several groups overwrote each other, producing phantom "changed" events.
 - **Entity extraction truncated pages at 8,000 chars**, dropping wallets/PGP blocks below the fold.
 - **Wallet false positives** — any 26–35 char base58 string was reported as a Bitcoin address.

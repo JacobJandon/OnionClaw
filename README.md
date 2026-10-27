@@ -457,13 +457,15 @@ python3 swarm.py --webhook https://hooks.slack.com/... --webhook-format slack
 python3 stix.py -o bundle.json                    # STIX 2.1 export (MISP / OpenCTI)
 python3 graph.py                                  # evidence-based group correlation
 python3 graph.py --activity                       # time-decayed group activity ranking
+python3 risk.py                                   # groups ranked by transparent priority score
+python3 ttp.py --group medusa                     # MITRE ATT&CK techniques + tools per group
 python3 crawl.py --url http://xyz.onion --depth 2 # concurrent single-site crawl
 ```
 
 | Collector | Source | Detects |
 |---|---|---|
 | `leaksites` | ransomware.live | new victim disclosures; wallets in ransom notes |
-| `groupinfra` | ransomware.live | leak sites going up / down / moving |
+| `groupinfra` | ransomware.live | leak sites going up / down / moving; each group's ATT&CK techniques and tools (and when they change) |
 | `kev` | CISA KEV | new exploited CVEs, and CVEs **newly linked to ransomware** |
 | `wallets` | mempool.space | balance / tx movement on tracked ransom wallets |
 | `onionsites` | your URLs, via Tor | content change and new wallets / emails on a page |
@@ -477,6 +479,12 @@ deceives a threat actor, and no feature is planned that would.
 **Alerts** (`--webhook`): `KEV_RANSOMWARE`, `WALLET_MOVEMENT`, `WALLET_LINK`, `WATCHLIST_HIT` (HIGH);
 `CRITICAL_VICTIM`, `ONION_CHANGE` (MEDIUM); `INFRA_CHANGE` (LOW). Delivery is exactly-once per webhook,
 retried until the receiver answers 2xx, and `generic` payloads can be HMAC-signed (`--webhook-secret`).
+
+**Priority and ATT&CK.** `risk.py` ranks groups by observed volume, critical-sector victims, reach,
+capability (published ATT&CK techniques, tools, live leak-site hosts) and evidence links, then decays
+groups that have gone quiet. Every score lists the numbers behind it; it is a triage order, not a verdict.
+`ttp.py` maps groups to MITRE ATT&CK from the data ransomware.live publishes, and STIX exports include
+`attack-pattern` and `tool` objects linked to each group by `uses` relationships.
 
 **Correlation is a lead, not attribution.** `graph.py` links groups only through hard identifiers (shared
 wallet, shared leak-site host, normalised alias, shared victim) and shows the evidence for every edge.

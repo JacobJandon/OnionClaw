@@ -48,7 +48,7 @@ import alerts as alerts_mod
 __version__ = "2.4.0"
 
 # Higher = surfaced first.
-_WEIGHT = {"wallet_state": 5, "onion_page": 4, "kev": 3, "victim": 3, "dls": 2, "wallet": 1}
+_WEIGHT = {"wallet_state": 5, "onion_page": 4, "kev": 3, "victim": 3, "group_profile": 2, "dls": 2, "wallet": 1}
 
 
 class Swarm:
@@ -142,7 +142,7 @@ def synthesize(store: Store, since: float, run_report: dict, watch=()) -> dict:
         "most_active_groups": sorted(groups.items(), key=lambda kv: -kv[1])[:5],
         "priority": [i for i in items if i["priority"]],
         "events": items,
-        "totals": {k: store.count(k) for k in ("victim", "dls", "kev", "wallet", "wallet_state", "onion_page")},
+        "totals": {k: store.count(k) for k in ("victim", "dls", "group_profile", "kev", "wallet", "wallet_state", "onion_page")},
     }
 
 

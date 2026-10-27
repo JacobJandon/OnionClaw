@@ -10,6 +10,7 @@ Rules (severity):
   WALLET_LINK      HIGH    one wallet now linked to more than one group
   WATCHLIST_HIT    HIGH    event mentions a --watch term (whole word)
   CRITICAL_VICTIM  MEDIUM  new victim in a critical sector (healthcare, government, ... configurable)
+  TTP_CHANGE       MEDIUM  a group's published ATT&CK techniques changed
   ONION_CHANGE     MEDIUM  a monitored .onion page changed
   INFRA_CHANGE     LOW     a leak-site location went up / down
 
@@ -84,6 +85,8 @@ def build_alerts(store: Store, events: Iterable[dict], watch: Iterable[str] = ()
             crit = [s for s, rx in sector_rx if rx.search(activity)]
             if crit:
                 a = Alert(e["id"], "CRITICAL_VICTIM", "MEDIUM", detail, e["key"], e["ts"], crit)
+        elif kind == "group_profile" and change == "changed" and "ATT&CK technique" in detail:
+            a = Alert(e["id"], "TTP_CHANGE", "MEDIUM", detail, e["key"], e["ts"])
         elif kind == "dls" and change == "changed":
             a = Alert(e["id"], "INFRA_CHANGE", "LOW", detail, e["key"], e["ts"])
 

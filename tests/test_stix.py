@@ -109,3 +109,26 @@ def test_only_ransomware_known_kevs_exported(bundle):
     b, *_ = bundle
     vulns = [o for o in b["objects"] if o["type"] == "vulnerability"]
     assert len(vulns) == 15 and all(v["name"].startswith("CVE-") for v in vulns)
+
+
+def test_attack_patterns_and_tools_from_group_profiles(bundle):
+    b, *_ = bundle
+    aps = [o for o in b["objects"] if o["type"] == "attack-pattern"]
+    tools = [o for o in b["objects"] if o["type"] == "tool"]
+    assert aps and tools
+    for o in aps:
+        ref = o["external_references"][0]
+        assert ref["source_name"] == "mitre-attack" and ref["external_id"].startswith("T")
+        assert ref["url"].startswith("https://attack.mitre.org/techniques/")
+        for ph in o.get("kill_chain_phases", []):
+            assert ph["kill_chain_name"] == "mitre-attack" and ph["phase_name"] == ph["phase_name"].lower()
+    ids = {o["id"] for o in b["objects"]}
+    uses = [o for o in b["objects"] if o["type"] == "relationship" and o["relationship_type"] == "uses"]
+    assert uses and all(u["source_ref"] in ids and u["target_ref"] in ids for u in uses)
+    assert {o["type"] for o in b["objects"] if o["id"] in {u["target_ref"] for u in uses}} == {"attack-pattern", "tool"}
+
+
+def test_one_attack_pattern_per_technique_across_groups(bundle):
+    b, *_ = bundle
+    ext = [o["external_references"][0]["external_id"] for o in b["objects"] if o["type"] == "attack-pattern"]
+    assert len(ext) == len(set(ext))       # shared techniques are one object, linked to many groups

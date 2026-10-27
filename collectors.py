@@ -29,6 +29,7 @@ import requests
 import safety
 from entities import extract_entities, onion_host, valid_btc
 from store import CHANGED, NEW, Store
+from ttp import normalize_profile
 
 USER_AGENT = "OnionClaw/2.4 (threat-intel monitor; read-only)"
 MEMPOOL = "https://mempool.space/api"
@@ -189,8 +190,26 @@ class GroupInfraCollector(_RansomwareLiveMixin, Collector):
                                        quiet=baseline)
                 res.items += 1
                 res.events += (change in (NEW, CHANGED)) and not baseline
+
+            # ATT&CK techniques and tools the tracker publishes for this group
+            prof = normalize_profile(g) if g.get("name") else None
+            if prof:
+                prev = store.get(self.name, "group_profile", g["name"]) or {}
+                was = {t["id"] for t in prev.get("techniques", [])}
+                now_ids = {t["id"] for t in prof["techniques"]}
+                added, removed = sorted(now_ids - was), sorted(was - now_ids)
+                if prev and (added or removed):
+                    parts = ([f"+{len(added)} ATT&CK technique(s): {', '.join(added[:6])}"] if added else []) + \
+                            ([f"-{len(removed)}: {', '.join(removed[:6])}"] if removed else [])
+                    detail = f"{g['name']}: " + "; ".join(parts)
+                else:
+                    detail = f"{g['name']}: {len(now_ids)} ATT&CK techniques on record"
+                change = store.observe(self.name, "group_profile", g["name"], prof, detail,
+                                       quiet=baseline or not prev)
+                res.events += change == CHANGED and not baseline and bool(added or removed)
         if baseline:
-            res.notes.append(f"baseline recorded: {res.items} leak-site locations")
+            res.notes.append(f"baseline recorded: {res.items} leak-site locations, "
+                             f"{store.count('group_profile')} ATT&CK group profiles")
         return res
 
 

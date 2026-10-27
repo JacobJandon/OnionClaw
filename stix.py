@@ -35,6 +35,7 @@ _skill_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _skill_dir)
 
 from store import Store
+from ttp import attack_url
 
 __version__ = "2.4.0"
 
@@ -215,6 +216,39 @@ def build_bundle(store: Store, group: str | None = None, since: float = 0.0,
                    "created": ts(r["first_seen"]), "modified": ts(r["last_seen"]),
                    "created_by_ref": producer, "relationship_type": "indicates",
                    "source_ref": iid, "target_ref": a})
+
+    # ATT&CK techniques and tools each group uses (ransomware.live group profiles)
+    for r in _rows(store, "group_profile"):
+        p = json.loads(r["payload"])
+        g = p.get("group")
+        if not g or r["last_seen"] < since or (group and g.lower() != group.lower()):
+            continue
+        a = actor(g, r["first_seen"], r["last_seen"])
+        for t in p.get("techniques", []):
+            ap = {"type": "attack-pattern", "spec_version": "2.1", "id": sid("attack-pattern", t["id"]),
+                  "created": _PRODUCER_CREATED, "modified": _PRODUCER_CREATED, "created_by_ref": producer,
+                  "name": t.get("name") or t["id"],
+                  "external_references": [{"source_name": "mitre-attack", "external_id": t["id"],
+                                           "url": attack_url(t["id"])}]}
+            phases = [{"kill_chain_name": "mitre-attack",
+                       "phase_name": re.sub(r"[^a-z0-9]+", "-", x["name"].lower()).strip("-")}
+                      for x in t.get("tactics", []) if x.get("name")]
+            if phases:
+                ap["kill_chain_phases"] = phases
+            apid = b.add(ap)
+            b.add({"type": "relationship", "spec_version": "2.1", "id": sid("relationship", f"{a}:uses:{apid}"),
+                   "created": ts(r["first_seen"]), "modified": ts(r["last_seen"]), "created_by_ref": producer,
+                   "relationship_type": "uses", "source_ref": a, "target_ref": apid,
+                   **({"description": t["detail"]} if t.get("detail") else {})})
+        for category, names in p.get("tools", {}).items():
+            for n in names:
+                tid = b.add({"type": "tool", "spec_version": "2.1", "id": sid("tool", n.lower()),
+                             "created": _PRODUCER_CREATED, "modified": _PRODUCER_CREATED,
+                             "created_by_ref": producer, "name": n,
+                             "x_onionclaw_category": category})
+                b.add({"type": "relationship", "spec_version": "2.1", "id": sid("relationship", f"{a}:uses:{tid}"),
+                       "created": ts(r["first_seen"]), "modified": ts(r["last_seen"]), "created_by_ref": producer,
+                       "relationship_type": "uses", "source_ref": a, "target_ref": tid})
 
     # KEV CVEs with known ransomware use
     if include_kev and not group:

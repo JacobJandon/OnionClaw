@@ -1,6 +1,6 @@
 ---
 name: onionclaw
-description: Search the Tor dark web, fetch and crawl .onion hidden service pages, rotate Tor identity, run structured OSINT investigations, and monitor ransomware leak sites for changes. Use when user asks to search dark web, investigate .onion sites, find if data appeared on dark web, conduct Tor-based OSINT, look up dark web leaks, fetch or crawl any .onion URL, check for leaked credentials, investigate or monitor ransomware groups, watch for new victims in a sector, or export threat intel as STIX 2.1.
+description: Search the Tor dark web, fetch and crawl .onion hidden service pages, rotate Tor identity, run structured OSINT investigations, and monitor ransomware leak sites for changes. Use when user asks to search dark web, investigate .onion sites, find if data appeared on dark web, conduct Tor-based OSINT, look up dark web leaks, fetch or crawl any .onion URL, check for leaked credentials, investigate, monitor or prioritise ransomware groups, map them to MITRE ATT&CK, watch for new victims in a sector, or export threat intel as STIX 2.1.
 homepage: https://github.com/JacobJandon/OnionClaw
 metadata:
   {
@@ -242,6 +242,20 @@ Correlation is a lead for an analyst, not attribution — present the evidence w
 
 ---
 
+### Prioritise groups and map their ATT&CK techniques
+
+```bash
+python3 {baseDir}/risk.py                         # groups ranked by a transparent priority score
+python3 {baseDir}/risk.py --group qilin           # every factor behind one group's score
+python3 {baseDir}/ttp.py --group medusa           # MITRE ATT&CK techniques + tools for a group
+python3 {baseDir}/ttp.py --technique T1078        # which observed groups use a technique
+python3 {baseDir}/ttp.py                          # most-used techniques across observed groups
+```
+
+`ttp.py` uses the ATT&CK data ransomware.live publishes per group (confidence "high") and adds whole-word keyword hits from ransom notes (confidence "low", each with the sentence it came from). `risk.py` scores volume, critical-sector victims, reach, capability and evidence links, then decays groups that have gone quiet. Present the score as a triage order, not a threat verdict, and show the factors.
+
+---
+
 ## Typical investigation flows
 
 ### "Search the dark web for X"
@@ -262,6 +276,11 @@ Correlation is a lead for an analyst, not attribution — present the evidence w
 ### "Watch for new ransomware victims in sector X"
 1. `python3 {baseDir}/swarm.py --watch "X"` — the first run baselines; later runs report only changes
 2. Present the PRIORITY events first, then the rest of the digest
+
+### "Which ransomware groups should we worry about right now?"
+1. `python3 {baseDir}/swarm.py` — refresh observations
+2. `python3 {baseDir}/risk.py` — ranked list; then `risk.py --group NAME` for the top ones
+3. `python3 {baseDir}/ttp.py --group NAME` — the ATT&CK techniques to defend against
 
 ### "Fetch this .onion URL"
 1. `python3 {baseDir}/check_tor.py`
