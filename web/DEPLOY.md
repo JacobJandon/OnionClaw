@@ -15,23 +15,30 @@ npm run preview # serve the built site locally at http://127.0.0.1:4173
 
 `web/dist/` is the whole site. Upload its contents to any static host.
 
-## Before you go live: set your domain
+## Live site and domain
 
-Asset paths are relative, so the site works at a domain root **or** a subpath with
-no changes. Three files hold an absolute URL for SEO and social cards. Replace the
-placeholder `https://onionclaw.example` with your real URL (keep the trailing
-slash), then rebuild:
+The site is live on GitHub Pages at **https://jacobjandon.github.io/OnionClaw/**, served
+from the `gh-pages` branch. Four files hold that absolute URL for SEO, social cards and the
+404 page (which must work at any depth): `index.html`, `public/robots.txt`,
+`public/sitemap.xml`, `public/404.html`. Everything else uses relative paths.
 
-- `index.html` — `canonical`, `og:url`, `og:image`, `twitter:image`
-- `public/robots.txt` — the `Sitemap:` line
-- `public/sitemap.xml` — the `<loc>`
-
-One-liner (run in `web/`, change the domain):
+To move to a custom domain, replace the URL and rebuild (run in `web/`):
 
 ```bash
-grep -rl 'onionclaw.example' index.html public | xargs sed -i 's#https://onionclaw.example#https://YOUR-DOMAIN#g'
+grep -rl 'jacobjandon.github.io/OnionClaw' index.html public \
+  | xargs sed -i 's#https://jacobjandon.github.io/OnionClaw#https://YOUR-DOMAIN#g'
 npm run build
 ```
+
+## Redeploy to GitHub Pages
+
+```bash
+cd web && npm run build && touch dist/.nojekyll
+cd dist && git init -q && git add -A && git commit -qm "deploy" \
+  && git push -f https://github.com/JacobJandon/OnionClaw.git HEAD:gh-pages
+```
+
+`.nojekyll` stops GitHub's Jekyll step, which would otherwise skip files starting with `_`.
 
 ## Deploy
 
@@ -43,9 +50,7 @@ build `npm ci && npm run build`, publish `dist`. `public/_headers` and
 **Vercel** — import the repo, set the root directory to `web`; `vercel.json` does
 the rest.
 
-**GitHub Pages** — push `web/dist/` to a `gh-pages` branch, or use an action that
-builds `web/` and publishes `dist/`. Relative paths mean it works under
-`USER.github.io/OnionClaw/` without extra config.
+**GitHub Pages** — this is the live setup; see *Redeploy to GitHub Pages* above.
 
 **Any static host / S3 / nginx** — serve the contents of `web/dist/` as-is. Point
 the host's 404 handler at `404.html` if it supports one.
