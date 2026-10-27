@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://jacobjandon.github.io/OnionClaw/sitemap.xml
+Sitemap: https://onionclaw.example/sitemap.xml

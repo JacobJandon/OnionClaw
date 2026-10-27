@@ -15,30 +15,28 @@ npm run preview # serve the built site locally at http://127.0.0.1:4173
 
 `web/dist/` is the whole site. Upload its contents to any static host.
 
-## Live site and domain
+## Before you go live: set your domain
 
-The site is live on GitHub Pages at **https://jacobjandon.github.io/OnionClaw/**, served
-from the `gh-pages` branch. Four files hold that absolute URL for SEO, social cards and the
-404 page (which must work at any depth): `index.html`, `public/robots.txt`,
-`public/sitemap.xml`, `public/404.html`. Everything else uses relative paths.
+Asset paths are relative, so the site works at a domain root **or** a subpath with no
+changes. Four files hold an absolute URL, for SEO, social cards and the 404 page (which
+must resolve at any depth). Replace the placeholder `https://onionclaw.example` with your
+real URL (no trailing slash), then rebuild:
 
-To move to a custom domain, replace the URL and rebuild (run in `web/`):
+- `index.html` — `canonical`, `og:url`, `og:image`, `twitter:image`
+- `public/robots.txt` — the `Sitemap:` line
+- `public/sitemap.xml` — the `<loc>`
+- `public/404.html` — the favicon, mascot and "back" link
+
+One-liner (run in `web/`, change the domain):
 
 ```bash
-grep -rl 'jacobjandon.github.io/OnionClaw' index.html public \
-  | xargs sed -i 's#https://jacobjandon.github.io/OnionClaw#https://YOUR-DOMAIN#g'
+grep -rl 'onionclaw.example' index.html public \
+  | xargs sed -i 's#https://onionclaw.example#https://YOUR-DOMAIN#g'
 npm run build
 ```
 
-## Redeploy to GitHub Pages
-
-```bash
-cd web && npm run build && touch dist/.nojekyll
-cd dist && git init -q && git add -A && git commit -qm "deploy" \
-  && git push -f https://github.com/JacobJandon/OnionClaw.git HEAD:gh-pages
-```
-
-`.nojekyll` stops GitHub's Jekyll step, which would otherwise skip files starting with `_`.
+Everything still works if you skip this; only share-card previews and the canonical URL
+point at the placeholder.
 
 ## Deploy
 
@@ -50,7 +48,9 @@ build `npm ci && npm run build`, publish `dist`. `public/_headers` and
 **Vercel** — import the repo, set the root directory to `web`; `vercel.json` does
 the rest.
 
-**GitHub Pages** — this is the live setup; see *Redeploy to GitHub Pages* above.
+**GitHub Pages** — push the contents of `web/dist/` to a `gh-pages` branch and set Pages
+to serve that branch. Run `touch dist/.nojekyll` first, or GitHub's Jekyll step skips the
+`_headers` and `_redirects` files.
 
 **Any static host / S3 / nginx** — serve the contents of `web/dist/` as-is. Point
 the host's 404 handler at `404.html` if it supports one.
