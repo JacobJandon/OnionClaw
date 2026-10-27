@@ -22,7 +22,7 @@ Versioning follows [Semantic Versioning](https://semver.org).
 - **`entities.py`** — entity extraction with real validation: Bitcoin base58check and
   bech32/bech32m (taproot) checksums; ETH, XMR, email, `.onion`, Tox ID, PGP detection.
 - **`crawl.py`** — deep-crawl of a single hidden service (level-by-level, concurrent).
-- **Tests** — 96 tests; fixtures are real captured ransomware.live and CISA KEV responses.
+- **Tests** — 109 tests; fixtures are real captured ransomware.live and CISA KEV responses.
 
 - **`kev` collector** — CISA Known Exploited Vulnerabilities; flags CVEs added to KEV with known
   ransomware use, and CVEs whose ransomware flag flips from Unknown to Known.
@@ -36,6 +36,11 @@ Versioning follows [Semantic Versioning](https://semver.org).
   ransomware.live's published ATT&CK data, plus low-confidence whole-word keyword hits from ransom notes,
   each with its evidence sentence. The `groupinfra` collector records group profiles and reports when a
   group's techniques change (new `TTP_CHANGE` alert, MEDIUM).
+- **`iocs.py`** (adapted from PRISM-Intel's IoC tracker) — one queryable, exportable view of every
+  observed indicator (onion host, domain, BTC wallet, CVE, email, Tox), with first/last seen,
+  attribution, source and flags. Derived from stored observations instead of PRISM's separate
+  `ioc_entries` table, which had to be seeded and could drift. Values are defanged by default;
+  filters for type, group, flag, substring and date; table, JSON and CSV output.
 - **`risk.py`** (adapted from PRISM-Intel's risk scorer and confidence decay) — transparent group priority
   score from observed data (volume, critical sectors, reach, capability, evidence links) times PRISM's
   decay curve. Replaces PRISM's hand-picked "high-severity groups" list with factors you can inspect.

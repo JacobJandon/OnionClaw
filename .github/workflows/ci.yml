@@ -34,7 +34,7 @@ jobs:
       - name: Syntax check — scripts
         run: |
           for f in ask.py check_engines.py check_tor.py fetch.py pipeline.py renew.py search.py sync_sicry.py \
-                   swarm.py collectors.py store.py entities.py safety.py crawl.py stix.py graph.py alerts.py ttp.py risk.py; do
+                   swarm.py collectors.py store.py entities.py safety.py crawl.py stix.py graph.py alerts.py ttp.py risk.py iocs.py; do
             python3 -m py_compile "$f" && echo "✓ $f OK"
           done
 

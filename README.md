@@ -459,6 +459,7 @@ python3 graph.py                                  # evidence-based group correla
 python3 graph.py --activity                       # time-decayed group activity ranking
 python3 risk.py                                   # groups ranked by transparent priority score
 python3 ttp.py --group medusa                     # MITRE ATT&CK techniques + tools per group
+python3 iocs.py --group qilin --format csv       # every observed indicator, defanged by default
 python3 crawl.py --url http://xyz.onion --depth 2 # concurrent single-site crawl
 ```
 
@@ -485,6 +486,11 @@ capability (published ATT&CK techniques, tools, live leak-site hosts) and eviden
 groups that have gone quiet. Every score lists the numbers behind it; it is a triage order, not a verdict.
 `ttp.py` maps groups to MITRE ATT&CK from the data ransomware.live publishes, and STIX exports include
 `attack-pattern` and `tool` objects linked to each group by `uses` relationships.
+
+**Indicators.** `iocs.py` is one queryable view of every indicator the swarm has observed
+(onion hosts, clearnet domains, ransom-note wallets, KEV CVEs, contact addresses), derived from
+the stored observations rather than a second copy, with first/last seen, attribution and source
+for each. Values are defanged by default so they can be pasted into a ticket safely.
 
 **Correlation is a lead, not attribution.** `graph.py` links groups only through hard identifiers (shared
 wallet, shared leak-site host, normalised alias, shared victim) and shows the evidence for every edge.

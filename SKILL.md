@@ -1,6 +1,6 @@
 ---
 name: onionclaw
-description: Search the Tor dark web, fetch and crawl .onion hidden service pages, rotate Tor identity, run structured OSINT investigations, and monitor ransomware leak sites for changes. Use when user asks to search dark web, investigate .onion sites, find if data appeared on dark web, conduct Tor-based OSINT, look up dark web leaks, fetch or crawl any .onion URL, check for leaked credentials, investigate, monitor or prioritise ransomware groups, map them to MITRE ATT&CK, watch for new victims in a sector, or export threat intel as STIX 2.1.
+description: Search the Tor dark web, fetch and crawl .onion hidden service pages, rotate Tor identity, run structured OSINT investigations, and monitor ransomware leak sites for changes. Use when user asks to search dark web, investigate .onion sites, find if data appeared on dark web, conduct Tor-based OSINT, look up dark web leaks, fetch or crawl any .onion URL, check for leaked credentials, investigate, monitor or prioritise ransomware groups, map them to MITRE ATT&CK, pull a list of indicators (onion hosts, domains, wallets, CVEs) to block, watch for new victims in a sector, or export threat intel as STIX 2.1.
 homepage: https://github.com/JacobJandon/OnionClaw
 metadata:
   {
@@ -252,6 +252,23 @@ python3 {baseDir}/ttp.py --technique T1078        # which observed groups use a 
 python3 {baseDir}/ttp.py                          # most-used techniques across observed groups
 ```
 
+### List every observed indicator
+
+```bash
+python3 {baseDir}/iocs.py                              # all indicators, most actionable first
+python3 {baseDir}/iocs.py --group qilin                # indicators attributed to one group
+python3 {baseDir}/iocs.py --type btc_wallet --type cve
+python3 {baseDir}/iocs.py --flag ransomware            # KEV CVEs tied to ransomware campaigns
+python3 {baseDir}/iocs.py --format csv -o iocs.csv     # table | json | csv
+```
+
+Types: `onion_host`, `domain`, `btc_wallet`, `cve`, `email`, `tox`. The list is derived from
+stored observations, so it never disagrees with them. Values are **defanged** by default
+(`hxxp://`, `[.]`) for safe sharing; pass `--fanged` for machine-readable output. Attribution
+comes from what a leak site published, not analysis — present it as a lead.
+
+---
+
 `ttp.py` uses the ATT&CK data ransomware.live publishes per group (confidence "high") and adds whole-word keyword hits from ransom notes (confidence "low", each with the sentence it came from). `risk.py` scores volume, critical-sector victims, reach, capability and evidence links, then decays groups that have gone quiet. Present the score as a triage order, not a threat verdict, and show the factors.
 
 ---
@@ -276,6 +293,11 @@ python3 {baseDir}/ttp.py                          # most-used techniques across 
 ### "Watch for new ransomware victims in sector X"
 1. `python3 {baseDir}/swarm.py --watch "X"` — the first run baselines; later runs report only changes
 2. Present the PRIORITY events first, then the rest of the digest
+
+### "Give me indicators for group X we can block"
+1. `python3 {baseDir}/swarm.py` — refresh observations
+2. `python3 {baseDir}/iocs.py --group X --fanged --format csv -o X.csv`
+3. Note which rows are flagged `live`; say plainly that attribution is the leak site's claim
 
 ### "Which ransomware groups should we worry about right now?"
 1. `python3 {baseDir}/swarm.py` — refresh observations
