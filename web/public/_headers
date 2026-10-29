@@ -1,0 +1,6 @@
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+/*.webmanifest
+  Content-Type: application/manifest+json
+/
+  Cache-Control: public, max-age=0, must-revalidate

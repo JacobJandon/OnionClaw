@@ -36,13 +36,17 @@ except Exception as _e:
         print("       Run:  pip install requests[socks] beautifulsoup4 python-dotenv stem")
     sys.exit(1)
 
-parser = argparse.ArgumentParser(description="Search 12 active dark web engines via Tor")
+parser = argparse.ArgumentParser(description="Search 17 dark web engines via Tor")
 parser.add_argument("--version", action="version",
                     version=f"OnionClaw search {getattr(sicry, '__version__', '?')}")
 parser.add_argument("--query",   required=True, help="Search query (≤5 keywords works best)")
 parser.add_argument("--max",     type=int, default=20, help="Max results (default 20)")
 parser.add_argument("--engines", nargs="*", metavar="ENGINE",
-                    help="Specific engines (default: all 12). E.g: Ahmia Tor66 Ahmia-clearnet")
+                    help="Specific engines (default: all 17). E.g: Ahmia Tor66 Ahmia-clearnet")
+parser.add_argument("--alive", action="store_true",
+                    help="Only engines the last check_engines run found alive. Dark web indexes go "
+                         "down often and each dead one costs the full TOR_TIMEOUT, so this is much "
+                         "faster. Run check_engines.py first to refresh the list.")
 parser.add_argument("--json",    action="store_true",
                     help="Output raw JSON only — no human-readable headers")
 args = parser.parse_args()
@@ -65,6 +69,18 @@ if args.engines:
               file=sys.stderr)
         sys.exit(1)
     engines_to_use = valid
+elif args.alive:
+    try:
+        health = sicry.check_search_engines(_cached=True)
+    except Exception as _e:
+        print(f"ERROR: could not read cached engine health ({_e}). Run check_engines.py first.",
+              file=sys.stderr)
+        sys.exit(1)
+    engines_to_use = [e["name"] for e in health if e.get("status") == "up"]
+    if not engines_to_use:
+        print("ERROR: no engines recorded as alive. Run check_engines.py first to refresh.",
+              file=sys.stderr)
+        sys.exit(1)
 else:
     engines_to_use = None
 
@@ -73,7 +89,7 @@ if not args.json:
     if engines_to_use:
         print(f"Engines : {', '.join(engines_to_use)}")
     else:
-        print("Engines : all 12")
+        print("Engines : all 17")
     print()
 
 # Verify Tor is reachable before attempting network calls

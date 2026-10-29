@@ -7,6 +7,122 @@ Versioning follows [Semantic Versioning](https://semver.org).
 
 ---
 
+## [2.4.0] — 2026-10-26
+
+### Added
+- **`swarm.py`** — concurrent, persistent, read-only monitoring swarm. A coordinator runs
+  collectors in parallel with per-collector failure isolation and a fused, prioritised digest
+  (`--watch TERM` flags matching events, `--loop N` for continuous monitoring, `--llm` for a narrative).
+  - `leaksites` — new ransomware victim disclosures + wallets found in ransom notes (ransomware.live)
+  - `groupinfra` — leak-site infrastructure going up/down/moving (rate-limit aware, 6h min interval)
+  - `wallets` — on-chain balance/transaction movement for harvested + user-supplied BTC addresses (mempool.space)
+  - `onionsites` — change monitoring for `.onion` pages you specify (requires Tor)
+- **`store.py`** — SQLite (WAL) observation store with content-hash change detection
+  (NEW / CHANGED / UNCHANGED), event log, run history, silent first-run baselining.
+- **`entities.py`** — entity extraction with real validation: Bitcoin base58check and
+  bech32/bech32m (taproot) checksums; ETH, XMR, email, `.onion`, Tox ID, PGP detection.
+- **`crawl.py`** — deep-crawl of a single hidden service (level-by-level, concurrent).
+- **Tests** — 128 tests; fixtures are real captured ransomware.live and CISA KEV responses.
+
+- **`kev` collector** — CISA Known Exploited Vulnerabilities; flags CVEs added to KEV with known
+  ransomware use, and CVEs whose ransomware flag flips from Unknown to Known.
+- **`stix.py`** — STIX 2.1 export (identity, threat-actor, relationship, indicator, vulnerability) with
+  deterministic UUIDv5 ids, validated against OASIS `stix2` + `stix2-patterns` in the test suite.
+- **`graph.py`** — evidence-based group correlation (alias, shared wallet, shared leak-site host, shared
+  victim) with per-edge evidence and honest confidence; time-decayed group activity ranking.
+- **`alerts.py`** — severity-ranked alerts to Slack / Discord / generic webhooks; exactly-once per sink,
+  retried until 2xx, optional HMAC-SHA256 signing, 24h lookback so an outage never loses alerts.
+- **`ttp.py`** (adapted from PRISM-Intel's TTP tracker) — MITRE ATT&CK techniques and tools per group from
+  ransomware.live's published ATT&CK data, plus low-confidence whole-word keyword hits from ransom notes,
+  each with its evidence sentence. The `groupinfra` collector records group profiles and reports when a
+  group's techniques change (new `TTP_CHANGE` alert, MEDIUM).
+- **`doctor.py`** (adapted from PRISM-Intel's `doctor`) — one pass over Python, dependencies,
+  Tor, the ControlPort, `.env`, the LLM provider, the observation store and engine health,
+  printing the command that fixes each problem. Tor and LLM keys are reported as optional, so
+  the exit code reflects only what OnionClaw genuinely requires. `--deep` makes one live Tor
+  request; `--json` for agents and CI.
+- **`iocs.py`** (adapted from PRISM-Intel's IoC tracker) — one queryable, exportable view of every
+  observed indicator (onion host, domain, BTC wallet, CVE, email, Tox), with first/last seen,
+  attribution, source and flags. Derived from stored observations instead of PRISM's separate
+  `ioc_entries` table, which had to be seeded and could drift. Values are defanged by default;
+  filters for type, group, flag, substring and date; table, JSON and CSV output.
+- **`risk.py`** (adapted from PRISM-Intel's risk scorer and confidence decay) — transparent group priority
+  score from observed data (volume, critical sectors, reach, capability, evidence links) times PRISM's
+  decay curve. Replaces PRISM's hand-picked "high-severity groups" list with factors you can inspect.
+- **STIX 2.1** now includes `attack-pattern` (MITRE external refs + kill-chain phases) and `tool` objects
+  with `uses` relationships from each threat actor.
+- **Cross-process rate-limit guard** for ransomware.live (1 req/min/endpoint) and a free-tier terms notice;
+  PRO key support via `RANSOMWARE_LIVE_API_KEY` / `_BASE` / `_KEY_HEADER` (header name unverified).
+
+### Changed
+- **`search.py --alive`** — search only the engines the last `check_engines.py` run found
+  alive. Every dead index costs the full `TOR_TIMEOUT`; measured on live Tor with 11 of 17
+  engines up, `--alive` returned in 3s while the unscoped search did not finish in 280s.
+
+### Fixed
+- **[SAFETY] Abuse filter refused legitimate victims.** The old denylist substring-matched
+  `child`, so it refused ransomware disclosures for children's hospitals. New `safety.py`:
+  whole-word hard terms; ambiguous words only block alongside explicit-content terms. Every
+  refusal is now reported with its reason instead of silently counted.
+- **Same wallet in two groups' ransom notes silently overwrote the first group**, hiding the evidence
+  shared-wallet correlation needs. Wallet records now accumulate every group.
+- **`--watch` matched every victim** when the term appeared in the tracker's own URL domain; victim keys
+  are no longer searched. Substring matching also replaced with whole-word matching ("hospital" vs
+  "Hospitality").
+- **[SAFETY] The abuse filter still refused legitimate victims.** `sex` (a routine
+  breach-data field), `explicit` (ordinary English) and bare `cp` (OnionClaw's own install
+  command) counted as explicit terms, and a soft term could pair with one anywhere in
+  2,000 characters. Generic terms replaced with specific phrases, `minor`/`minors` dropped,
+  and the pair must now fall within one clause.
+- **Removal-only ATT&CK changes were never alerted** — `alerts.py` keys off the phrase
+  "ATT&CK technique" and the removal wording omitted it. A tools-only edit had the opposite
+  problem: it was delivered as `TTP_CHANGE` while the digest reported zero events.
+- **Wallet sighting history kept the alphabetically smallest URLs**, dropping later
+  sightings and evicting earlier ones; it now keeps the most recent.
+- **One malformed mempool.space response aborted the whole `wallets` collector**; it now
+  skips that address and reports it.
+- **A sweep timeout escaped `sweep()`**, killing the digest and any `--loop`; stragglers are
+  now reported as failures.
+- **`--only` naming an unconfigured collector exited 0** reporting success for a run that
+  never happened (e.g. `--only onionsites` with no `--onion` URL); it now exits 2.
+- **`sync_sicry.py --check-bundled` compared the hash of `main` against the latest tag's
+  version**, so it would report drift simply because main had moved on; it now compares one ref.
+- **`404.html` depended on a placeholder domain that never resolves.** It is now
+  self-contained (inline artwork, root-relative link) and needs no substitution.
+- **PRISM's TTP keyword matcher used substrings**, so "tor" fired on "sector" and "monitor"; the adapted
+  matcher uses whole words and drops unsound mappings ("password" is not evidence of brute force).
+- Leak-site hosts shared by several groups overwrote each other, producing phantom "changed" events.
+- **Entity extraction truncated pages at 8,000 chars**, dropping wallets/PGP blocks below the fold.
+- **Wallet false positives** — any 26–35 char base58 string was reported as a Bitcoin address.
+  Now checksum-validated.
+- **`sicry.py` engine list:** Torgle's onion host contained a stray space (never resolvable);
+  TorNet's host was 57 chars (a v3 onion is 56) and has been removed pending a verified address.
+- **`sync_sicry.py` could silently destroy newer code.** It now refuses to overwrite a bundled
+  `sicry.py` that defines functions upstream lacks (`--force` to override), and `--check-bundled`
+  now compares file content, not just version strings.
+
+### Changed
+- **Bundled SICRY engine 2.3.1** (dedup + semantic ranking now in the canonical engine, Torgle fixed,
+  TorNet removed; 17 engines).
+- **`SKILL.md`** — documents the swarm, crawl, STIX and correlation commands for agents; license
+  corrected to Apache-2.0, engine count to 17, skill version to 2.4.0.
+- **CI** — `actions/checkout@v7.0.1`, `actions/setup-python@v7.0.0`; Python matrix 3.10–3.13
+  (3.9 is end-of-life); syntax check covers every new module.
+
+### Website
+- **`web/`** — the OnionClaw site (Vite + three.js, pinned: three 0.186.1, lenis 1.3.26, vite 8.3.4).
+  `/` is *Peel*, a scroll journey through the three Tor layers of a glass onion; `/hybrid/` merges it
+  with a toon "onion planet" whose stations are the tools and which you can explore freely.
+  `?static` serves a readable no-WebGL version; reduced-motion users get it automatically.
+  Run with `cd web && npm install && npm run dev`.
+
+### Notes
+- Collectors are passive observers; none contacts, negotiates with, or deceives a threat actor.
+- Live `.onion` fetching (`onionsites`, `crawl.py`) needs Tor; the test suite covers the crawl/collector
+  logic against a local server and does not exercise the Tor transport.
+
+---
+
 ## [2.1.13] — 2026-03-16
 
 ### Fixed

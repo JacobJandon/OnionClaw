@@ -1,0 +1,143 @@
+/* OnionClaw web — Igloo-style scroll journey.
+   One fixed WebGL canvas + a 2D constellation overlay; the DOM chapters scroll
+   underneath and drive the camera. HUD lives in the four corners.
+   "mode-3d" = full experience; "mode-doc" = readable document fallback
+   (no WebGL, or prefers-reduced-motion). */
+:root {
+  --void: #07050b;
+  --ink: #0d0914;
+  --fg: #f2eef7;
+  --dim: rgba(242, 238, 247, .56);
+  --faint: rgba(242, 238, 247, .3);
+  --hair: rgba(242, 238, 247, .14);
+  --coral: #ec6b84;
+  --grape: #b98fe0;
+  --teal: #34d6c9;
+  --display: "Unbounded", "Segoe UI", system-ui, sans-serif;
+  --body: "Geist", system-ui, -apple-system, sans-serif;
+  --mono: "Geist Mono", ui-monospace, Menlo, monospace;
+  --gut: max(22px, env(safe-area-inset-left, 0px));
+  --gut-r: max(22px, env(safe-area-inset-right, 0px));
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; background: var(--void); }
+body { margin: 0; background: var(--void); color: var(--fg); font: 400 16px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+img { max-width: 100%; display: block; }
+a { color: inherit; }
+h1, h2 { font-family: var(--display); font-weight: 600; letter-spacing: -.02em; line-height: 1.04; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+code { font-family: var(--mono); font-size: .92em; color: var(--teal); }
+:focus-visible { outline: 1.5px solid var(--teal); outline-offset: 3px; }
+.skip { position: fixed; left: -999px; top: 10px; z-index: 100; background: var(--fg); color: var(--void); padding: 8px 14px; font: 500 12px var(--mono); }
+.skip:focus { left: 12px; }
+
+/* ── layers ───────────────────────────────────────── */
+#gl, #overlay { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#gl { z-index: 0; }
+#overlay { z-index: 1; pointer-events: none; }
+.vignette { position: fixed; inset: 0; z-index: 2; pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(7, 5, 11, .75) 100%); }
+.mode-doc #gl, .mode-doc #overlay, .mode-doc .vignette, .mode-doc .loader { display: none; }
+
+/* ── loader ───────────────────────────────────────── */
+.loader { position: fixed; inset: 0; z-index: 60; background: var(--void); display: grid; place-items: center; transition: opacity .9s ease, visibility .9s; }
+.loader.done { opacity: 0; visibility: hidden; }
+.loader-inner { width: min(360px, 78vw); display: grid; gap: 14px; }
+.loader-word { font: 800 clamp(26px, 6vw, 40px) var(--display); letter-spacing: .04em; }
+.loader-bar { height: 1px; background: var(--hair); overflow: hidden; }
+.loader-bar i { display: block; height: 100%; width: 0; background: var(--fg); transition: width .25s ease; }
+.loader-meta { display: flex; justify-content: space-between; font: 500 11px var(--mono); letter-spacing: .18em; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+/* ── HUD ──────────────────────────────────────────── */
+.hud { position: fixed; z-index: 10; font: 500 11px/1.5 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--fg); }
+.hud-tl { top: calc(20px + env(safe-area-inset-top, 0px)); left: var(--gut); display: grid; gap: 4px; }
+.hud-tr { top: calc(20px + env(safe-area-inset-top, 0px)); right: var(--gut-r); display: grid; gap: 2px; min-width: 250px; }
+.hud-bl { bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: var(--gut); display: grid; gap: 8px; }
+.hud-br { bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: var(--gut-r); display: flex; align-items: center; gap: 18px; }
+.hud-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 800 15px var(--display); letter-spacing: .06em; }
+.hud-brand img { width: 30px; height: 30px; }
+.hud-sub { color: var(--dim); }
+.hud-sub.dim { color: var(--faint); }
+.hud-tr .row { display: flex; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--hair); padding-block: 3px; }
+.hud-tr span { color: var(--faint); }
+.hud-tr b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.chapter-id { display: flex; gap: 12px; font-size: 12px; }
+.chapter-id #hudIndex { color: var(--teal); }
+.hint { color: var(--faint); transition: opacity .6s; }
+.hint.gone { opacity: 0; }
+.ticks { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; }
+.ticks a { display: block; width: 22px; height: 14px; position: relative; }
+.ticks a::before { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 2px; background: var(--hair); transition: background .3s, height .3s, top .3s; }
+.ticks a.on::before { background: var(--fg); height: 3px; top: 5px; }
+.ticks a:hover::before { background: var(--dim); }
+.gh { text-decoration: none; color: var(--dim); transition: color .2s; }
+.gh:hover { color: var(--fg); }
+@media (max-width: 760px) {
+  .hud-tr { display: none; }
+  .hud-sub { display: none; }
+  .ticks a { width: 14px; }
+}
+
+/* ── chapters ─────────────────────────────────────── */
+#story { position: relative; z-index: 5; }
+.chapter { position: relative; }
+.panel { padding-left: var(--gut); padding-right: var(--gut-r); }
+.panel > * { max-width: 560px; }
+.eyebrow { font: 500 11px var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--dim); margin-bottom: 18px; }
+.eyebrow .num { color: var(--teal); margin-right: 10px; }
+.panel h1 { font-size: clamp(32px, 4.6vw, 64px); font-weight: 800; letter-spacing: -.03em; }
+.panel-hero > h1 { max-width: none; }
+@media (min-width: 761px) { .panel h1 span { white-space: nowrap; } }
+.panel h1 .hl { color: transparent; -webkit-text-stroke: 1.2px var(--fg); }
+.panel h2 { font-size: clamp(26px, 4.2vw, 50px); }
+.panel p:not(.eyebrow) { color: var(--dim); font-size: clamp(15px, 1.4vw, 17px); margin-top: 20px; max-width: 46ch; }
+.panel .lede { color: var(--fg); opacity: .78; }
+.mono-list { font: 400 12px/1.9 var(--mono) !important; letter-spacing: .06em; color: var(--faint) !important; }
+.doc-mascot { display: none; }
+
+/* 3D mode: each chapter is a scroll segment; its panel is pinned and faded by JS */
+.mode-3d .chapter { height: 170vh; }
+.mode-3d .chapter:first-child { height: 140vh; }
+.mode-3d .chapter:last-child { height: 200vh; }
+.mode-3d .panel {
+  position: sticky; top: 0; height: 100vh; height: 100svh;
+  display: flex; flex-direction: column; justify-content: center;
+  padding-block: 120px; opacity: var(--o, 0); transform: translateY(calc((1 - var(--o, 0)) * 24px));
+  will-change: opacity, transform; pointer-events: none;
+}
+.mode-3d .panel * { pointer-events: auto; }
+.mode-3d .panel-hero { justify-content: flex-end; padding-bottom: 18vh; }
+/* soft scrim behind text so the scene never fights the copy */
+@media (min-width: 761px) {
+  .mode-3d .panel::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: linear-gradient(90deg, rgba(7, 5, 11, .78) 0%, rgba(7, 5, 11, .45) 32%, transparent 58%); }
+  .mode-3d .panel-end::before { background: linear-gradient(270deg, rgba(7, 5, 11, .85) 0%, rgba(7, 5, 11, .5) 34%, transparent 60%); }
+}
+.mode-3d .panel-end { align-items: flex-end; text-align: right; }
+.mode-3d .panel-end > * { margin-left: auto; }
+.mode-3d .panel-end p:not(.eyebrow) { margin-left: auto; }
+@media (max-width: 760px) {
+  .mode-3d .panel { justify-content: flex-end; padding-bottom: 96px; }
+  .mode-3d .panel::before { content: ""; position: absolute; inset: 40% 0 0; z-index: -1;
+    background: linear-gradient(to bottom, transparent, rgba(7, 5, 11, .88) 45%); }
+  .mode-3d .panel-end { align-items: flex-start; text-align: left; }
+  .mode-3d .panel-end > *, .mode-3d .panel-end p:not(.eyebrow) { margin-left: 0; }
+}
+
+/* document mode: a plain, readable page */
+.mode-doc .hud-tr, .mode-doc .hud-bl, .mode-doc .hud-br { display: none; }
+.mode-doc .hud-tl { position: absolute; }
+.mode-doc #story { max-width: 760px; margin: 0 auto; padding: 120px 0 80px; }
+.mode-doc .chapter { padding-block: 56px; border-bottom: 1px solid var(--hair); }
+.mode-doc .doc-mascot { display: block; width: 220px; margin-top: 36px; }
+
+/* ── end panel ────────────────────────────────────── */
+.install { display: inline-flex; align-items: center; gap: 12px; margin-top: 28px; max-width: 100%;
+  border: 1px solid var(--hair); background: rgba(13, 9, 20, .72); backdrop-filter: blur(8px); padding: 6px 6px 6px 16px; }
+.install code { color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; font-size: 13px; }
+.install button { flex: none; border: 0; background: var(--fg); color: var(--void); font: 700 11px var(--mono); letter-spacing: .14em; padding: 10px 14px; cursor: pointer; }
+.install button:hover { background: var(--teal); }
+.cta { display: inline-block; margin-top: 18px; font: 600 14px var(--display); text-decoration: none; border-bottom: 1px solid var(--fg); padding-bottom: 4px; }
+.cta:hover { color: var(--teal); border-color: var(--teal); }
+.fineprint { font-size: 12px !important; color: var(--faint) !important; max-width: 52ch; margin-top: 34px !important; }

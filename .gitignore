@@ -25,3 +25,17 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# OnionClaw runtime state
+onionclaw.db
+onionclaw.db-wal
+onionclaw.db-shm
+.pytest_cache/
+.gstack/
+
+# website (Vite)
+web/node_modules/
+web/dist/
+
+# build artifact produced by the web build
+onionclaw-site.zip

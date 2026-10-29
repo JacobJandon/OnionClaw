@@ -12,25 +12,29 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install requests[socks] beautifulsoup4 python-dotenv stem openai anthropic google-generativeai
+        run: pip install requests[socks] beautifulsoup4 python-dotenv stem openai anthropic google-generativeai pytest stix2
+
+      - name: Unit tests
+        run: python3 -m pytest tests -q
 
       - name: Syntax check — sicry.py
         run: python3 -m py_compile sicry.py && echo "✓ sicry.py OK"
 
       - name: Syntax check — scripts
         run: |
-          for f in ask.py check_engines.py check_tor.py fetch.py pipeline.py renew.py search.py sync_sicry.py; do
+          for f in ask.py check_engines.py check_tor.py fetch.py pipeline.py renew.py search.py sync_sicry.py \
+                   swarm.py collectors.py store.py entities.py safety.py crawl.py stix.py graph.py alerts.py ttp.py risk.py iocs.py doctor.py; do
             python3 -m py_compile "$f" && echo "✓ $f OK"
           done
 

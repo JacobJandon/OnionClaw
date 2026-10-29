@@ -2,7 +2,7 @@
 # Copyright (c) 2026 JacobJandon — https://github.com/JacobJandon/Sicry
 from __future__ import annotations
 
-__version__ = "2.3.0"
+__version__ = "2.3.1"
 
 """
 SICRY — Tor/Onion Network Access Layer for AI Agents
@@ -619,9 +619,8 @@ SEARCH_ENGINES = [
     {"name": "Kaizer",          "url": "http://kaizerwfvp5gxu6cppibp7jhcqptavq3iqef66wbxenh6a2fklibdvid.onion/search?q={query}"},
     {"name": "Anima",           "url": "http://anima4ffe27xmakwnseih3ic2y7y3l6e7fucwk4oerdn4odf7k74tbid.onion/search?q={query}"},
     {"name": "Tornado",         "url": "http://tornadoxn3viscgz647shlysdy7ea5zqzwda7hierekeuokh5eh5b3qd.onion/search?q={query}"},
-    {"name": "TorNet",          "url": "http://tornetupfu7gcgidt33ftnungxzyfq2pygui5qdoysss34xbgx2qruzid.onion/search?q={query}"},
     {"name": "FindTor",         "url": "http://findtorroveq5wdnipkaojfpqulxnkhblymc7aramjzajcvpptd4rjqd.onion/search?q={query}"},
-    {"name": "Torgle",          "url": "http://iy3544gmoeclh5de6gez2256v6pjh4omhpqdh2wpeepp jtvqmjhkfwad.onion/torgle/?query={query}"},
+    {"name": "Torgle",          "url": "http://iy3544gmoeclh5de6gez2256v6pjh4omhpqdh2wpeeppjtvqmjhkfwad.onion/torgle/?query={query}"},
     # dark.fail PGP-verified live addresses (March 13 2026):
     {"name": "DuckDuckGo-Tor",   "url": "https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/?q={query}&ia=web"},
     {"name": "Ahmia-clearnet",   "url": "https://ahmia.fi/search/?q={query}"},
