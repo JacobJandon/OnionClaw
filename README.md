@@ -22,6 +22,7 @@ cp -r OnionClaw ~/.openclaw/skills/onionclaw
 # → agent now has 7 dark web commands available in every session
 
 # Standalone:
+python3 doctor.py           # check the whole setup, and what to fix
 python3 check_tor.py        # verify Tor
 python3 check_engines.py && python3 search.py --query "ransomware healthcare" --alive
 python3 pipeline.py --query "acme.com data leak" --mode corporate

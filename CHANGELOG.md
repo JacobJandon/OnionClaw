@@ -22,7 +22,7 @@ Versioning follows [Semantic Versioning](https://semver.org).
 - **`entities.py`** — entity extraction with real validation: Bitcoin base58check and
   bech32/bech32m (taproot) checksums; ETH, XMR, email, `.onion`, Tox ID, PGP detection.
 - **`crawl.py`** — deep-crawl of a single hidden service (level-by-level, concurrent).
-- **Tests** — 121 tests; fixtures are real captured ransomware.live and CISA KEV responses.
+- **Tests** — 128 tests; fixtures are real captured ransomware.live and CISA KEV responses.
 
 - **`kev` collector** — CISA Known Exploited Vulnerabilities; flags CVEs added to KEV with known
   ransomware use, and CVEs whose ransomware flag flips from Unknown to Known.
@@ -36,6 +36,11 @@ Versioning follows [Semantic Versioning](https://semver.org).
   ransomware.live's published ATT&CK data, plus low-confidence whole-word keyword hits from ransom notes,
   each with its evidence sentence. The `groupinfra` collector records group profiles and reports when a
   group's techniques change (new `TTP_CHANGE` alert, MEDIUM).
+- **`doctor.py`** (adapted from PRISM-Intel's `doctor`) — one pass over Python, dependencies,
+  Tor, the ControlPort, `.env`, the LLM provider, the observation store and engine health,
+  printing the command that fixes each problem. Tor and LLM keys are reported as optional, so
+  the exit code reflects only what OnionClaw genuinely requires. `--deep` makes one live Tor
+  request; `--json` for agents and CI.
 - **`iocs.py`** (adapted from PRISM-Intel's IoC tracker) — one queryable, exportable view of every
   observed indicator (onion host, domain, BTC wallet, CVE, email, Tox), with first/last seen,
   attribution, source and flags. Derived from stored observations instead of PRISM's separate

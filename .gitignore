@@ -36,3 +36,6 @@ onionclaw.db-shm
 # website (Vite)
 web/node_modules/
 web/dist/
+
+# build artifact produced by the web build
+onionclaw-site.zip

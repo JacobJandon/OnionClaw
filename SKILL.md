@@ -1,6 +1,6 @@
 ---
 name: onionclaw
-description: Search the Tor dark web, fetch and crawl .onion hidden service pages, rotate Tor identity, run structured OSINT investigations, and monitor ransomware leak sites for changes. Use when user asks to search dark web, investigate .onion sites, find if data appeared on dark web, conduct Tor-based OSINT, look up dark web leaks, fetch or crawl any .onion URL, check for leaked credentials, investigate, monitor or prioritise ransomware groups, map them to MITRE ATT&CK, pull a list of indicators (onion hosts, domains, wallets, CVEs) to block, watch for new victims in a sector, or export threat intel as STIX 2.1.
+description: Check the OnionClaw setup, search the Tor dark web, fetch and crawl .onion hidden service pages, rotate Tor identity, run structured OSINT investigations, and monitor ransomware leak sites for changes. Use when user asks to search dark web, investigate .onion sites, find if data appeared on dark web, conduct Tor-based OSINT, look up dark web leaks, fetch or crawl any .onion URL, check for leaked credentials, investigate, monitor or prioritise ransomware groups, map them to MITRE ATT&CK, pull a list of indicators (onion hosts, domains, wallets, CVEs) to block, watch for new victims in a sector, or export threat intel as STIX 2.1.
 homepage: https://github.com/JacobJandon/OnionClaw
 metadata:
   {
@@ -61,6 +61,23 @@ Then restart Tor.  setup.py does this automatically.
 ---
 
 ## Commands
+
+### Check the whole setup
+
+**Run this first when anything misbehaves.** It reports Python, dependencies, Tor, the
+ControlPort, `.env`, the LLM provider, the observation store and engine health in one
+pass, and prints the command that fixes each problem.
+
+```bash
+python3 {baseDir}/doctor.py            # full report
+python3 {baseDir}/doctor.py --deep     # also makes one live request through Tor
+python3 {baseDir}/doctor.py --json     # machine-readable
+```
+
+Exit code 0 means everything required is in place. Tor and the LLM key are optional:
+search, fetch, crawl and the clearnet collectors work without them.
+
+---
 
 ### Check Tor is running
 
