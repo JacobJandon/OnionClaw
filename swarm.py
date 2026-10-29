@@ -27,6 +27,7 @@ Usage:
 """
 import sys, os, re, json, time, argparse, signal
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FuturesTimeout
 
 # ── bootstrap ─────────────────────────────────────────────────────
 _skill_dir = os.path.dirname(os.path.abspath(__file__))
@@ -87,15 +88,24 @@ class Swarm:
                 continue
             with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
                 futs = {pool.submit(self._run_one, c): c for c in wave}
-                for f in as_completed(futs, timeout=self.timeout):
-                    name, status, res, err = f.result()
-                    report[name] = {
-                        "status": status, "error": err,
-                        "items": res.items if res else 0,
-                        "events": res.events if res else 0,
-                        "skipped_unsafe_or_invalid": res.skipped if res else 0,
-                        "notes": (res.notes[:10] if res else []),
-                    }
+                try:
+                    for f in as_completed(futs, timeout=self.timeout):
+                        name, status, res, err = f.result()
+                        report[name] = {
+                            "status": status, "error": err,
+                            "items": res.items if res else 0,
+                            "events": res.events if res else 0,
+                            "skipped_unsafe_or_invalid": res.skipped if res else 0,
+                            "notes": (res.notes[:10] if res else []),
+                        }
+                except FuturesTimeout:
+                    # Report the stragglers and carry on; letting this escape killed the
+                    # whole digest, and --loop with it. The pool still drains on exit.
+                    for fut, c in futs.items():
+                        if c.name not in report:
+                            report[c.name] = {"status": "failed", "items": 0, "events": 0,
+                                              "skipped_unsafe_or_invalid": 0, "notes": [],
+                                              "error": f"did not finish within {self.timeout:.0f}s"}
         report["_started"] = started
         report["_elapsed"] = round(time.time() - started, 2)
         return report
@@ -233,7 +243,17 @@ def main() -> int:
     if args.onion:
         collectors.append(OnionSiteCollector(args.onion, workers=args.workers))
     if args.only:
+        available = {c.name for c in collectors}
+        missing = [n for n in args.only if n not in available]
         collectors = [c for c in collectors if c.name in args.only]
+        if missing:
+            hint = "  (onionsites needs at least one --onion URL)" if "onionsites" in missing else ""
+            print(f"ERROR: --only named collector(s) that are not configured: "
+                  f"{', '.join(missing)}{hint}", file=sys.stderr)
+            return 2
+        if not collectors:
+            print("ERROR: --only selected no collectors.", file=sys.stderr)
+            return 2
 
     stop = {"flag": False}
     signal.signal(signal.SIGINT, lambda *_: stop.update(flag=True))

@@ -306,3 +306,66 @@ def test_same_wallet_in_two_groups_notes_is_accumulated_not_overwritten(store):
     p = store.get("leaksites", "wallet", "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh")
     assert p["groups"] == ["alpha", "beta"]
     assert any("now linked to 2 groups" in e["detail"] for e in store.events_since(0, ["wallet"]))
+
+
+# ── regressions from the pre-release review ───────────────────────
+def test_wallet_sightings_keep_the_newest_not_the_alphabetically_smallest(store):
+    """A plain sorted()[:50] dropped later sightings and evicted earlier ones."""
+    import collectors as cm
+    base = dict(fixture("recentvictims.json")[0], group="alpha",
+                description="pay bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh")
+    for i in range(60):
+        cm.LeakSiteCollector(fetch_json=lambda u, i=i: [dict(base, url=f"https://x/id/{i:03d}")]).collect(store)
+    seen = store.get("leaksites", "wallet", "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh")["seen_in"]
+    assert len(seen) == 50
+    assert seen[-1] == "https://x/id/059"        # newest kept
+    assert "https://x/id/000" not in seen        # oldest evicted, not the newest
+
+
+def test_malformed_wallet_response_skips_one_address_not_the_collector(store):
+    good = {"chain_stats": {"tx_count": 1, "funded_txo_sum": 10, "spent_txo_sum": 0},
+            "mempool_stats": {"tx_count": 0}}
+    addrs = ["bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh", "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"]
+    calls = []
+
+    def fetch(url):
+        calls.append(url)
+        return {"unexpected": "shape"} if len(calls) == 1 else good
+
+    r = WalletCollector(addrs, pause=0, fetch_json=fetch).collect(store)
+    assert len(calls) == 2 and r.skipped == 1 and r.items == 1
+    assert any("unexpected mempool.space payload" in n for n in r.notes)
+
+
+def test_sweep_timeout_is_reported_not_raised(store):
+    """Letting the timeout escape killed the digest and any --loop."""
+    import time as _t
+
+    class Slow:
+        name = "slow"
+        min_interval = 0
+
+        def collect(self, store):
+            _t.sleep(1.0)
+            return __import__("collectors").Result(items=1)
+
+    rep = Swarm(store, [Slow()], timeout=0.05).sweep()
+    assert rep["slow"]["status"] == "failed" and "did not finish" in rep["slow"]["error"]
+    d = synthesize(store, 0, rep)
+    assert d["collectors"]["slow"]["status"] == "failed"
+
+
+@pytest.mark.parametrize("text,safe", [
+    ("Springfield Children Hospital breach — fields: Name, DOB, Sex, Address", True),
+    ("Minor injuries reported; sexual harassment lawsuit filed", True),
+    ("cp -r OnionClaw ~/.openclaw/skills/onionclaw  (children's charity)", True),
+    ("Victim: Kids First Dental. " + "x" * 400 + " unrelated nude art breach", True),
+    ("underage nude collection", False),
+    ("teen sex video", False),
+    ("nudes of children", False),
+])
+def test_safety_generic_words_do_not_refuse_legitimate_victims(text, safe):
+    """`sex`, `explicit` and bare `cp` re-created the children's-hospital false positive
+    the filter exists to prevent, and a soft term could pair with an explicit one
+    anywhere in 2,000 characters."""
+    assert bool(safety.is_safe("", text)) is safe

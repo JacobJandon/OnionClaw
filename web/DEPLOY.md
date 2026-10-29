@@ -25,7 +25,6 @@ real URL (no trailing slash), then rebuild:
 - `index.html` — `canonical`, `og:url`, `og:image`, `twitter:image`
 - `public/robots.txt` — the `Sitemap:` line
 - `public/sitemap.xml` — the `<loc>`
-- `public/404.html` — the favicon, mascot and "back" link
 
 One-liner (run in `web/`, change the domain):
 
@@ -36,7 +35,10 @@ npm run build
 ```
 
 Everything still works if you skip this; only share-card previews and the canonical URL
-point at the placeholder.
+point at the placeholder. `404.html` needs no substitution — it carries its own inline
+artwork and a root-relative "Back" link, so it renders correctly for a missing path at
+any depth. (On a subpath deployment that link goes to the domain root rather than the
+site root; change it to your subpath if that matters.)
 
 ## Deploy
 

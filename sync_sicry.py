@@ -99,17 +99,21 @@ def main():
             )
             print(f"Bundled  : v{bundled_version}")
             print(f"Upstream : {latest_name}")
+            # Compare content against the SAME ref whose version we just printed. Hashing
+            # main while comparing versions to the latest tag reports "drift" merely
+            # because main has moved on since that tag — which is the normal state.
             try:
-                up = requests.get(UPSTREAM_RAW.format(ref="main"), timeout=15)
+                ref = latest_name if latest_name != "unknown" else "main"
+                up = requests.get(UPSTREAM_RAW.format(ref=ref), timeout=15)
                 if up.ok and os.path.isfile(DEST):
                     with open(DEST, "rb") as _bf:
                         local_sha = hashlib.sha256(_bf.read()).hexdigest()[:12]
                     up_sha = hashlib.sha256(up.content).hexdigest()[:12]
-                    print(f"Content  : bundled sha256 {local_sha}  upstream/main {up_sha}"
+                    print(f"Content  : bundled sha256 {local_sha}  upstream@{ref} {up_sha}"
                           f"  ({'identical' if local_sha == up_sha else 'DIFFERENT'})")
                     if local_sha != up_sha and _v(bundled_version) == _v(latest_name):
-                        print("\nNOTICE: version strings match but file CONTENT differs — "
-                              "the copies have drifted.")
+                        print(f"\nNOTICE: bundled version matches {ref} but the file CONTENT "
+                              f"differs — the copies have drifted.")
                         sys.exit(2)
             except requests.RequestException:
                 pass

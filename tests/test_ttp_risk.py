@@ -175,3 +175,33 @@ def test_every_score_is_explained_and_bounded(store):
         assert set(r["components"]) == set(risk.WEIGHTS)
     text = risk.explain(rows[0])
     assert "not an attribution" in text and "observed victims" in text
+
+
+# ── regressions from the pre-release review ───────────────────────
+def test_removal_only_ttp_change_still_alerts(store):
+    """The alert rule keys off the phrase "ATT&CK technique"; a removal-only change
+    worded differently was written as an event but never alerted."""
+    groups = fx("groups.json")
+    c = GroupInfraCollector(fetch_json=lambda u: groups)
+    c.collect(store)
+    med = next(g for g in groups if g["name"] == "medusa")
+    dropped = med["ttps"][0]["techniques"].pop()
+    ev = (c.collect(store), store.events_since(0, ["group_profile"]))[1]
+    assert len(ev) == 1 and "ATT&CK technique" in ev[0]["detail"]
+    assert dropped["technique_id"] in ev[0]["detail"]
+    assert [(a.type, a.severity) for a in alerts.build_alerts(store, ev)] == [("TTP_CHANGE", "MEDIUM")]
+
+
+def test_tools_only_change_is_not_reported_as_a_technique_change(store):
+    """A tools edit must not be delivered as TTP_CHANGE, and the digest count must agree
+    with what actually alerts."""
+    groups = fx("groups.json")
+    c = GroupInfraCollector(fetch_json=lambda u: groups)
+    c.collect(store)
+    tooled = next(g for g in groups if g.get("tools"))
+    tooled["tools"][0].setdefault("LOLBAS", []).append("certutil.exe")
+    res = c.collect(store)
+    ev = store.events_since(0, ["group_profile"])
+    assert ev and all("ATT&CK technique" not in e["detail"] for e in ev)
+    assert alerts.build_alerts(store, ev) == []
+    assert res.events == 0                      # digest agrees: no technique change

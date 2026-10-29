@@ -434,7 +434,7 @@ export class World {
     }
     const sigVis = smooth(4.95, 5.3, c) * (1 - smooth(5.9, 6.2, c));
     if (sigVis > 0.02) {
-      ["STIX 2.1", "shared wallet", "shared host", "alias", "HMAC-signed", "exactly once", "71 tests"].forEach((label, k) => {
+      ["STIX 2.1", "shared wallet", "shared host", "alias", "HMAC-signed", "exactly once", "121 tests"].forEach((label, k) => {
         const a = k / 7 * Math.PI * 2 + 0.4;
         A.push({ pos: new THREE.Vector3(Math.cos(a) * 0.62, Math.sin(a * 2) * 0.18, Math.sin(a) * 0.62), label, layer: 4, alpha: sigVis });
       });

@@ -151,7 +151,9 @@ class LeakSiteCollector(_RansomwareLiveMixin, Collector):
             for addr in ents["btc_wallets"]:
                 prev = store.get(self.name, "wallet", addr) or {}
                 groups = sorted(set(prev.get("groups", [])) | {v.get("group")} - {None})
-                seen_in = sorted(set(prev.get("seen_in", [])) | {key})[:50]
+                # newest-last, capped: plain sorted()[:50] kept the alphabetically smallest
+                # URLs, so later sightings were dropped and earlier ones evicted each other
+                seen_in = [u for u in prev.get("seen_in", []) if u != key][-49:] + [key]
                 shared = len(groups) > 1 and v.get("group") not in prev.get("groups", [])
                 detail = (f"BTC wallet {addr} now linked to {len(groups)} groups: {', '.join(groups)}"
                           if shared else f"BTC wallet in {v.get('group')} note: {addr}")
@@ -198,15 +200,20 @@ class GroupInfraCollector(_RansomwareLiveMixin, Collector):
                 was = {t["id"] for t in prev.get("techniques", [])}
                 now_ids = {t["id"] for t in prof["techniques"]}
                 added, removed = sorted(now_ids - was), sorted(was - now_ids)
-                if prev and (added or removed):
+                techniques_changed = bool(prev) and bool(added or removed)
+                if techniques_changed:
+                    # Both halves name "ATT&CK technique(s)": alerts.py keys off that phrase,
+                    # so a removal-only change must not be worded differently or it is lost.
                     parts = ([f"+{len(added)} ATT&CK technique(s): {', '.join(added[:6])}"] if added else []) + \
-                            ([f"-{len(removed)}: {', '.join(removed[:6])}"] if removed else [])
+                            ([f"-{len(removed)} ATT&CK technique(s): {', '.join(removed[:6])}"] if removed else [])
                     detail = f"{g['name']}: " + "; ".join(parts)
                 else:
-                    detail = f"{g['name']}: {len(now_ids)} ATT&CK techniques on record"
+                    # Tools-only or first sighting: must NOT contain the alert phrase, or a
+                    # tools edit would be delivered as a technique change.
+                    detail = f"{g['name']}: profile recorded ({len(now_ids)} techniques)"
                 change = store.observe(self.name, "group_profile", g["name"], prof, detail,
                                        quiet=baseline or not prev)
-                res.events += change == CHANGED and not baseline and bool(added or removed)
+                res.events += bool(change == CHANGED and not baseline and techniques_changed)
         if baseline:
             res.notes.append(f"baseline recorded: {res.items} leak-site locations, "
                              f"{store.count('group_profile')} ATT&CK group profiles")
@@ -294,8 +301,13 @@ class WalletCollector(Collector):
             except RuntimeError as e:
                 res.notes.append(str(e))
                 continue
-            cs, ms = info["chain_stats"], info["mempool_stats"]
-            balance = cs["funded_txo_sum"] - cs["spent_txo_sum"]
+            try:
+                cs, ms = info["chain_stats"], info["mempool_stats"]
+                balance = cs["funded_txo_sum"] - cs["spent_txo_sum"]
+            except (KeyError, TypeError) as e:
+                res.skipped += 1
+                res.notes.append(f"unexpected mempool.space payload for {addr}: {e!r}")
+                continue
             payload = {"tx_count": cs["tx_count"], "received_sat": cs["funded_txo_sum"],
                        "spent_sat": cs["spent_txo_sum"], "balance_sat": balance,
                        "mempool_tx": ms["tx_count"]}

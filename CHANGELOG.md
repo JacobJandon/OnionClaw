@@ -22,7 +22,7 @@ Versioning follows [Semantic Versioning](https://semver.org).
 - **`entities.py`** — entity extraction with real validation: Bitcoin base58check and
   bech32/bech32m (taproot) checksums; ETH, XMR, email, `.onion`, Tox ID, PGP detection.
 - **`crawl.py`** — deep-crawl of a single hidden service (level-by-level, concurrent).
-- **Tests** — 109 tests; fixtures are real captured ransomware.live and CISA KEV responses.
+- **Tests** — 121 tests; fixtures are real captured ransomware.live and CISA KEV responses.
 
 - **`kev` collector** — CISA Known Exploited Vulnerabilities; flags CVEs added to KEV with known
   ransomware use, and CVEs whose ransomware flag flips from Unknown to Known.
@@ -64,6 +64,26 @@ Versioning follows [Semantic Versioning](https://semver.org).
 - **`--watch` matched every victim** when the term appeared in the tracker's own URL domain; victim keys
   are no longer searched. Substring matching also replaced with whole-word matching ("hospital" vs
   "Hospitality").
+- **[SAFETY] The abuse filter still refused legitimate victims.** `sex` (a routine
+  breach-data field), `explicit` (ordinary English) and bare `cp` (OnionClaw's own install
+  command) counted as explicit terms, and a soft term could pair with one anywhere in
+  2,000 characters. Generic terms replaced with specific phrases, `minor`/`minors` dropped,
+  and the pair must now fall within one clause.
+- **Removal-only ATT&CK changes were never alerted** — `alerts.py` keys off the phrase
+  "ATT&CK technique" and the removal wording omitted it. A tools-only edit had the opposite
+  problem: it was delivered as `TTP_CHANGE` while the digest reported zero events.
+- **Wallet sighting history kept the alphabetically smallest URLs**, dropping later
+  sightings and evicting earlier ones; it now keeps the most recent.
+- **One malformed mempool.space response aborted the whole `wallets` collector**; it now
+  skips that address and reports it.
+- **A sweep timeout escaped `sweep()`**, killing the digest and any `--loop`; stragglers are
+  now reported as failures.
+- **`--only` naming an unconfigured collector exited 0** reporting success for a run that
+  never happened (e.g. `--only onionsites` with no `--onion` URL); it now exits 2.
+- **`sync_sicry.py --check-bundled` compared the hash of `main` against the latest tag's
+  version**, so it would report drift simply because main had moved on; it now compares one ref.
+- **`404.html` depended on a placeholder domain that never resolves.** It is now
+  self-contained (inline artwork, root-relative link) and needs no substitution.
 - **PRISM's TTP keyword matcher used substrings**, so "tor" fired on "sector" and "monitor"; the adapted
   matcher uses whole words and drops unsound mappings ("password" is not evidence of brute force).
 - Leak-site hosts shared by several groups overwrote each other, producing phantom "changed" events.
