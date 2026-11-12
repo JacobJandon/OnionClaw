@@ -61,28 +61,42 @@ class Result:
     notes: list[str] = field(default_factory=list)
 
 
+RETRY_AFTER_CAP = 30.0   # seconds; a Retry-After of 3600 must not stall a sweep for hours
+
+
 def http_get_json(url: str, *, timeout: float = 25, retries: int = 3,
                   session: Optional[requests.Session] = None,
                   headers: Optional[dict] = None):
-    """GET JSON with backoff on 429/5xx and transient network errors."""
+    """GET JSON, retrying 5xx and transient network errors with backoff.
+
+    A 429 is not retried: these APIs limit requests per minute, so trying again seconds
+    later only spends more of the allowance. Retry-After is honoured up to
+    RETRY_AFTER_CAP, and there is no wait after the final attempt.
+    """
     s = session or requests
     delay = 1.5
     last: Optional[Exception] = None
-    for _ in range(retries):
+    for attempt in range(retries):
+        final = attempt == retries - 1
         try:
             r = s.get(url, timeout=timeout, headers={"User-Agent": USER_AGENT, **(headers or {})})
-            if r.status_code in (429, 500, 502, 503, 504):
-                retry_after = r.headers.get("Retry-After")
-                time.sleep(float(retry_after) if retry_after and retry_after.isdigit() else delay)
-                delay *= 2
+            if r.status_code == 429:
+                raise RuntimeError(f"rate limited by {url.split('/')[2]} (HTTP 429); "
+                                   f"not retried, the next sweep will try again")
+            if r.status_code in (500, 502, 503, 504):
                 last = RuntimeError(f"HTTP {r.status_code} from {url}")
+                if not final:
+                    ra = r.headers.get("Retry-After", "")
+                    time.sleep(min(float(ra), RETRY_AFTER_CAP) if ra.isdigit() else delay)
+                    delay *= 2
                 continue
             r.raise_for_status()
             return r.json()
         except (requests.RequestException, ValueError) as e:
             last = e
-            time.sleep(delay)
-            delay *= 2
+            if not final:
+                time.sleep(delay)
+                delay *= 2
     raise RuntimeError(f"GET {url} failed after {retries} attempts: {last}")
 
 
@@ -108,7 +122,9 @@ class _RansomwareLiveMixin:
         if not RL_API_KEY:
             res.notes.append(FREE_TIER_NOTICE)
         headers = {RL_KEY_HEADER: RL_API_KEY} if RL_API_KEY else None
-        return http_get_json(f"{RANSOMWARE_LIVE}{path}", headers=headers)
+        # One claim, one request: retrying under the same claim sent up to three GETs
+        # within seconds to an endpoint allowed one a minute.
+        return http_get_json(f"{RANSOMWARE_LIVE}{path}", headers=headers, retries=1)
 
 
 # ── 1. leak-site victim disclosures ───────────────────────────────────────────
@@ -151,9 +167,11 @@ class LeakSiteCollector(_RansomwareLiveMixin, Collector):
             for addr in ents["btc_wallets"]:
                 prev = store.get(self.name, "wallet", addr) or {}
                 groups = sorted(set(prev.get("groups", [])) | {v.get("group")} - {None})
-                # newest-last, capped: plain sorted()[:50] kept the alphabetically smallest
-                # URLs, so later sightings were dropped and earlier ones evicted each other
-                seen_in = [u for u in prev.get("seen_in", []) if u != key][-49:] + [key]
+                # Newest last, capped at 50. A sighting already recorded stays where it is:
+                # moving it to the end each pass reordered the list whenever two victims
+                # shared a wallet, so every sweep logged a phantom "wallet changed".
+                seen = prev.get("seen_in", [])
+                seen_in = seen if key in seen else (seen + [key])[-50:]
                 shared = len(groups) > 1 and v.get("group") not in prev.get("groups", [])
                 detail = (f"BTC wallet {addr} now linked to {len(groups)} groups: {', '.join(groups)}"
                           if shared else f"BTC wallet in {v.get('group')} note: {addr}")
@@ -251,6 +269,14 @@ class KevCollector(Collector):
             tag = " [RANSOMWARE]" if ransom else ""
             if prev and not prev["ransomware_known"] and ransom:
                 detail = f"{cve} now linked to ransomware campaigns: {v.get('vendorProject')} {v.get('product')}{tag}"
+            elif prev:
+                # An edit to an entry already recorded: say what changed, without the tag.
+                # The tag marks ransomware news; with it, a dueDate correction or a CWE
+                # backfill fired a HIGH alert per entry and topped the digest.
+                fields = [k for k in ("vendor", "product", "name", "date_added", "due", "cwes",
+                                      "ransomware_known") if prev.get(k) != payload[k]]
+                detail = (f"{cve} KEV entry updated ({', '.join(fields) or 'details'}): "
+                          f"{v.get('vendorProject')} {v.get('product')}")
             else:
                 detail = f"{cve} {v.get('vendorProject')} {v.get('product')} — {v.get('vulnerabilityName')}{tag}"
             change = store.observe(self.name, "kev", cve, payload, detail, quiet=baseline)

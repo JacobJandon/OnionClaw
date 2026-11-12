@@ -103,17 +103,47 @@ def build_alerts(store: Store, events: Iterable[dict], watch: Iterable[str] = ()
     return out
 
 
+TEXT_LIMIT = {"slack": 39000, "discord": 1990}   # Slack ~40k chars, Discord 2,000
+
+
+def _text(alerts: list[Alert], source: str = "OnionClaw") -> str:
+    icon = {"HIGH": "🔴", "MEDIUM": "🟠", "LOW": "⚪"}
+    lines = [f"{icon[a.severity]} [{a.severity}] {a.type}: {a.message}" for a in alerts]
+    return f"{source}: {len(alerts)} alert(s)\n" + "\n".join(lines)
+
+
 def format_payload(alerts: list[Alert], fmt: str, source: str = "OnionClaw") -> dict:
     if fmt not in FORMATS:
         raise ValueError(f"format must be one of {FORMATS}")
-    icon = {"HIGH": "🔴", "MEDIUM": "🟠", "LOW": "⚪"}
-    lines = [f"{icon[a.severity]} [{a.severity}] {a.type}: {a.message}" for a in alerts]
-    text = f"{source}: {len(alerts)} alert(s)\n" + "\n".join(lines)
+    text = _text(alerts, source)
+    limit = TEXT_LIMIT.get(fmt)
+    if limit and len(text) > limit:
+        # process() splits batches with _fit() so whole alerts are never cut off; only a
+        # single alert longer than the limit gets here, and it is shortened.
+        text = text[:limit - 1] + "…"
     if fmt == "slack":
-        return {"text": text[:39000]}                      # Slack caps messages near 40k chars
+        return {"text": text}
     if fmt == "discord":
-        return {"content": text[:1990]}                    # Discord caps content at 2000 chars
+        return {"content": text}
     return {"source": source, "count": len(alerts), "alerts": [a.as_dict() for a in alerts]}
+
+
+def _fit(alerts: list[Alert], fmt: str, batch: int):
+    """Batches of at most `batch` alerts whose message fits the sink's size limit.
+
+    Cutting one long message at the limit dropped whole alert lines while every alert
+    in the batch was recorded as delivered, so the dropped ones were never sent.
+    """
+    limit, chunk = TEXT_LIMIT.get(fmt), []
+    for a in alerts:
+        trial = chunk + [a]
+        if chunk and (len(trial) > batch or (limit and len(_text(trial)) > limit)):
+            yield chunk
+            chunk = [a]
+        else:
+            chunk = trial
+    if chunk:
+        yield chunk
 
 
 def sign(body: bytes, secret: str) -> str:
@@ -167,8 +197,7 @@ def process(store: Store, since: float, url: str, fmt: str = "generic",
         result["preview"] = [a.as_dict() for a in pending[:batch]]
         return result
 
-    for i in range(0, len(pending), batch):
-        chunk = pending[i:i + batch]
+    for chunk in _fit(pending, fmt, batch):
         ok, info = deliver(url, format_payload(chunk, fmt), secret, session=session)
         if ok:
             with store._conn() as c:

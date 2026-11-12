@@ -83,32 +83,47 @@ class Swarm:
         # by `leaksites`, then `wallets` checks them in the same sweep.
         waves = [[c for c in self.collectors if c.name != "wallets"],
                  [c for c in self.collectors if c.name == "wallets"]]
+        # One deadline for the whole sweep (it was per wave, so two waves could take twice
+        # as long as --timeout).
+        deadline = started + self.timeout
         for wave in waves:
             if not wave:
                 continue
-            with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
-                futs = {pool.submit(self._run_one, c): c for c in wave}
-                try:
-                    for f in as_completed(futs, timeout=self.timeout):
-                        name, status, res, err = f.result()
-                        report[name] = {
-                            "status": status, "error": err,
-                            "items": res.items if res else 0,
-                            "events": res.events if res else 0,
-                            "skipped_unsafe_or_invalid": res.skipped if res else 0,
-                            "notes": (res.notes[:10] if res else []),
-                        }
-                except FuturesTimeout:
-                    # Report the stragglers and carry on; letting this escape killed the
-                    # whole digest, and --loop with it. The pool still drains on exit.
-                    for fut, c in futs.items():
-                        if c.name not in report:
-                            report[c.name] = {"status": "failed", "items": 0, "events": 0,
-                                              "skipped_unsafe_or_invalid": 0, "notes": [],
-                                              "error": f"did not finish within {self.timeout:.0f}s"}
+            pool = ThreadPoolExecutor(max_workers=self.max_workers)
+            futs = {pool.submit(self._run_one, c): c for c in wave}
+            try:
+                for f in as_completed(futs, timeout=max(0.0, deadline - time.time())):
+                    name, status, res, err = f.result()
+                    report[name] = {
+                        "status": status, "error": err,
+                        "items": res.items if res else 0,
+                        "events": res.events if res else 0,
+                        "skipped_unsafe_or_invalid": res.skipped if res else 0,
+                        "notes": (res.notes[:10] if res else []),
+                    }
+            except FuturesTimeout:
+                for fut, c in futs.items():
+                    if c.name not in report:
+                        report[c.name] = {"status": "timeout", "items": 0, "events": 0,
+                                          "skipped_unsafe_or_invalid": 0, "notes": [],
+                                          "error": f"still running after {self.timeout:.0f}s; "
+                                                   f"its run is recorded when it finishes, "
+                                                   f"but is not in this digest"}
+            finally:
+                # Do not wait for stragglers. Leaving a `with` block joined them, so the
+                # timeout never bounded the sweep and --loop stalled behind a stuck
+                # collector. Collectors still queued are cancelled.
+                pool.shutdown(wait=False, cancel_futures=True)
         report["_started"] = started
         report["_elapsed"] = round(time.time() - started, 2)
         return report
+
+
+def _at_least_one(v):
+    n = int(v)
+    if n < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")   # 0 crashed the executor
+    return n
 
 
 # ── synthesizer ───────────────────────────────────────────────────
@@ -159,7 +174,7 @@ def synthesize(store: Store, since: float, run_report: dict, watch=()) -> dict:
 def render_text(d: dict, limit: int = 25) -> str:
     L = [f"OnionClaw swarm digest — {d['generated']}  ({d['elapsed_s']}s)", ""]
     for name, r in d["collectors"].items():
-        mark = {"ok": "✓", "skipped": "–", "fresh": "·", "failed": "✗"}[r["status"]]
+        mark = {"ok": "✓", "skipped": "–", "fresh": "·", "failed": "✗", "timeout": "⧗"}[r["status"]]
         extra = f"  [{r['error']}]" if r["error"] else ""
         L.append(f"  {mark} {name:<11} items={r['items']:<5} events={r['events']:<4} "
                  f"refused/invalid={r['skipped_unsafe_or_invalid']}{extra}")
@@ -219,7 +234,7 @@ def main() -> int:
     ap.add_argument("--only", action="append", default=[],
                     choices=["leaksites", "groupinfra", "kev", "wallets", "onionsites"],
                     help="run only these collectors")
-    ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--workers", type=_at_least_one, default=4)
     ap.add_argument("--loop", type=int, default=0, metavar="SECONDS",
                     help="repeat every N seconds (default: single sweep)")
     ap.add_argument("--json", action="store_true", help="emit the digest as JSON")
@@ -279,7 +294,7 @@ def main() -> int:
         print(json.dumps(digest, indent=2, default=str) if args.json else render_text(digest))
         if digest.get("narrative") and not args.json:
             print("\n" + digest["narrative"])
-        failed_any = any(r["status"] == "failed" for r in digest["collectors"].values())
+        failed_any = any(r["status"] in ("failed", "timeout") for r in digest["collectors"].values())
         if not args.loop or stop["flag"]:
             break
         for _ in range(args.loop):
