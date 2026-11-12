@@ -39,7 +39,7 @@ sys.path.insert(0, _skill_dir)
 
 from store import Store
 
-__version__ = "2.4.0"
+from _version import __version__  # noqa: E402 — the toolkit version
 
 CONF = {"alias-name": 0.95, "shared-wallet": 0.85, "shared-host-2": 0.80,
         "shared-host-n": 0.50, "shared-victim": 0.30}

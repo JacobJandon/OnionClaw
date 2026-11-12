@@ -36,7 +36,7 @@ if os.path.exists(_env):
     except ImportError:
         pass
 
-__version__ = "2.4.0"
+from _version import __version__  # noqa: E402 — the toolkit version
 
 MIN_PY = (3, 10)          # the CI matrix; modules use PEP 604 unions at runtime
 OK, WARN, FAIL = "ok", "warn", "fail"

@@ -43,7 +43,7 @@ from store import Store
 from entities import extract_entities, onion_host, valid_btc
 import graph
 
-__version__ = "2.4.0"
+from _version import __version__  # noqa: E402 — the toolkit version
 
 TYPES = ("onion_host", "domain", "btc_wallet", "cve", "email", "tox")
 _CVE_RE = re.compile(r"^CVE-\d{4}-\d{4,}$", re.I)

@@ -557,38 +557,24 @@ Quick-start commands:
 
 
 def _check_update_notice() -> None:
-    """Print a one-line notice if a newer OnionClaw release exists on GitHub."""
-    _RELEASES_API = (
-        "https://api.github.com/repos/JacobJandon/OnionClaw/releases/latest"
-    )
+    """Print a one-line notice if a newer OnionClaw release exists on GitHub.
+
+    The check goes through Tor (sicry.check_update) and is skipped when Tor is not
+    running; it never connects directly.
+    """
     try:
+        if _DIR not in sys.path:
+            sys.path.insert(0, _DIR)
         import sicry as _sicry_mod
-        current = getattr(_sicry_mod, "__version__", None)
-        if not current:
-            return
-        req = urllib.request.Request(
-            _RELEASES_API,
-            headers={"User-Agent": f"OnionClaw-setup/{current}"},
-        )
-        with urllib.request.urlopen(req, timeout=4) as resp:
-            data = json.loads(resp.read())
-        tag = data.get("tag_name", "").lstrip("v")
-        if not tag:
-            return
-        def _ver(v):
-            try:
-                return tuple(int(x) for x in v.split("."))
-            except Exception:
-                return (0,)
-        if _ver(tag) > _ver(current):
-            _p(f"\n⚡  Update available: v{current} → v{tag}", YELLOW)
-            url = data.get("html_url", "https://github.com/JacobJandon/OnionClaw/releases")
-            _p(f"   Release page : {url}", CYAN)
+        from _version import __version__ as current
+        u = _sicry_mod.check_update(repo="JacobJandon/OnionClaw", current=current, timeout=8)
+        if u["up_to_date"] is False:
+            _p(f"\n⚡  Update available: v{current} → v{u['latest']}", YELLOW)
+            _p(f"   Release page : {u['url']}", CYAN)
             _p(f"   Upgrade with : git -C {_DIR} pull", CYAN)
             _p(f"                  python3 {os.path.join(_DIR, 'sync_sicry.py')}", CYAN)
     except Exception:
-        pass  # network unavailable, rate-limited, etc. — always silent
-
+        pass  # Tor not running, rate-limited, etc. — always silent
 
 # ─────────────────────────────────────────────────────────────────
 # Entry point

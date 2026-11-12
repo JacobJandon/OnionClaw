@@ -130,9 +130,8 @@ TOR_POOL_BASE_PORT = int(os.getenv("SICRY_POOL_BASE_PORT", "9060"))  # socks por
 WATCH_INTERVAL_DEFAULT = int(os.getenv("SICRY_WATCH_INTERVAL", "6"))  # hours between re-runs
 
 # Update-check: GitHub Releases API (formal releases only — not every git tag)
-GITHUB_RELEASES_URL = (
-    "https://api.github.com/repos/JacobJandon/OnionClaw/releases/latest"
-)
+GITHUB_RELEASES_API = "https://api.github.com/repos/{repo}/releases/latest"
+GITHUB_RELEASES_URL = GITHUB_RELEASES_API.format(repo="JacobJandon/Sicry")
 
 OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL       = os.getenv("OPENAI_MODEL", "gpt-4o")
@@ -633,8 +632,14 @@ SEARCH_ENGINES = [
 def _build_tor_session() -> requests.Session:
     """Create a requests.Session that routes all traffic through Tor SOCKS5."""
     session = requests.Session()
+    # requests gives HTTP(S)_PROXY / ALL_PROXY from the environment priority over
+    # session.proxies, so a proxy setting (common on corporate machines) would silently
+    # replace Tor and send every request from the real IP. Ignore the environment.
+    session.trust_env = False
+    # raise_on_status=False: after the retries, hand back the last 5xx response (a hidden
+    # service's queue or maintenance page has real content) instead of a RetryError.
     retry = Retry(total=3, read=3, connect=3, backoff_factor=0.5,
-                  status_forcelist=[500, 502, 503, 504])
+                  status_forcelist=[500, 502, 503, 504], raise_on_status=False)
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
@@ -737,7 +742,9 @@ class TorPool:
             self._rr_idx += 1
         sp = self._socks_port(i)
         s = requests.Session()
-        retry = Retry(total=2, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
+        s.trust_env = False   # see _build_tor_session: environment proxies would bypass Tor
+        retry = Retry(total=2, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504],
+                      raise_on_status=False)
         adapter = HTTPAdapter(max_retries=retry)
         s.mount("http://", adapter)
         s.mount("https://", adapter)
@@ -1035,74 +1042,73 @@ def check_tor() -> dict:
         return {"tor_active": False, "exit_ip": None, "error": str(e)}
 
 
-def check_update() -> dict:
+def check_update(repo: str = "JacobJandon/Sicry", current: str = None,
+                 timeout: float = 15) -> dict:
     """
-    Check whether a newer **published** OnionClaw release is available on
-    GitHub (clearnet).
+    Check whether a newer **published** release of ``repo`` exists on GitHub.
 
-    Uses the GitHub Releases API ``/releases/latest`` endpoint (formal releases
-    only — ignores plain git tags and pre-releases) with a 4-second timeout.
-    Silently returns an error dict on any network failure — callers can ignore
-    the ``error`` field to suppress noise.
+    By default this compares the SICRY™ engine's own releases with this file's
+    ``__version__``. A toolkit that bundles the engine (OnionClaw) passes its own
+    ``repo`` and ``current`` version: comparing one project's release tags with
+    another's version number reports updates that do not exist.
+
+    The request goes through Tor like every other request, with an ordinary browser
+    User-Agent. When Tor is not running the check is skipped, never sent directly.
 
     Returns::
 
         {
-            "up_to_date": bool,          # True  → already on latest release
-            "current":    str,           # e.g. "2.1.10"
-            "latest":     str,           # e.g. "2.1.11"
+            "up_to_date": bool | None,   # None → the check could not be made
+            "current":    str,
+            "latest":     str | None,
             "url":        str | None,    # GitHub release page
-            "error":      str | None,    # set when the check itself failed
+            "error":      str | None,    # why the check could not be made
         }
-
-    Upgrade with::
-
-        git -C /path/to/OnionClaw pull     # if cloned
-        python3 sync_sicry.py              # keep sicry.py up-to-date
 
     Example::
 
         >>> r = sicry.check_update()
-        >>> if not r["up_to_date"]:
+        >>> if r["up_to_date"] is False:
         ...     print(f"Update available: {r['current']} → {r['latest']}")
     """
+    current = current or __version__
+
     def _ver(v: str) -> tuple:
         try:
             return tuple(int(x) for x in v.lstrip("v").split("."))
         except Exception:
             return (0,)
 
+    def _unknown(error: str) -> dict:
+        # Never report "up to date" for a check that did not happen.
+        return {"up_to_date": None, "current": current, "latest": None,
+                "url": None, "error": error}
+
+    if not _tor_port_open():
+        return _unknown("Tor is not running; the update check is never sent outside Tor")
     try:
-        r = requests.get(
-            GITHUB_RELEASES_URL,
-            headers={"User-Agent": f"OnionClaw/{__version__}"},
-            timeout=4,
+        r = _build_tor_session().get(
+            GITHUB_RELEASES_API.format(repo=repo),
+            headers={"User-Agent": random.choice(_USER_AGENTS),
+                     "Accept": "application/vnd.github+json"},
+            timeout=timeout,
         )
         if r.status_code == 404:
-            return {"up_to_date": True, "current": __version__,
-                    "latest": __version__, "url": None,
-                    "error": "no published releases found"}
+            return _unknown("no published releases found")
         r.raise_for_status()
         data = r.json()  # {"tag_name": "v2.1.11", "html_url": "...", ...}
-        tag_name = data.get("tag_name", "").lstrip("v")
+        tag_name = str(data.get("tag_name", "")).lstrip("v")
         if not tag_name:
-            return {"up_to_date": True, "current": __version__,
-                    "latest": __version__, "url": None,
-                    "error": "release response missing tag_name"}
-        up_to_date = _ver(tag_name) <= _ver(__version__)
-        url = data.get("html_url") or (
-            f"https://github.com/JacobJandon/OnionClaw/releases/tag/v{tag_name}"
-        )
+            return _unknown("release response missing tag_name")
         return {
-            "up_to_date": up_to_date,
-            "current":    __version__,
+            "up_to_date": _ver(tag_name) <= _ver(current),
+            "current":    current,
             "latest":     tag_name,
-            "url":        url,
+            "url":        data.get("html_url") or f"https://github.com/{repo}/releases/tag/v{tag_name}",
             "error":      None,
         }
     except Exception as e:
-        return {"up_to_date": True, "current": __version__,
-                "latest": __version__, "url": None, "error": str(e)}
+        return _unknown(str(e))
 
 
 def renew_identity() -> dict:

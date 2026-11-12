@@ -46,7 +46,7 @@ from collectors import (CollectorUnavailable, GroupInfraCollector, KevCollector,
 from store import Store
 import alerts as alerts_mod
 
-__version__ = "2.4.0"
+from _version import __version__  # noqa: E402 — the toolkit version
 
 # Higher = surfaced first.
 _WEIGHT = {"wallet_state": 5, "onion_page": 4, "kev": 3, "victim": 3, "group_profile": 2, "dls": 2, "wallet": 1}

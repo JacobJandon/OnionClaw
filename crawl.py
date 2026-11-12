@@ -51,7 +51,7 @@ except Exception as _e:
 from entities import extract_entities, onion_host
 from safety import is_safe
 
-__version__ = "2.4.0"
+from _version import __version__  # noqa: E402 — the toolkit version
 
 _AGG_KEYS = ("btc_wallets", "eth_wallets", "xmr_wallets", "emails", "onion_links", "tox_ids")
 

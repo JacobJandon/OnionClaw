@@ -31,7 +31,7 @@ sys.path.insert(0, _skill_dir)
 
 from store import Store
 
-__version__ = "2.4.0"
+from _version import __version__  # noqa: E402 — the toolkit version
 
 TECHNIQUE_RE = re.compile(r"\bT\d{4}(?:\.\d{3})?\b")
 TACTIC_RE = re.compile(r"^TA\d{4}$")

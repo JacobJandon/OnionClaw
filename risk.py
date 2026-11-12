@@ -40,7 +40,7 @@ sys.path.insert(0, _skill_dir)
 from store import Store
 import graph
 
-__version__ = "2.4.0"
+from _version import __version__  # noqa: E402 — the toolkit version
 
 WEIGHTS = {"volume": 0.25, "critical": 0.25, "reach": 0.15, "capability": 0.20, "links": 0.15}
 CRITICAL = ("healthcare", "government", "defense", "education", "energy", "utilities",

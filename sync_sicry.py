@@ -27,6 +27,9 @@ import re
 import hashlib
 import argparse
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _version import __version__ as ONIONCLAW_VERSION  # noqa: E402
+
 try:
     import requests
 except Exception as _e:
@@ -84,7 +87,7 @@ def _content_sha(data: bytes) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Sync bundled sicry.py from upstream SICRY™")
-    parser.add_argument("--version", action="version", version="OnionClaw sync_sicry 2.4.0")
+    parser.add_argument("--version", action="version", version=f"OnionClaw sync_sicry {ONIONCLAW_VERSION}")
     parser.add_argument("--tag",     default="main", help="git ref / tag to fetch (default: main)")
     parser.add_argument("--dry-run", action="store_true", help="print what would happen without writing")
     parser.add_argument("--force", action="store_true",

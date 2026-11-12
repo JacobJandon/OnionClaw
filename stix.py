@@ -37,7 +37,7 @@ sys.path.insert(0, _skill_dir)
 from store import Store
 from ttp import attack_url
 
-__version__ = "2.4.0"
+from _version import __version__  # noqa: E402 — the toolkit version
 
 # Private namespace for all OnionClaw-generated ids (derived, documented, stable).
 NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/JacobJandon/OnionClaw")

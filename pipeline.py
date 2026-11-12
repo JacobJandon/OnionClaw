@@ -22,6 +22,7 @@ import sys, os, argparse, json, uuid, time as _time
 # ── bootstrap ─────────────────────────────────────────────────────
 _skill_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _skill_dir)
+from _version import __version__ as ONIONCLAW_VERSION  # noqa: E402
 
 _env = os.path.join(_skill_dir, ".env")
 if os.path.exists(_env):
@@ -68,7 +69,8 @@ TorPool (multi-circuit Tor):
     """,
 )
 parser.add_argument("--version",      action="version",
-                    version=f"OnionClaw pipeline {getattr(sicry, '__version__', '?')}")
+                    version=f"OnionClaw pipeline {ONIONCLAW_VERSION} "
+                            f"(SICRY™ engine {getattr(sicry, '__version__', '?')})")
 parser.add_argument("--query",        default=None,
                     help="Investigation topic (required unless --watch-check or --interactive)")
 parser.add_argument("--mode",         default="threat_intel", choices=MODES,
@@ -139,9 +141,10 @@ if args.clear_cache:
     print(f"[cache] Cleared {n} cached result(s).")
 
 if args.check_update:
-    _u = sicry.check_update()
-    if _u["error"] and not _u["latest"]:
-        print(f"Update check failed: {_u['error']}")
+    # Both checks go through Tor: sicry.check_update never sends them directly.
+    _u = sicry.check_update(repo="JacobJandon/OnionClaw", current=ONIONCLAW_VERSION)
+    if _u["up_to_date"] is None:
+        print(f"Could not check for an OnionClaw update: {_u['error']}")
     elif _u["up_to_date"]:
         print(f"OnionClaw {_u['current']} is up-to-date.")
     else:
@@ -150,24 +153,11 @@ if args.check_update:
             print(f"  Release notes : {_u['url']}")
         print(f"  Upgrade       : git -C {_skill_dir} pull")
         print(f"                  python3 {os.path.join(_skill_dir, 'sync_sicry.py')}")
-    # IMPROVE-5: also check if bundled sicry.py is behind upstream SICRY™
-    try:
-        import urllib.request
-        _sicry_api = "https://api.github.com/repos/JacobJandon/Sicry/tags?per_page=1"
-        with urllib.request.urlopen(_sicry_api, timeout=4) as _sr:
-            _stags = json.loads(_sr.read())
-        if _stags:
-            def _sver(v): 
-                try: return tuple(int(x) for x in v.lstrip("v").split("."))
-                except: return (0,)
-            _latest_sicry = max(_stags, key=lambda t: _sver(t["name"]))['name'].lstrip('v')
-            _bundled = getattr(sicry, "__version__", "0.0.0")
-            if _sver(_bundled) < _sver(_latest_sicry):
-                print(f"NOTICE: bundled sicry.py (v{_bundled}) is behind upstream SICRY™ (v{_latest_sicry}).")
-                print(f"        Run: python3 {os.path.join(_skill_dir, 'sync_sicry.py')}")
-    except Exception:
-        pass
-    sys.exit(0)
+    _e = sicry.check_update()   # the bundled SICRY™ engine against its own releases
+    if _e["up_to_date"] is False:
+        print(f"NOTICE: bundled sicry.py (v{_e['current']}) is behind SICRY™ v{_e['latest']}.")
+        print(f"        Run: python3 {os.path.join(_skill_dir, 'sync_sicry.py')}")
+    sys.exit(0 if _u["up_to_date"] is not None else 1)
 
 # ── standalone: watch-check ───────────────────────────────────────
 if args.watch_check:
@@ -508,8 +498,9 @@ if args.watch:
 
 # ── passive update notice ─────────────────────────────────────────
 try:
-    _u = sicry.check_update()
-    if not _u["up_to_date"] and not _u["error"]:
+    # Through Tor, and skipped when Tor is down: never a direct request.
+    _u = sicry.check_update(repo="JacobJandon/OnionClaw", current=ONIONCLAW_VERSION, timeout=6)
+    if _u["up_to_date"] is False:
         print(f"\n⚡ OnionClaw update available: "
               f"v{_u['current']} → v{_u['latest']}  "
               f"| run with --check-update for details\n")
