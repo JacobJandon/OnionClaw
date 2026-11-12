@@ -68,8 +68,22 @@ def _port_open(host, port, timeout=1.5):
     try:
         with socket.create_connection((host, int(port)), timeout=timeout):
             return True
-    except OSError:
+    except (OSError, ValueError, TypeError):   # a blank or non-numeric port is just "not open"
         return False
+
+
+def _bad_port(value):
+    """The setting itself, when it is not a port number (a blank TOR_SOCKS_PORT= crashed
+    doctor with a ValueError, exactly when it was needed)."""
+    return None if str(value).isdigit() and 0 < int(value) < 65536 else repr(value)
+
+
+# Where renew.py looks for Tor's control cookie (sicry.renew_identity), in order.
+_COOKIE_PATHS = ("~/.onionclaw/tor/control_auth_cookie", "/tmp/tor_data/control_auth_cookie",
+                 "/var/lib/tor/control_auth_cookie", "/run/tor/control.authcookie",
+                 "~/.tor/control_auth_cookie", "/usr/local/var/db/tor/control_auth_cookie")
+PROVIDERS = ("openai", "anthropic", "gemini", "mistral", "openrouter", "together",
+             "perplexity", "replicate", "ollama", "llamacpp")
 
 
 def build(deep=False) -> Report:
@@ -103,29 +117,40 @@ def build(deep=False) -> Report:
     # ── tor ───────────────────────────────────────────────────
     add = rep.group("Tor")
     host = os.getenv("TOR_SOCKS_HOST", "127.0.0.1")
+    chost = os.getenv("TOR_CONTROL_HOST", "127.0.0.1")   # what renew.py dials, not the SOCKS host
     sport = os.getenv("TOR_SOCKS_PORT", "9050")
     cport = os.getenv("TOR_CONTROL_PORT", "9051")
+    for var, val in (("TOR_SOCKS_PORT", sport), ("TOR_CONTROL_PORT", cport)):
+        if _bad_port(val):
+            add(var, WARN, f"{_bad_port(val)} is not a port number",
+                f"Set {var} to a port number in .env, or remove the line", required=False)
     socks_up = _port_open(host, sport)
     add("SOCKS port", OK if socks_up else WARN, f"{host}:{sport}" + ("" if socks_up else " unreachable"),
         "Start Tor:  sudo systemctl start tor   (or: tor -f /path/to/torrc)",
         required=False)
 
-    ctrl_up = _port_open(host, cport)
+    ctrl_up = _port_open(chost, cport)
     add("ControlPort", OK if ctrl_up else WARN,
-        f"{host}:{cport}" + ("" if ctrl_up else " unreachable — renew.py needs it"),
+        f"{chost}:{cport}" + ("" if ctrl_up else " unreachable — renew.py needs it"),
         "Add to torrc:  ControlPort 9051  +  CookieAuthentication 1", required=False)
 
-    data_dir = os.getenv("TOR_DATA_DIR", "")
     if ctrl_up:
-        if data_dir and os.path.isdir(data_dir):
-            cookie = os.path.join(data_dir, "control_auth_cookie")
-            add("Control auth", OK if os.path.exists(cookie) else WARN,
-                data_dir if os.path.exists(cookie) else f"no control_auth_cookie in {data_dir}",
-                "TOR_DATA_DIR must be Tor's DataDirectory", required=False)
+        # renew.py authenticates with TOR_CONTROL_PASSWORD, or the first cookie it finds:
+        # TOR_DATA_DIR's, then the standard locations. Only TOR_DATA_DIR used to count.
+        data_dir = os.path.expanduser(os.getenv("TOR_DATA_DIR", ""))
+        cookies = ([os.path.join(data_dir, "control_auth_cookie")] if data_dir else []) + \
+                  [os.path.expanduser(p) for p in _COOKIE_PATHS]
+        found = next((c for c in cookies if os.path.isfile(c)), None)
+        readable = bool(found) and os.access(found, os.R_OK)
+        if os.getenv("TOR_CONTROL_PASSWORD", "").strip():
+            add("Control auth", OK, "TOR_CONTROL_PASSWORD set", required=False)
+        elif readable:
+            add("Control auth", OK, f"cookie {found}", required=False)
         else:
-            add("Control auth", WARN, "TOR_DATA_DIR not set or not a directory",
-                "Set TOR_DATA_DIR=<Tor DataDirectory> in .env so renew.py can authenticate",
-                required=False)
+            add("Control auth", WARN,
+                f"cookie {found} is not readable by you" if found else "no control cookie found",
+                "Set TOR_DATA_DIR=<Tor DataDirectory> or TOR_CONTROL_PASSWORD in .env "
+                "(setup.py can do this)", required=False)
 
     if deep and socks_up and sicry:
         try:
@@ -144,23 +169,27 @@ def build(deep=False) -> Report:
         _env if os.path.exists(_env) else "not found (defaults in use)",
         "cp .env.example .env", required=False)
 
-    provider = (os.getenv("LLM_PROVIDER") or "").strip()
+    # As sicry reads it: case-insensitive, and openai when unset. Comparing it raw reported
+    # "OpenAI but None is empty", and an unset provider as unavailable.
+    raw_provider = (os.getenv("LLM_PROVIDER") or "").strip()
+    provider = (raw_provider or "openai").lower()
     key_for = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY",
                "mistral": "MISTRAL_API_KEY", "openrouter": "OPENROUTER_API_KEY",
                "together": "TOGETHER_API_KEY", "perplexity": "PERPLEXITY_API_KEY",
                "replicate": "REPLICATE_API_KEY"}
-    if not provider:
-        add("LLM provider", WARN, "not set — ask.py and pipeline.py analysis are unavailable",
-            "Set LLM_PROVIDER in .env (search, fetch, crawl and the swarm work without it)",
-            required=False)
+    if provider not in PROVIDERS:
+        add("LLM provider", WARN, f"{raw_provider!r} is not a provider sicry knows",
+            f"Set LLM_PROVIDER to one of: {', '.join(PROVIDERS)}", required=False)
     elif provider in ("ollama", "llamacpp"):
         add("LLM provider", OK, f"{provider} (local, no key needed)", required=False)
     else:
         env_key = key_for.get(provider)
         has = bool(os.getenv(env_key or "", "").strip())
         add("LLM provider", OK if has else WARN,
-            f"{provider}" + ("" if has else f" but {env_key} is empty"),
-            f"Set {env_key} in .env", required=False)
+            f"{provider}{'' if raw_provider else ' (the default)'}"
+            + ("" if has else f" but {env_key} is empty — analysis is unavailable"),
+            f"Set {env_key} in .env (search, fetch, crawl and the swarm work without it)",
+            required=False)
 
     rl = bool(os.getenv("RANSOMWARE_LIVE_API_KEY", "").strip())
     add("ransomware.live", OK if rl else WARN,
@@ -221,8 +250,13 @@ def render(rep: Report, deep: bool) -> str:
         L.append("")
     fails = rep.failures()
     warns = [r for r in rep.rows if r["state"] == WARN]
+    optional_fails = [r for r in rep.rows if not r["required"] and r["state"] == FAIL]
     if fails:
         L.append(f"NOT READY — {len(fails)} required check(s) failed. Fix the arrows above.")
+    elif optional_fails:
+        # "every check passed" was printed directly under a failed live-circuit check.
+        L.append(f"READY — but {len(optional_fails)} optional check(s) failed "
+                 f"({', '.join(r['check'] for r in optional_fails)}). See the arrows above.")
     elif warns:
         L.append(f"READY — {len(warns)} optional item(s) not configured; everything required is in place.")
     else:

@@ -82,3 +82,46 @@ def test_json_output_is_machine_readable(rep, capsys, monkeypatch):
     assert code in (0, 1)
     assert data["ready"] is (code == 0)
     assert data["groups"] and all("checks" in g for g in data["groups"])
+
+
+# ── regressions from the post-release audit ───────────────────────
+def _row(rep, name):
+    return next(r for r in rep.rows if r["check"] == name)
+
+
+def test_a_blank_port_is_reported_not_a_crash(monkeypatch):
+    """A blank TOR_SOCKS_PORT= raised ValueError out of build()."""
+    monkeypatch.setenv("TOR_SOCKS_PORT", "")
+    rep = doctor.build(deep=False)
+    assert "is not a port number" in _row(rep, "TOR_SOCKS_PORT")["detail"]
+
+
+def test_controlport_check_probes_the_control_host(monkeypatch):
+    """renew.py dials TOR_CONTROL_HOST; doctor probed the SOCKS host instead."""
+    probed = []
+    monkeypatch.setenv("TOR_CONTROL_HOST", "10.9.8.7")
+    monkeypatch.setattr(doctor, "_port_open", lambda h, p, timeout=1.5: probed.append((h, str(p))) or False)
+    doctor.build(deep=False)
+    assert ("10.9.8.7", "9051") in probed
+
+
+def test_a_control_password_counts_as_auth(monkeypatch):
+    monkeypatch.setattr(doctor, "_port_open", lambda *a, **k: True)
+    monkeypatch.setenv("TOR_CONTROL_PASSWORD", "hunter2")
+    assert _row(doctor.build(deep=False), "Control auth")["state"] == doctor.OK
+
+
+@pytest.mark.parametrize("value,expect", [("OpenAI", "openai"), ("", "openai (the default)")])
+def test_llm_provider_is_read_the_way_sicry_reads_it(monkeypatch, value, expect):
+    monkeypatch.setenv("LLM_PROVIDER", value)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    row = _row(doctor.build(deep=False), "LLM provider")
+    assert row["state"] == doctor.OK and row["detail"] == expect
+
+
+def test_a_failed_optional_check_is_not_reported_as_all_passed(monkeypatch):
+    rep = doctor.build(deep=False)
+    rep.groups[0][1].append({"check": "Live circuit", "state": doctor.FAIL, "detail": "x",
+                             "fix": "f", "required": False})
+    text = doctor.render(rep, deep=True)
+    assert "every check passed" not in text and "optional check(s) failed (Live circuit)" in text
