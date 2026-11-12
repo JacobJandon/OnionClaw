@@ -171,7 +171,7 @@ class _Page:
     def __init__(self, pages):
         self.pages, self.calls = pages, []
 
-    def get(self, url, headers=None, timeout=None):
+    def get(self, url, headers=None, timeout=None, **_):
         self.calls.append(url)
         r = requests.models.Response()
         r.status_code, r.url, r.encoding = 200, url, "utf-8"

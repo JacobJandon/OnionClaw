@@ -23,7 +23,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install requests[socks] beautifulsoup4 python-dotenv stem openai anthropic google-generativeai pytest stix2
+        run: pip install requests[socks] beautifulsoup4 python-dotenv stem openai anthropic google-generativeai pytest stix2 mcp
 
       - name: Unit tests
         run: python3 -m pytest tests -q

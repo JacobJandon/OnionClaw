@@ -48,6 +48,7 @@ import csv
 import dataclasses
 import hashlib
 import io
+import atexit
 import json
 import logging
 import math
@@ -65,7 +66,7 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Iterator, Optional
-from urllib.parse import urljoin, urlparse, urlsplit, urlunsplit, quote_plus, parse_qs, unquote
+from urllib.parse import urljoin, urldefrag, urlparse, urlsplit, urlunsplit, quote_plus, parse_qs, unquote
 
 import requests
 from bs4 import BeautifulSoup
@@ -113,6 +114,10 @@ TOR_CONTROL_PASS   = os.getenv("TOR_CONTROL_PASSWORD")
 TOR_DATA_DIR       = os.path.expanduser(os.getenv("TOR_DATA_DIR") or "") or None  # Tor DataDirectory, for cookie auth
 TOR_TIMEOUT        = int(os.getenv("TOR_TIMEOUT", "45"))
 MAX_CONTENT_CHARS  = int(os.getenv("SICRY_MAX_CHARS", "8000"))
+# Largest response body read from one page. A hidden service can link to a
+# multi-gigabyte archive; reading it whole hung a crawl and exhausted memory.
+MAX_DOWNLOAD_BYTES = int(os.getenv("SICRY_MAX_BYTES", str(10 * 1024 * 1024)))
+_TEXTUAL = ("text/", "html", "xml", "json", "javascript")
 # What ask() sends the LLM in one go. Separate from the per-page limit above: the
 # pipeline combines 8-12 pages, and cutting that at 8,000 chars dropped half the sources.
 # Lower it for a local model with a small context window.
@@ -180,7 +185,8 @@ class _DB:
     is safe here because we use a lock around every write operation)."""
 
     def __init__(self, path: str) -> None:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        if os.path.dirname(path):          # a bare filename (SICRY_DB_PATH=sicry.db) has none
+            os.makedirs(os.path.dirname(path), exist_ok=True)
         self._path = path
         self._local = threading.local()
         self._lock  = threading.Lock()
@@ -225,13 +231,14 @@ class _DB:
                     enabled   INTEGER NOT NULL DEFAULT 1
                 );
                 CREATE TABLE IF NOT EXISTS crawl_pages (
-                    url       TEXT PRIMARY KEY,
-                    job_id    TEXT,
+                    url       TEXT NOT NULL,
+                    job_id    TEXT NOT NULL DEFAULT '',
                     depth     INTEGER,
                     ts        REAL,
                     title     TEXT,
                     text      TEXT,
-                    entities  TEXT
+                    entities  TEXT,
+                    PRIMARY KEY (job_id, url)
                 );
                 CREATE TABLE IF NOT EXISTS crawl_links (
                     src   TEXT NOT NULL,
@@ -239,6 +246,21 @@ class _DB:
                     PRIMARY KEY (src, dst)
                 );
             """)
+            # crawl_pages used to be keyed on url alone, so crawling a site again moved
+            # every page to the new job and emptied the earlier job's export. Migrate
+            # such a table to the (job_id, url) key, keeping every saved page.
+            cols = c.execute("PRAGMA table_info(crawl_pages)").fetchall()
+            if [r[1] for r in sorted(cols, key=lambda r: r[5]) if r[5]] == ["url"]:
+                c.executescript("""
+                    ALTER TABLE crawl_pages RENAME TO crawl_pages_v1;
+                    CREATE TABLE crawl_pages (
+                        url TEXT NOT NULL, job_id TEXT NOT NULL DEFAULT '', depth INTEGER,
+                        ts REAL, title TEXT, text TEXT, entities TEXT,
+                        PRIMARY KEY (job_id, url));
+                    INSERT INTO crawl_pages SELECT url, COALESCE(job_id, ''), depth, ts,
+                        title, text, entities FROM crawl_pages_v1;
+                    DROP TABLE crawl_pages_v1;
+                """)
             c.commit()
 
     # ── cache ──────────────────────────────────────────────────────
@@ -459,7 +481,7 @@ def _db() -> _DB:
 # ─────────────────────────────────────────────────────────────────
 
 def clear_cache() -> int:
-    """Delete all cached fetch/search results.
+    """Delete all cached fetch/search results. Pipeline ``--resume`` checkpoints are kept.
 
     Returns the number of entries evicted.
 
@@ -467,9 +489,13 @@ def clear_cache() -> int:
         >>> n = sicry.clear_cache()
         >>> print(f"Cleared {n} cached entries")
     """
-    mem_count = len(_FETCH_CACHE)
+    # Only fetch and search results: clearing every cache type also deleted --resume
+    # checkpoints. And the in-memory search cache is emptied too, or search() in the
+    # same process kept returning the results that were just "cleared".
+    mem_count = len(_FETCH_CACHE) + len(_SEARCH_MEM_CACHE)
     _FETCH_CACHE.clear()
-    return mem_count + _db().cache_clear()
+    _SEARCH_MEM_CACHE.clear()
+    return mem_count + _db().cache_clear("fetch") + _db().cache_clear("search")
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -551,15 +577,25 @@ def _is_content_safe(text: str) -> bool:
 # ─────────────────────────────────────────────────────────────────
 
 _FRIENDLY_ERROR_MAP = [
-    # SOCKS / Tor circuit
-    (r"SOCKS5|SOCKSHTTPConnection|SOCKS proxy",
+    # Order matters: the first match wins. "SOCKSHTTPConnection" used to come first, and
+    # it is part of every error for an http:// URL fetched through Tor, so a dead hidden
+    # service or a timeout was reported as "is tor running?".
+    # The hidden service, relayed by a working Tor (SOCKS5 replies 0x04 / 0x05 / 0x06):
+    (r"0x04|Host unreachable|0x06|TTL expired",
+     "Hidden service unreachable — it may be offline (Tor itself is working)"),
+    (r"0x05",
+     "Connection refused by the hidden service — it is likely down"),
+    # Tor itself: the local SOCKS proxy refused the connection
+    (r"Error connecting to SOCKS|Failed to establish a new connection: \[Errno (111|61)\]",
      "Tor circuit unavailable — is `tor` running? (`apt install tor && tor &`)"),
-    (r"Max retries exceeded",
-     "Tor circuit slow or overloaded — renew identity with `sicry.renew_identity()` and retry"),
     (r"timed out|Read timed out",
      "Tor circuit timed out — hidden service may be offline, or try renewing identity"),
     (r"Connection refused|ConnectionRefused",
      "Connection refused — hidden service is likely down"),
+    (r"SOCKS5|SOCKS proxy|0x01",
+     "Tor could not complete the circuit — retry, or renew identity"),
+    (r"Max retries exceeded",
+     "Tor circuit slow or overloaded — renew identity with `sicry.renew_identity()` and retry"),
     (r"RemoteDisconnected|ConnectionReset",
      "Connection reset by hidden service — site may be overloaded"),
     (r"Name or service not known|Failed to resolve",
@@ -574,6 +610,35 @@ _FRIENDLY_ERROR_MAP = [
     (r"control port|stem|authentication",
      "Tor control port auth failed — set TOR_CONTROL_PASSWORD or TOR_DATA_DIR in .env"),
 ]
+
+
+def _read_capped(resp, limit: int = None) -> bool:
+    """Read at most `limit` bytes of a streamed response into resp._content.
+
+    Returns True when the body was longer and has been cut.
+    """
+    limit = limit or MAX_DOWNLOAD_BYTES
+    if resp._content is not False:            # already read (or a prepared response)
+        data = resp._content or b""
+        resp._content = data[:limit]
+        return len(data) > limit
+    buf, size = [], 0
+    for chunk in resp.iter_content(chunk_size=65536):
+        buf.append(chunk)
+        size += len(chunk)
+        if size > limit:
+            break
+    resp.close()
+    data = b"".join(buf)
+    resp._content = data[:limit]
+    return len(data) > limit
+
+
+def _not_a_page(resp) -> str | None:
+    """The content type, when the response is clearly not a web page (an archive, an
+    image, a binary), so it is not downloaded at all."""
+    ctype = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+    return ctype if ctype and not any(t in ctype for t in _TEXTUAL) else None
 
 
 def _friendly_error(exc: Exception | str) -> str:
@@ -690,9 +755,34 @@ class TorPool:
         return self.base_port + 100 + i   # control port 100 above socks
 
     def start(self) -> None:
-        """Launch all Tor processes in the pool. Waits until each SOCKS port accepts connections."""
+        """Launch all Tor processes in the pool. Waits until each SOCKS port accepts connections.
+
+        Raises RuntimeError, after cleaning up, when tor cannot be launched or no circuit
+        comes up. It used to leave its temp dirs behind and mark the pool running anyway.
+        """
         if self._running:
             return
+        try:
+            self._launch()
+        except OSError as e:              # FileNotFoundError: no `tor` on PATH
+            self.stop()
+            raise RuntimeError(f"could not start tor for the circuit pool: {e}") from e
+        # Wait up to 30 s in all for the SOCKS ports to accept connections
+        deadline, up = time.time() + 30, 0
+        for i in range(self.size):
+            while time.time() < deadline:
+                try:
+                    with socket.create_connection(("127.0.0.1", self._socks_port(i)), timeout=1):
+                        up += 1
+                        break
+                except OSError:
+                    time.sleep(0.5)
+        if not up:
+            self.stop()
+            raise RuntimeError("no circuit in the pool came up within 30 s")
+        self._running = True
+
+    def _launch(self) -> None:
         self._data_dirs = [tempfile.mkdtemp(prefix=f"tor_pool_{i}_") for i in range(self.size)]
         for i, ddir in enumerate(self._data_dirs):
             sp = self._socks_port(i)
@@ -708,17 +798,6 @@ class TorPool:
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
             self._procs.append(proc)
-        # Wait up to 30 s for each socks port to become available
-        deadline = time.time() + 30
-        for i in range(self.size):
-            sp = self._socks_port(i)
-            while time.time() < deadline:
-                try:
-                    with socket.create_connection(("127.0.0.1", sp), timeout=1):
-                        break
-                except OSError:
-                    time.sleep(0.5)
-        self._running = True
 
     def stop(self) -> None:
         """Terminate all pool processes and clean up temp dirs."""
@@ -791,15 +870,31 @@ _pool_instance: TorPool | None = None
 _pool_lock = threading.Lock()
 
 
+_pool_disabled = False
+
+
 def _get_pool() -> TorPool | None:
-    global _pool_instance
-    if TOR_POOL_SIZE <= 0:
+    global _pool_instance, _pool_disabled
+    if TOR_POOL_SIZE <= 0 or _pool_disabled:
         return None
     if _pool_instance is None or not _pool_instance._running:
         with _pool_lock:
+            if _pool_disabled:
+                return None
             if _pool_instance is None or not _pool_instance._running:
-                _pool_instance = TorPool(size=TOR_POOL_SIZE)
-                _pool_instance.start()
+                pool = TorPool(size=TOR_POOL_SIZE)
+                try:
+                    pool.start()
+                except RuntimeError as e:
+                    # Use the main Tor for the rest of this process. Retrying on every
+                    # request leaked temp dirs, and the error crashed search().
+                    logging.warning("SICRY: Tor circuit pool unavailable (%s); using the main Tor", e)
+                    _pool_disabled = True
+                    return None
+                # A pool started on demand stops when the process exits: its tor processes
+                # and temp dirs used to outlive every run and block the next one's ports.
+                atexit.register(pool.stop)
+                _pool_instance = pool
     return _pool_instance
 
 
@@ -878,21 +973,27 @@ def score_results(query: str, results: list[dict], texts: dict[str, str] | None 
             r.setdefault("score", 0.5)
         return results[:]
 
-    scored: list[tuple[float, dict]] = []
+    docs: list[tuple[dict, list[str]]] = []
     for result in results:
         # Include snippet/description if available for richer scoring
         # BUG-3: include scraped page content when available for richer BM25 scoring
         _page_text = (texts.get(result.get("url", ""), "") or "")[:2000] if texts else ""
         doc = " ".join(filter(None, [
-            result.get("title", ""),
+            result.get("title") or "",
             result.get("snippet", "") or result.get("description", ""),
             result.get("url", ""),
             _page_text,
         ])).lower()
-        doc_terms = re.findall(r"[a-z0-9]{3,}", doc)
+        docs.append((result, re.findall(r"[a-z0-9]{3,}", doc)))
+    # BM25 normalises against the average length of the documents actually scored. A
+    # fixed avgdl of 12 made a scraped page (~300 terms) score far below an unscraped
+    # title, so re-scoring with page text demoted exactly the pages that had been read.
+    avgdl = max(sum(len(t) for _, t in docs) / len(docs), 1.0)
+
+    scored: list[tuple[float, dict]] = []
+    for result, doc_terms in docs:
         term_count = {t: doc_terms.count(t) for t in q_terms if t in doc_terms}
         dl = max(len(doc_terms), 1)
-        avgdl = 12.0  # realistic average for onion title+url+snippet combos
         k1, b = 1.5, 0.75
         score = sum(
             (cnt * (k1 + 1))
@@ -1271,6 +1372,13 @@ def fetch(url: str, _use_cache: bool = True, max_chars: int = None,
         """Extract title / text / links from a successful HTTP response."""
         # UX-1: fix mojibake — if server reported ISO-8859-1 (HTTP default) but
         # content is actually UTF-8 or another encoding, use apparent_encoding.
+        ctype = _not_a_page(resp)
+        if ctype:
+            resp.close()
+            return {"url": final_url, "is_onion": is_onion, "status": resp.status_code,
+                    "title": None, "text": "", "links": [], "truncated": False,
+                    "error": f"not a web page ({ctype}); not downloaded"}
+        body_cut = _read_capped(resp)
         if resp.encoding and resp.encoding.upper() in ("ISO-8859-1", "LATIN-1"):
             resp.encoding = resp.apparent_encoding or "utf-8"
         html = resp.text
@@ -1294,7 +1402,7 @@ def fetch(url: str, _use_cache: bool = True, max_chars: int = None,
             tag.decompose()
         raw_text = re.sub(r"\n{3,}", "\n\n", soup.get_text(separator="\n")).strip()
         # BUG-3: record whether content was truncated (exposed in return dict)
-        truncated = bool(limit) and len(raw_text) > limit
+        truncated = body_cut or (bool(limit) and len(raw_text) > limit)
         body_text = raw_text[:limit] if limit else raw_text
 
         # Resolve every href against the page: only "/"-prefixed ones were made
@@ -1317,7 +1425,7 @@ def fetch(url: str, _use_cache: bool = True, max_chars: int = None,
         for socks_attempt in range(2):
             try:
                 session = _pool_session()
-                resp = session.get(attempt_url, headers=headers, timeout=TOR_TIMEOUT)
+                resp = session.get(attempt_url, headers=headers, timeout=TOR_TIMEOUT, stream=True)
                 # SECURITY: block .onion → clearnet redirect (de-anonymization risk)
                 # resp.url is the final URL after redirects (a string in real requests;
                 # fall back to attempt_url if not a string, e.g. in mocked tests).
@@ -1391,9 +1499,11 @@ def scrape_all(urls: list[dict], max_workers: int = 5) -> dict:
             # Per request: the pool session is shared by these threads, so setting
             # session.headers raced between them.
             resp = session.get(u, headers={"User-Agent": random.choice(_USER_AGENTS)},
-                               timeout=TOR_TIMEOUT)
-            if resp.status_code >= 400:
+                               timeout=TOR_TIMEOUT, stream=True)
+            if resp.status_code >= 400 or _not_a_page(resp):
+                resp.close()
                 return u, None
+            _read_capped(resp)
             # UX-1: fix mojibake from servers that report ISO-8859-1 by default
             if resp.encoding and resp.encoding.upper() in ("ISO-8859-1", "LATIN-1"):
                 resp.encoding = resp.apparent_encoding or "utf-8"
@@ -1978,6 +2088,36 @@ def ask(
 # Produces a structured OSINT report using only heuristics — no API key.
 # ─────────────────────────────────────────────────────────────────
 
+_B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+_BECH32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+
+
+def _btc_valid(addr: str) -> bool:
+    """Base58check (legacy, P2SH) or bech32/bech32m (segwit, taproot) checksum."""
+    if addr[:3].lower() == "bc1":
+        if addr.lower() != addr and addr.upper() != addr:
+            return False
+        a = addr.lower()
+        try:
+            data = [_BECH32.index(c) for c in a[3:]]
+        except ValueError:
+            return False
+        chk = 1
+        for v in [3, 3, 0, 2, 3] + data:      # hrp "bc" expanded, then the data part
+            top = chk >> 25
+            chk = (chk & 0x1FFFFFF) << 5 ^ v
+            for i, g in enumerate((0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3)):
+                chk ^= g if (top >> i) & 1 else 0
+        return len(a) <= 90 and chk == (1 if data and data[0] == 0 else 0x2BC830A3)
+    n = 0
+    for ch in addr:
+        if ch not in _B58:
+            return False
+        n = n * 58 + _B58.index(ch)
+    raw = b"\x00" * (len(addr) - len(addr.lstrip("1"))) + n.to_bytes((n.bit_length() + 7) // 8, "big")
+    return len(raw) == 25 and hashlib.sha256(hashlib.sha256(raw[:-4]).digest()).digest()[:4] == raw[-4:]
+
+
 def analyze_nollm(
     content: str,
     query: str = "",
@@ -2007,7 +2147,11 @@ def analyze_nollm(
     # ── entity extraction ─────────────────────────────────────────
     emails = sorted(set(re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", content)))
     onion_links = sorted(set(re.findall(r"https?://[a-z2-7]{16,56}\.onion(?:/[^\s\"'<>]*)?", content)))
-    btc_addrs = sorted(set(re.findall(r"\b(?:bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}\b", content)))
+    # Checksum-validated: the old pattern allowed "0" (not base58) and so reported MD5 and
+    # SHA-1 hashes starting with 1 or 3 as wallets, and it missed bc1p taproot addresses.
+    btc_addrs = sorted({a for a in re.findall(
+        r"(?<![A-Za-z0-9])(?:[13][1-9A-HJ-NP-Za-km-z]{25,34}|bc1[02-9ac-hj-np-z]{11,87})(?![A-Za-z0-9])",
+        content, re.I) if _btc_valid(a)})
     xmr_addrs = sorted(set(re.findall(r"\b4[0-9AB][0-9a-zA-Z]{93}\b", content)))
     pgp_keys = bool(re.search(r"BEGIN PGP|END PGP|-----BEGIN", content))
     # Crypto wallet addresses (ETH format)
@@ -2126,8 +2270,8 @@ def to_stix(
             "target_ref": url_id,
             "description": (
                 f"[engine:{r.get('engine','?')}] "
-                f"[confidence:{r.get('confidence', r.get('score', 0)):.2f}] "
-                f"{r.get('title', '')[:120]}"
+                f"[confidence:{float(r.get('confidence', r.get('score')) or 0):.2f}] "
+                f"{(r.get('title') or '')[:120]}"
             ),
         })
         object_refs.append(url_id)
@@ -2156,10 +2300,11 @@ def to_stix(
         "object_refs": object_refs,
     })
 
+    # No "spec_version" here: STIX 2.1 bundles do not have one, and the OASIS stix2
+    # parser reads a bundle-level spec_version as STIX 2.0 and rejects the whole file.
     return {
         "type": "bundle",
         "id": f"bundle--{uuid.uuid4()}",
-        "spec_version": "2.1",
         "objects": objects,
     }
 
@@ -2261,7 +2406,7 @@ def to_misp(
         comment = (
             f"[engine: {r.get('engine', '?')}] "
             f"[confidence: {conf:.4f}] "
-            f"{r.get('title', '')[:120]}"
+            f"{(r.get('title') or '')[:120]}"
         )
         attributes.append({
             "uuid":         str(uuid.uuid4()),
@@ -2282,8 +2427,10 @@ def to_misp(
                 "type":         attr_type,
                 "category":     "Network activity",
                 "value":        hostname,
-                "comment":      f"Extracted from: {r.get('title', '')[:80]}",
-                "to_ids":       True,
+                "comment":      f"Extracted from: {(r.get('title') or '')[:80]}",
+                # A clearnet host in search results (a news site, a paste service found
+                # by DuckDuckGo) is context, not an indicator to alert on.
+                "to_ids":       hostname.endswith(".onion"),
                 "distribution": dist_str,
                 "timestamp":    ts_unix,
             })
@@ -2689,7 +2836,7 @@ def crawl(
             _href = _lk.get("href", "")
             if not _href:
                 continue
-            _clean_href = _href.rstrip("/")
+            _clean_href = urldefrag(_href)[0].rstrip("/")
             with _lock:
                 if _clean_href not in _seen_links:
                     _seen_links.add(_clean_href)
@@ -2708,7 +2855,8 @@ def crawl(
                 # Domain restriction
                 if stay_on_domain and urlparse(href).netloc != seed_host:
                     continue
-                clean = href.rstrip("/")
+                # /t/1#p1 … #p5 are one document; fetching each cost a page apiece
+                clean = urldefrag(href)[0].rstrip("/")
                 with _lock:
                     # BUG-2 v2.1.7: add to links_found at discovery time so that
                     # .onion child URLs appear in links_found even if they are
@@ -2726,13 +2874,15 @@ def crawl(
     # BFS with ThreadPoolExecutor for concurrent sibling-page fetching
     # BUG-2 v2.1.7: record the seed URL as "found" at the start — even if the
     # seed page itself fails to fetch, the crawl still discovered/targeted it.
-    _clean_seed = seed_url.rstrip("/")
+    _clean_seed = urldefrag(seed_url)[0].rstrip("/")
     visited.add(_clean_seed)
     _seen_links.add(_clean_seed)
     links_found.append(_clean_seed)
     while queue and pages_crawled < max_pages:
         batch = []
-        while queue and len(batch) < max_workers:
+        # Never schedule more than the page budget has left: checking only between
+        # batches let max_pages=6 crawl 9 pages.
+        while queue and len(batch) < min(max_workers, max_pages - pages_crawled):
             item = queue.pop(0)
             batch.append(item)
             # BUG-1 v2.1.8: record URL at dispatch time (when it leaves the
@@ -3270,7 +3420,8 @@ TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "results":     {"type": "array",  "description": "Search result list from sicry_search."},
+                "results":     {"type": "array", "items": {"type": "object"},
+                                "description": "Search result list from sicry_search."},
                 "query":       {"type": "string", "description": "Investigation query."},
                 "report_text": {"type": "string", "description": "Optional report text to embed as STIX Note."},
             },
@@ -3283,7 +3434,8 @@ TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "results": {"type": "array", "description": "Search result list from sicry_search."},
+                "results": {"type": "array", "items": {"type": "object"},
+                            "description": "Search result list from sicry_search."},
             },
             "required": ["results"],
         },
@@ -3463,7 +3615,9 @@ def _start_mcp_server():
         )
         sys.exit(1)
 
-    mcp = FastMCP("sicry", description="Tor/Onion dark web OSINT platform for AI agents")
+    # instructions=, not description=: current mcp releases reject unknown keywords, so
+    # `sicry.py serve` died with a TypeError before registering a single tool.
+    mcp = FastMCP("sicry", instructions="Tor/Onion dark web OSINT platform for AI agents")
 
     @mcp.tool(description="Verify Tor is running. Call before any dark web operation.")
     def sicry_check_tor() -> dict:
@@ -3815,6 +3969,9 @@ Examples:
                 print(f"  {j['id']}  [{j['mode']}]  every {j['interval_hours']}h  "
                       f"last={j.get('last_run','')}  query={j['query']!r}")
         elif wc == "disable":
+            if args.job_id not in {j["id"] for j in watch_list()}:
+                print(f"No active watch job with id {args.job_id!r}.", file=sys.stderr)
+                sys.exit(1)
             watch_disable(args.job_id)
             print(f"Disabled: {args.job_id}")
         elif wc == "check":
@@ -3851,20 +4008,17 @@ Examples:
                 pool_inst.stop()
                 print("Pool stopped.")
         elif pc == "stop":
-            _p = _get_pool()
-            if _p:
-                _p.stop()
-                print("TorPool stopped.")
-            else:
-                print("No pool running (TOR_POOL_SIZE=0 or pool not started in this process).")
+            # It used to start a new pool here (with SICRY_POOL_SIZE set) just to stop it,
+            # never the pool that `pool start` was running.
+            print("A circuit pool belongs to the process that started it: stop "
+                  "`sicry.py pool start` with Ctrl-C. Pools started on demand "
+                  "(SICRY_POOL_SIZE) stop when their process exits.")
         elif pc == "status":
-            _p = _get_pool()
-            if _p and _p._procs:
-                alive = sum(1 for p in _p._procs if p.poll() is None)
-                print(f"TorPool: {alive}/{len(_p._procs)} circuits alive  "
-                      f"base_port={_p.base_port}")
-            else:
-                print("No TorPool running (TOR_POOL_SIZE=0 or not started).")
+            # Probe the pool's ports instead of launching a pool and reporting on that.
+            size = TOR_POOL_SIZE or 5
+            up = sum(_tor_port_open("127.0.0.1", TOR_POOL_BASE_PORT + i) for i in range(size))
+            print(f"Circuit pool ports {TOR_POOL_BASE_PORT}-{TOR_POOL_BASE_PORT + size - 1}: "
+                  f"{up}/{size} accepting connections")
         else:
             p_pool_root.print_help()
 
