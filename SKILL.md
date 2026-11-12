@@ -11,7 +11,7 @@ metadata:
         "bins": ["python3", "pip3"],
         "pip": ["requests[socks]", "beautifulsoup4", "python-dotenv", "stem"]
       },
-      "version": "2.4.0",
+      "version": "2.4.1",
       "author": "JacobJandon",
       "license": "Apache-2.0",
       "repo": "https://github.com/JacobJandon/OnionClaw"
@@ -291,7 +291,7 @@ python3 {baseDir}/iocs.py --flag ransomware            # KEV CVEs tied to ransom
 python3 {baseDir}/iocs.py --format csv -o iocs.csv     # table | json | csv
 ```
 
-Types: `onion_host`, `domain`, `btc_wallet`, `cve`, `email`, `tox`. The list is derived from
+Types: `onion_host`, `domain`, `ipv4`, `btc_wallet`, `cve`, `email`, `tox`. The list is derived from
 stored observations, so it never disagrees with them. Values are **defanged** by default
 (`hxxp://`, `[.]`) for safe sharing; pass `--fanged` for machine-readable output. Attribution
 comes from what a leak site published, not analysis — present it as a lead.
