@@ -113,6 +113,10 @@ TOR_CONTROL_PASS   = os.getenv("TOR_CONTROL_PASSWORD")
 TOR_DATA_DIR       = os.path.expanduser(os.getenv("TOR_DATA_DIR") or "") or None  # Tor DataDirectory, for cookie auth
 TOR_TIMEOUT        = int(os.getenv("TOR_TIMEOUT", "45"))
 MAX_CONTENT_CHARS  = int(os.getenv("SICRY_MAX_CHARS", "8000"))
+# What ask() sends the LLM in one go. Separate from the per-page limit above: the
+# pipeline combines 8-12 pages, and cutting that at 8,000 chars dropped half the sources.
+# Lower it for a local model with a small context window.
+ASK_MAX_CHARS      = int(os.getenv("SICRY_ASK_MAX_CHARS", "32000"))
 FETCH_CACHE_TTL    = int(os.getenv("SICRY_CACHE_TTL", "600"))  # seconds; 0 disables
 _FETCH_CACHE: dict = {}   # in-memory TTL cache: key → (timestamp, result)
 _SEARCH_MEM_CACHE: dict = {}  # BUG-6: in-process cache for search results (bypasses SQLite on warm hits)
@@ -1370,20 +1374,26 @@ def scrape_all(urls: list[dict], max_workers: int = 5) -> dict:
         max_workers: Parallel threads. Default 5.
 
     Returns:
-        {url_str: "Page Title - page text (up to 2000 chars)"}
+        {url_str: "Page Title - page text (up to 2000 chars)"} for the pages that were
+        downloaded. Unreachable, failed (HTTP 4xx/5xx) and safety-blocked pages are left
+        out, so len(result) is the number of pages actually scraped.
     """
     def _scrape_one(item: dict) -> tuple[str, str]:
         u = item.get("url", item.get("link", ""))
         t = item.get("title", "")
         if not u:
-            return u, t
+            return u, None
         # SAFETY-1: skip URLs/titles matching the blacklist
         if not _is_content_safe(u + " " + t):
-            return u, ""  # return empty so it won't be included
+            return u, None
         try:
             session = _pool_session()
-            session.headers["User-Agent"] = random.choice(_USER_AGENTS)
-            resp = session.get(u, timeout=TOR_TIMEOUT)
+            # Per request: the pool session is shared by these threads, so setting
+            # session.headers raced between them.
+            resp = session.get(u, headers={"User-Agent": random.choice(_USER_AGENTS)},
+                               timeout=TOR_TIMEOUT)
+            if resp.status_code >= 400:
+                return u, None
             # UX-1: fix mojibake from servers that report ISO-8859-1 by default
             if resp.encoding and resp.encoding.upper() in ("ISO-8859-1", "LATIN-1"):
                 resp.encoding = resp.apparent_encoding or "utf-8"
@@ -1393,20 +1403,22 @@ def scrape_all(urls: list[dict], max_workers: int = 5) -> dict:
             text = " ".join(soup.get_text(separator=" ").split())
             # SAFETY-1: also check page body
             if not _is_content_safe(text[:500]):
-                return u, ""
+                return u, None
             content = f"{t} - {text}"
             if len(content) > 2000:
                 content = content[:2000] + "...(truncated)"
             return u, content
         except Exception:
-            return u, t
+            # Returning the title here made an unreachable page look scraped, so callers
+            # analysed result titles as if they were page content.
+            return u, None
 
     results: dict = {}
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         for fut in as_completed({ex.submit(_scrape_one, item): item for item in urls}):
             try:
                 url, content = fut.result()
-                if url:
+                if url and content:
                     results[url] = content
             except Exception:
                 continue
@@ -1640,39 +1652,38 @@ def engine_reliability_scores() -> dict[str, float | None]:
 
 
 def _deduplicate_results(results: list[dict]) -> list[dict]:
-    """Deduplicate search results by URL and normalize title/URL pairs.
-    
-    Removes near-duplicates by comparing:
-    - Exact URL matches (primary)
-    - Domain + title similarity (secondary, for partial mirrors)
-    
-    Results remain sorted by confidence (highest first).
+    """Drop repeats and mirror copies, keeping the first (highest-ranked) of each.
+
+    - A repeat is the same URL, ignoring scheme and host case, the fragment and a
+      trailing slash.
+    - A mirror is the same path and query on a *different* host with a near-identical
+      title. Home pages are never merged this way: unrelated sites share titles such as
+      "Login".
+
+    Distinct pages of one site are never merged, even when they share a site-wide
+    <title>, as leak blogs and forums usually do: those are separate victims or threads.
     """
-    seen_urls = set()
-    seen_domains = {}
+    seen: set = set()
+    by_page: dict = {}
     dedup = []
-    
     for r in results:
-        url = r.get("url", "")
-        if not url or url in seen_urls:
+        url = r.get("url") or ""
+        try:
+            p = urlsplit(url)
+        except ValueError:
             continue
-        
-        # Extract domain
-        domain_m = re.match(r"https?://([^/]+)", url)
-        domain = domain_m.group(1) if domain_m else url
-        
-        # Skip if we've already seen this domain with very similar title
-        title = r.get("title", "").lower()
-        if domain in seen_domains:
-            prev_title = seen_domains[domain]
-            # If titles share >80% of tokens, it's a mirror/duplicate
-            if _similarity_score(title, prev_title) > 0.8:
-                continue
-        
-        seen_urls.add(url)
-        seen_domains[domain] = title
+        if not url or not p.hostname:
+            continue
+        host = p.hostname.lower()
+        page = (p.path.rstrip("/") or "/") + (f"?{p.query}" if p.query else "")
+        if (host, page) in seen:
+            continue
+        title = (r.get("title") or "").lower()
+        if page != "/" and any(_similarity_score(title, t) > 0.8 for t in by_page.get(page, [])):
+            continue                                   # the same page on a mirror host
+        seen.add((host, page))
+        by_page.setdefault(page, []).append(title)
         dedup.append(r)
-    
     return dedup
 
 
@@ -1783,7 +1794,10 @@ def search(
           "confidence": 0.72}, ...]
     """
     # ── search result cache (SQLite, TTL=SEARCH_CACHE_TTL) ────────
-    cache_key = f"{query.lower().strip()}|{','.join(sorted(engines or []))}|{max_results}"
+    # mode decides which engines run (below), so it is part of the key: without it a
+    # ransomware-mode search answered a later threat_intel search with 4 engines' results.
+    cache_key = (f"{query.lower().strip()}|{','.join(sorted(engines or []))}|{max_results}"
+                 f"|{(mode or '').lower()}")
     if _use_cache and SEARCH_CACHE_TTL > 0:
         # BUG-6: check in-process memory cache before SQLite to avoid JSON parse overhead
         _mem = _SEARCH_MEM_CACHE.get(cache_key)
@@ -1795,7 +1809,8 @@ def search(
             for _r in _cached:
                 if "score" in _r and "confidence" not in _r:
                     _r["confidence"] = _r.pop("score")
-            _SEARCH_MEM_CACHE[cache_key] = (time.time(), _cached)  # BUG-6: populate memory cache
+            # Not copied into the memory cache: stamping it with time.time() restarted the TTL,
+            # so a long-running process could serve results twice the TTL old.
             return _cached
 
     # ── mode-based engine routing (issue #6) ─────────────────────
@@ -1944,8 +1959,18 @@ def ask(
     system = _SYSTEM_PROMPTS.get(mode, _SYSTEM_PROMPTS["threat_intel"])
     if custom_instructions and custom_instructions.strip():
         system = system.rstrip() + f"\n\nAdditionally focus on: {custom_instructions.strip()}"
-    prompt = f"Investigation Query: {query}\n\nContent:\n---\n{content[:MAX_CONTENT_CHARS]}\n---"
-    return _call_llm(_provider, system, prompt)
+    body, note = content, ""
+    if len(content) > ASK_MAX_CHARS:
+        # Cut at the last source boundary that fits, so no page arrives half-read, and say
+        # so: the input used to be cut silently at the 8,000-char per-page limit.
+        cut = content.rfind("\n\n[SOURCE:", 0, ASK_MAX_CHARS)
+        body = content[:cut if cut > 0 else ASK_MAX_CHARS]
+        note = (f"\n\n[SICRY: the analysis covered the first {len(body):,} of {len(content):,} "
+                f"characters of content. Raise SICRY_ASK_MAX_CHARS to include more.]")
+        logging.warning("SICRY ask(): content cut from %d to %d chars", len(content), len(body))
+    prompt = f"Investigation Query: {query}\n\nContent:\n---\n{body}\n---"
+    report = _call_llm(_provider, system, prompt)
+    return report + note if note and not report.startswith("[SICRY:") else report
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -2459,35 +2484,54 @@ def watch_check(
     due_jobs = _db().watch_due()
     alerts: list[dict] = []
     for job in due_jobs:
+        base = {"job_id": job["id"], "query": job["query"],
+                "last_run": job.get("last_run"), "interval_hours": job.get("interval_hours", 6),
+                "mode": job.get("mode", "threat_intel")}
         try:
             results = search(job["query"], mode=job["mode"], max_results=30, _use_cache=False)
-            # Fingerprint: sorted URL+title hash
-            fp_source = "|".join(
-                sorted(r.get("url", "") + r.get("title", "") for r in results)
-            )
-            fp = hashlib.md5(fp_source.encode(), usedforsecurity=False).hexdigest()
-            is_new = fp != job.get("fingerprint")
-            _db().watch_update(job["id"], fp, time.time())
-            alert = {
-                "job_id":        job["id"],
-                "query":         job["query"],
-                "new":           is_new,
-                "result_count":  len(results),
-                "results":       results,
-                # UX-2/IMPROVE-7: include scheduling info so pipeline can display
-                # timestamps and save outputs without a separate DB lookup
-                "last_run":      job.get("last_run"),
-                "interval_hours": job.get("interval_hours", 6),
-                "mode":          job.get("mode", "threat_intel"),
-            }
+            if not results:
+                # Tor down or every engine failing is not evidence of change: storing it
+                # alerted on an empty set, then again on the same results when they came
+                # back. The job stays due and is retried.
+                alerts.append({**base, "new": False, "result_count": 0, "results": [],
+                               "error": "no results: Tor or the search engines may be "
+                                        "unreachable; the job will be retried"})
+                continue
+            keys = [hashlib.sha256((r.get("url") or "").encode()).hexdigest()[:16]
+                    for r in results]
+            stored = job.get("fingerprint")
+            try:
+                prev = json.loads(stored) if stored else []
+                prev = prev if isinstance(prev, list) else None
+            except (TypeError, ValueError):
+                prev = None                          # an MD5 fingerprint from before 2.3.2
+            if prev is None:
+                legacy = hashlib.md5("|".join(sorted((r.get("url") or "") + (r.get("title") or "")
+                                                     for r in results)).encode(),
+                                     usedforsecurity=False).hexdigest()
+                fresh = set(keys) if legacy != stored else set()
+                prev = []
+            else:
+                fresh = set(keys) - set(prev)
+            # "new" means results never seen before, not merely a different set: one
+            # engine timing out used to count as news.
+            seen = prev + [k for k in dict.fromkeys(keys) if k not in set(prev)]
+            alert = {**base, "new": bool(fresh), "result_count": len(results),
+                     "results": results,
+                     "new_results": [r for r, k in zip(results, keys) if k in fresh]}
+            if fresh and callback and callable(callback):
+                try:
+                    callback(job, results)
+                except Exception as e:
+                    # Not stored yet, so the next check alerts again instead of losing it.
+                    alert["error"] = f"callback failed: {e}"
+                    alerts.append(alert)
+                    continue
+            _db().watch_update(job["id"], json.dumps(seen[-500:]), time.time())
             alerts.append(alert)
-            if is_new and callback and callable(callback):
-                callback(job, results)
         except Exception as e:
-            alerts.append({
-                "job_id": job["id"], "query": job["query"],
-                "new": False, "result_count": 0, "results": [], "error": str(e),
-            })
+            alerts.append({**base, "new": False, "result_count": 0, "results": [],
+                           "error": str(e)})
     return alerts
 
 

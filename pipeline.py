@@ -73,8 +73,9 @@ parser.add_argument("--version",      action="version",
                             f"(SICRY™ engine {getattr(sicry, '__version__', '?')})")
 parser.add_argument("--query",        default=None,
                     help="Investigation topic (required unless --watch-check or --interactive)")
-parser.add_argument("--mode",         default="threat_intel", choices=MODES,
-                    help="Analysis mode — routes to optimal engines (default: threat_intel)")
+parser.add_argument("--mode",         default=None, choices=MODES,
+                    help="Analysis mode — routes to optimal engines "
+                         "(default: threat_intel, or a resumed job's own mode)")
 parser.add_argument("--max",          type=int, default=30,
                     help="Max raw search results (default 30)")
 parser.add_argument("--scrape",       type=int, default=8,
@@ -129,6 +130,9 @@ parser.add_argument("--output-dir",    default=None, metavar="DIR",
 parser.add_argument("--watch-clear-all", action="store_true",
                     help="Disable ALL active watch jobs at once and exit")
 args = parser.parse_args()
+# A resumed job keeps the mode it was started with unless --mode is given again.
+_mode_given = args.mode is not None
+args.mode = args.mode or "threat_intel"
 
 # ── BUG-4: warn if --interval used without --watch ─────────────────────────
 if args.interval != 6.0 and not args.watch and not args.watch_check:
@@ -161,6 +165,12 @@ if args.check_update:
 
 # ── standalone: watch-check ───────────────────────────────────────
 if args.watch_check:
+    if not sicry._tor_port_open():
+        # Without Tor every search returns nothing, which used to be stored as the job's
+        # result and reported as [NEW]. The jobs stay due for the next check.
+        print(f"✗ Tor SOCKS port {sicry.TOR_SOCKS_HOST}:{sicry.TOR_SOCKS_PORT} is not reachable; "
+              f"no watch job was run.", file=sys.stderr)
+        sys.exit(1)
     print("[watch-check] Running all due watch jobs…")
     alerts = sicry.watch_check()
     _n_saved = 0
@@ -171,18 +181,24 @@ if args.watch_check:
     else:
         import json as _json
         for a in alerts:
-            new_flag = "[NEW]" if a.get("new") else "[unchanged]"
-            last_run = a.get("last_run")
-            last_str = _time.strftime("%Y-%m-%d %H:%M", _time.localtime(last_run)) if last_run else "never"
+            err = a.get("error")
+            new_flag = "[error]" if err else ("[NEW]" if a.get("new") else "[unchanged]")
             interval_h = a.get("interval_hours", 6)
-            if last_run:
-                next_ts  = last_run + interval_h * 3600
-                next_str = _time.strftime("%Y-%m-%d %H:%M", _time.localtime(next_ts))
+            if err:
+                # Not run successfully, so the job's schedule did not move.
+                last_run = a.get("last_run")
+                next_str = "next check (still due)"
             else:
-                next_str = "overdue"
+                # It ran just now; a.get("last_run") is the previous run.
+                last_run = _time.time()
+                next_str = _time.strftime("%Y-%m-%d %H:%M",
+                                          _time.localtime(last_run + interval_h * 3600))
+            last_str = _time.strftime("%Y-%m-%d %H:%M", _time.localtime(last_run)) if last_run else "never"
             print(f"  {new_flag} [{a['job_id']}] {a.get('result_count', 0)} results  "
                   f"last={last_str}  next={next_str}")
             print(f"       query: {a.get('query')!r}")
+            if err:
+                print(f"       error: {err}")
             # UX-2: show top-5 result titles/URLs so the operator can see what
             # triggered the alert without running a separate query
             if a.get("new") and a.get("results"):
@@ -241,7 +257,7 @@ if args.watch_check:
             print(f"  [waiting] [{_wj['id']}] [{_wj['mode']}] every {_wint}h  "
                   f"last={_wlast_str}  next={_wnext_str}")
             print(f"       query: {_wj['query']!r}")
-    sys.exit(0)
+    sys.exit(1 if any(a.get("error") for a in alerts) else 0)
 
 # ── standalone: watch-list ────────────────────────────────────────────
 if args.watch_list:
@@ -440,6 +456,11 @@ if args.watch_daemon:
     def _daemon_sig(s, f): print("\n[watch-daemon] Stopped."); sys.exit(0)
     signal.signal(signal.SIGINT, _daemon_sig)
     while True:
+        if not sicry._tor_port_open():
+            print(f"  [{_time.strftime('%H:%M:%S')}] Tor is not reachable; no job run. "
+                  f"Retrying in {_poll_s}s.")
+            _time.sleep(_poll_s)
+            continue
         _da = sicry.watch_check()
         if _da:
             for _a in _da:
@@ -458,8 +479,11 @@ if args.resume:
         ) or {}
         if _checkpoint:
             # Restore the original query from the checkpoint if caller omitted it
+            _meta = (_checkpoint.get("data") or {}).get("__meta__", {})
             if not args.query:
-                args.query = (_checkpoint.get("data") or {}).get("__meta__", {}).get("query")
+                args.query = _meta.get("query")
+            if not _mode_given and _meta.get("mode"):
+                args.mode = _meta["mode"]   # the job's own mode, not the default
             print(f"[resume] Loaded checkpoint for job {args.resume!r}")
             print(f"         Steps already completed: {list(_checkpoint.get('steps', {}).keys())}")
             if args.query:
@@ -508,6 +532,10 @@ except Exception:
     pass
 
 NO_LLM = args.no_llm
+if not args.resume:
+    # Printed now: it used to appear only at the very end, so a run that failed part
+    # way never showed the id needed for --resume.
+    print(f"[job] {_job_id}  (resume an interrupted run with --resume {_job_id})")
 
 def _step(n, total, label):
     print(f"\n[{n}/{total}] {label}")
@@ -597,24 +625,27 @@ raw_query = args.query
 # Persist query in checkpoint so --resume <job_id> can re-run without --query
 if not _ckpt("__meta__"):
     _save_checkpoint("__meta__", {"query": raw_query, "mode": args.mode})
+# Whether the LLM is asked depends on --no-llm. It used to depend on whether the meta
+# checkpoint existed: fresh runs never refined, and --resume --no-llm sent the query
+# to the LLM provider anyway.
+cached_refined = _ckpt("refine")
+if cached_refined:
+    refined = cached_refined              # reused, not re-sent
+    print(f"\n[3/{TOTAL}] Query refinement (from checkpoint)")
+    print(f"    Query: {refined}")
+elif NO_LLM:
     refined = raw_query
     print(f"\n[skip 3/{TOTAL}] Query refinement skipped (--no-llm)")
     print(f"    Query: {refined}")
 else:
-    cached_refined = _ckpt("refine")
-    if cached_refined:
-        refined = cached_refined
-        print(f"\n[3/{TOTAL}] Query refinement (from checkpoint)")
-        print(f"    Query: {refined}")
+    _step(3, TOTAL, "Refine query")
+    refined = sicry.refine_query(raw_query)
+    if refined != raw_query:
+        print(f"  Original : {raw_query}")
+        print(f"  Refined  : {refined}")
     else:
-        _step(3, TOTAL, "Refine query")
-        refined = sicry.refine_query(raw_query)
-        if refined != raw_query:
-            print(f"  Original : {raw_query}")
-            print(f"  Refined  : {refined}")
-        else:
-            print(f"  Query    : {refined}  (no LLM key — using as-is)")
-        _save_checkpoint("refine", refined)
+        print(f"  Query    : {refined}  (unchanged)")
+    _save_checkpoint("refine", refined)
 
 # ─────────────────────────────────────────────────────────────────
 # Step 4: Search
@@ -626,7 +657,7 @@ _s4_seeds = _mc_s4.get("extra_seeds") or []
 if _s4_seeds:
     _seed_preview = ", ".join(_s4_seeds[:3])
     _seed_more = f" … +{len(_s4_seeds)-3} more" if len(_s4_seeds) > 3 else ""
-    print(f"  + {len(_s4_seeds)} mode seed onion(s): {_seed_preview}{_seed_more}")
+    print(f"  (mode lists {len(_s4_seeds)} seed onion(s), not searched: {_seed_preview}{_seed_more})")
 cached_results = _ckpt("search")
 if cached_results:
     raw_results = cached_results
@@ -692,9 +723,10 @@ else:
     pages = sicry.scrape_all(best[:scrape_count], max_workers=5)
     _save_checkpoint("scrape", pages)
 
-print(f"✓ {len(pages)}/{scrape_count} pages scraped successfully")
-if len(pages) < scrape_count:
-    print(f"  {scrape_count - len(pages)} pages were unreachable (hidden services can be offline)")
+_attempted = len(best[:scrape_count])
+print(f"✓ {len(pages)}/{_attempted} pages scraped successfully")
+if len(pages) < _attempted:
+    print(f"  {_attempted - len(pages)} pages were unreachable (hidden services can be offline)")
 total_chars = sum(len(v) for v in pages.values())
 print(f"  Total content: {total_chars:,} chars")
 
@@ -712,7 +744,7 @@ if not pages:
     if scrape_count > 0:
         # Services were genuinely unreachable — no content to analyse.
         print("No pages could be scraped — all hidden services unreachable.")
-        sys.exit(0)
+        sys.exit(1)
     else:
         # [BUG-NEW v2.1.13] --scrape 0: user intentionally skipped scraping.
         # Previously exited here (same sys.exit(0) as the unreachable path),
@@ -747,7 +779,10 @@ else:
             mode=args.mode,
             custom_instructions=args.custom,
         )
-        _save_checkpoint("ask", report)
+        # A failed call (rate limit, outage, missing key) is not a finished step: saving it
+        # made every later --resume replay the error without calling the LLM again.
+        if not report.startswith("[SICRY:"):
+            _save_checkpoint("ask", report)
         header_label = "INVESTIGATION REPORT"
 
 print()
@@ -884,5 +919,11 @@ if args.interactive:
             print(f"       {r['url']}")
 
 # ── Rotate identity when done ──────────────────────────────────────
-sicry.renew_identity()
-print("\n[+] Tor identity rotated.  Job ID:", _job_id)
+_renew = sicry.renew_identity()
+if _renew.get("success"):
+    print("\n[+] Tor identity rotated.  Job ID:", _job_id)
+else:
+    # It said "rotated" even when the ControlPort refused, so the next investigation
+    # would have started on the same circuit without anyone knowing.
+    print(f"\n[!] Tor identity NOT rotated ({_renew.get('error')}).  Job ID: {_job_id}")
+    print("    Run renew.py for the fix, or start the next investigation on a new circuit.")
