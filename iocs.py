@@ -40,12 +40,12 @@ _skill_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _skill_dir)
 
 from store import Store
-from entities import extract_entities, onion_host, valid_btc
+from entities import extract_entities, onion_host, valid_btc, site_host, IPV4_RE
 import graph
 
 from _version import __version__  # noqa: E402 — the toolkit version
 
-TYPES = ("onion_host", "domain", "btc_wallet", "cve", "email", "tox")
+TYPES = ("onion_host", "domain", "ipv4", "btc_wallet", "cve", "email", "tox")
 _CVE_RE = re.compile(r"^CVE-\d{4}-\d{4,}$", re.I)
 _DOMAIN_RE = re.compile(r"^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$", re.I)
 
@@ -53,7 +53,7 @@ _DOMAIN_RE = re.compile(r"^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)
 def defang(value: str, kind: str) -> str:
     """Standard analyst defanging, so indicators can be pasted into a ticket or chat
     without becoming a live link."""
-    if kind in ("onion_host", "domain", "email"):
+    if kind in ("onion_host", "domain", "email", "ipv4"):
         return value.replace("http://", "hxxp://").replace("https://", "hxxps://").replace(".", "[.]")
     return value
 
@@ -99,9 +99,12 @@ def collect(store: Store) -> list[dict]:
 
     # leak-site infrastructure: the host is in the observation key, "group|fqdn"
     for key, p, first, last in data["dls"]:
-        host = key.split("|", 1)[-1].lower()
+        # Locations carry paths and ports ("x.onion/items", "1.2.3.4:3000"); classifying the
+        # raw value dropped those leak sites without a trace.
+        host = site_host(key.split("|", 1)[-1])
         g = name(p.get("group"))
-        kind = "onion_host" if host.endswith(".onion") else ("domain" if _DOMAIN_RE.match(host) else None)
+        kind = ("onion_host" if host.endswith(".onion") else "ipv4" if IPV4_RE.match(host)
+                else "domain" if _DOMAIN_RE.match(host) else None)
         if not kind:
             continue
         flags = {"live"} if p.get("available") else set()
@@ -181,8 +184,9 @@ def filter_rows(rows, types=None, group=None, search=None, since=None, flag=None
         want = set(types)
         out = [r for r in out if r["type"] in want]
     if group:
-        g = group.lower()
-        out = [r for r in out if any(x.lower() == g for x in r["groups"])]
+        # Any spelling of the group: the canonical display name flips as counts change.
+        g = graph.norm(group)
+        out = [r for r in out if any(graph.norm(x) == g for x in r["groups"])]
     if search:
         s = search.lower()
         out = [r for r in out if s in r["value"].lower() or s in (r["context"] or "").lower()]
@@ -251,7 +255,13 @@ def main() -> int:
             print(f"--since must be YYYY-MM-DD, got {args.since!r}", file=sys.stderr)
             return 2
 
-    rows = filter_rows(collect(Store(args.db)), args.types, args.group, args.search, since, args.flag)
+    every = collect(Store(args.db))
+    rows = filter_rows(every, args.types, args.group, args.search, since, args.flag)
+    if every and not rows and args.format == "table":
+        # "No indicators yet. Run swarm.py first." was printed for a populated store whose
+        # indicators the filters excluded.
+        print(f"No indicators match these filters ({len(every)} stored).")
+        return 0
 
     if args.format == "json":
         text = json.dumps(list(to_rows(rows, args.fanged)), indent=2)

@@ -36,6 +36,7 @@ sys.path.insert(0, _skill_dir)
 
 from store import Store
 from ttp import attack_url
+from entities import site_host, IPV4_RE
 
 from _version import __version__  # noqa: E402 — the toolkit version
 
@@ -169,15 +170,26 @@ def build_bundle(store: Store, group: str | None = None, since: float = 0.0,
         g = p.get("group")
         if not g or r["last_seen"] < since or (group and g.lower() != group.lower()):
             continue
-        host = r["key"].split("|", 1)[-1]
+        loc = r["key"].split("|", 1)[-1]
+        host = site_host(loc)
+        if not host:
+            continue
+        # The pattern follows what the location is. Testing only host.endswith(".onion")
+        # turned IPs, IP:port values and onion URLs with a path into domain-name
+        # patterns that no observable can match.
+        if host.endswith(".onion"):
+            pattern = f"[url:value = '{_esc('http://' + loc.split('://', 1)[-1])}']"
+        elif IPV4_RE.match(host):
+            pattern = f"[ipv4-addr:value = '{_esc(host)}']"
+        else:
+            pattern = f"[domain-name:value = '{_esc(host)}']"
         a = actor(g, r["first_seen"], r["last_seen"])
         ind = {"type": "indicator", "spec_version": "2.1",
-               "id": sid("indicator", f"url:{g.lower()}:{host}"),
+               "id": sid("indicator", f"url:{g.lower()}:{loc}"),   # seeded as before: ids stay stable
                "created": ts(r["first_seen"]), "modified": ts(r["last_seen"]),
-               "created_by_ref": producer, "name": f"{g} leak site {host}",
+               "created_by_ref": producer, "name": f"{g} leak site {loc}",
                "indicator_types": ["malicious-activity"], "pattern_type": "stix",
-               "pattern": f"[url:value = '{_esc('http://' + host)}']" if host.endswith(".onion")
-                          else f"[domain-name:value = '{_esc(host)}']",
+               "pattern": pattern,
                "valid_from": ts(r["first_seen"]),
                "description": f"{p.get('type') or 'site'} for {g}; "
                               f"available={p.get('available')} enabled={p.get('enabled')}"}
@@ -282,7 +294,11 @@ def main() -> int:
 
     since = 0.0
     if args.since:
-        since = datetime.strptime(args.since, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp()
+        try:
+            since = datetime.strptime(args.since, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp()
+        except ValueError:
+            print(f"ERROR: --since must be YYYY-MM-DD, got {args.since!r}", file=sys.stderr)
+            return 2
 
     bundle = build_bundle(Store(args.db), args.group, since, include_kev=not args.no_kev)
     out = json.dumps(bundle, indent=2)

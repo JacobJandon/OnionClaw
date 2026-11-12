@@ -99,9 +99,12 @@ def score_groups(store: Store, now: float | None = None) -> list[dict]:
 
     links = defaultdict(set)
     for e in graph.build_edges(store):
-        if e["confidence"] >= 0.6:
-            links[e["a"]].add(e["b"])
-            links[e["b"]].add(e["a"])
+        a, b = name(e["a"]), name(e["b"])
+        # An alias edge joins two spellings of one group; once names are canonical it
+        # linked the group to itself, inflating its score.
+        if e["confidence"] >= 0.6 and a != b:
+            links[a].add(b)
+            links[b].add(a)
 
     out = []
     for g in set(victims) | set(profiles):
@@ -166,7 +169,8 @@ def main() -> int:
 
     rows = score_groups(Store(args.db))
     if args.group:
-        rows = [r for r in rows if r["group"].lower() == args.group.lower()]
+        # Any spelling of the group: the canonical name flips as observation counts change.
+        rows = [r for r in rows if graph.norm(r["group"]) == graph.norm(args.group)]
         if not rows:
             print(f"No observations for {args.group!r}. Run swarm.py first.")
             return 1

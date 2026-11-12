@@ -99,6 +99,27 @@ def onion_host(url: str) -> str:
     return (m.group(0).lower() if m else "")
 
 
+IPV4_RE = re.compile(r"^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$")
+
+
+def site_host(value: str) -> str:
+    """The host a leak-site location points to, without scheme, port or path:
+    'x.onion/items' -> 'x.onion', '95.143.191.148:3000' -> '95.143.191.148'.
+
+    ransomware.live records locations that way, and treating the raw value as a hostname
+    dropped those sites from the IoC list and broke shared-host matching.
+    """
+    v = (value or "").strip()
+    onion = service_host(v)
+    if onion:
+        return onion
+    try:
+        h = urlsplit(v if "://" in v else "//" + v).hostname
+    except ValueError:
+        return ""
+    return (h or "").rstrip(".").lower()
+
+
 def service_host(url: str) -> str:
     """The hidden service a URL actually points to: the onion in its hostname, or ''.
 
@@ -142,7 +163,8 @@ def extract_entities(text: str, links: Optional[Iterable] = None,
 
     return {
         "btc_wallets": sorted(btc),
-        "eth_wallets": sorted(set(_ETH_RE.findall(text))),
+        # lower-cased: the EIP-55 checksummed and lower-case spellings are one wallet
+        "eth_wallets": sorted({a.lower() for a in _ETH_RE.findall(text)}),
         "xmr_wallets": sorted(set(_XMR_RE.findall(text))),
         "emails": sorted({e.lower() for e in _EMAIL_RE.findall(text)}),
         "onion_links": sorted(onions),
