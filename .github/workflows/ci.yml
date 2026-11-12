@@ -23,7 +23,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install requests[socks] beautifulsoup4 python-dotenv stem openai anthropic google-generativeai pytest stix2
+        run: pip install requests[socks] beautifulsoup4 python-dotenv stem openai anthropic google-generativeai pytest stix2 mcp
 
       - name: Unit tests
         run: python3 -m pytest tests -q
@@ -31,12 +31,16 @@ jobs:
       - name: Syntax check — sicry.py
         run: python3 -m py_compile sicry.py && echo "✓ sicry.py OK"
 
-      - name: Syntax check — scripts
+      - name: Syntax check — every script
         run: |
-          for f in ask.py check_engines.py check_tor.py fetch.py pipeline.py renew.py search.py sync_sicry.py \
-                   swarm.py collectors.py store.py entities.py safety.py crawl.py stix.py graph.py alerts.py ttp.py risk.py iocs.py doctor.py; do
-            python3 -m py_compile "$f" && echo "✓ $f OK"
+          # Every file, and the step fails if any one does. The old loop ran
+          # `py_compile "$f" && echo ok`, which never trips bash -e, and a loop's
+          # status is its last file's: a syntax error anywhere else went green.
+          status=0
+          for f in *.py tests/*.py; do
+            if python3 -m py_compile "$f"; then echo "✓ $f"; else echo "✗ $f"; status=1; fi
           done
+          exit $status
 
       - name: Import check — sicry
         run: python3 -c "import sicry; print('✓ sicry', sicry.__version__, 'imported')"

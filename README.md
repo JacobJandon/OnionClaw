@@ -131,15 +131,18 @@ brew install tor && tor &
 
 **With control port (needed for `renew.py`):**
 ```bash
-cat > /tmp/onionclaw_tor.conf << 'EOF'
+mkdir -p -m 700 ~/.onionclaw/tor
+cat > ~/.onionclaw/tor/torrc << EOF
 SocksPort 9050
 ControlPort 9051
 CookieAuthentication 1
-DataDirectory /tmp/tor_data
+DataDirectory $HOME/.onionclaw/tor
 EOF
-tor -f /tmp/onionclaw_tor.conf &
+tor -f ~/.onionclaw/tor/torrc &
 ```
-Then set `TOR_DATA_DIR=/tmp/tor_data` in `.env`.
+Then set `TOR_DATA_DIR=~/.onionclaw/tor` in `.env` (`python3 setup.py` does all of this for
+you). Keep it in your home directory: a fixed path in shared `/tmp` can be prepared in advance
+by another user on the same machine.
 
 ### Install Python packages
 
@@ -213,7 +216,7 @@ TOR_SOCKS_PORT=9050
 TOR_CONTROL_HOST=127.0.0.1
 TOR_CONTROL_PORT=9051
 # TOR_CONTROL_PASSWORD=your_password   # only if HashedControlPassword in torrc
-# TOR_DATA_DIR=/tmp/tor_data           # DataDirectory path for cookie auth
+# TOR_DATA_DIR=~/.onionclaw/tor           # DataDirectory path for cookie auth
 
 # ── LLM (needed only for ask.py and pipeline.py analysis step) ──────────
 LLM_PROVIDER=openai          # openai | anthropic | gemini | ollama | llamacpp
@@ -646,7 +649,7 @@ systemctl restart tor
 
 # Set correct DataDirectory in .env:
 TOR_DATA_DIR=/var/lib/tor      # system Tor (Debian/Ubuntu)
-TOR_DATA_DIR=/tmp/tor_data     # custom torrc DataDirectory
+TOR_DATA_DIR=~/.onionclaw/tor     # custom torrc DataDirectory
 ```
 
 **`fetch.py` → `status: 0`**

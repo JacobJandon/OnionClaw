@@ -27,6 +27,9 @@ import re
 import hashlib
 import argparse
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _version import __version__ as ONIONCLAW_VERSION  # noqa: E402
+
 try:
     import requests
 except Exception as _e:
@@ -43,33 +46,48 @@ def _top_level_defs(src: str) -> set:
     return set(re.findall(r"^(?:def|class) ([A-Za-z_][A-Za-z0-9_]*)", src, re.M))
 
 
-def _fetch_sicry_tags() -> str:
-    """Return a comma-separated list of SICRY™ tags fetched live from the GitHub API.
-    Falls back to a static fallback string on any error so the 404 message is never blank."""
+def _sicry_tag_names():
+    """Live SICRY™ tag names, newest first, or None when GitHub cannot be reached.
+
+    None is distinct from an answer on purpose: offline, or past GitHub's limit of 60
+    unauthenticated API requests an hour, a check must fail rather than compare against
+    made-up tags.
+    """
     try:
         resp = requests.get(SICRY_TAGS_API, timeout=10)
         if not resp.ok:
-            raise ValueError(f"HTTP {resp.status_code}")
+            return None
         names = [t["name"] for t in resp.json() if isinstance(t, dict) and "name" in t]
-        if not names:
-            raise ValueError("empty tag list")
-        # Sort newest-first using semver components (ignore non-semver names)
-        def _ver(n):
-            stripped = n.lstrip("v")
-            parts = stripped.split(".")
-            try:
-                return tuple(int(p) for p in parts)
-            except ValueError:
-                return (0, 0, 0)
-        names.sort(key=_ver, reverse=True)
-        return ", ".join(names)
     except Exception:
-        return "v1.0.0, v1.0.1, v1.1.0, v1.1.1  (could not fetch live list)"
+        return None
+    # Sort newest-first using semver components (ignore non-semver names)
+    def _ver(n):
+        try:
+            return tuple(int(p) for p in n.lstrip("v").split("."))
+        except ValueError:
+            return (0, 0, 0)
+    names.sort(key=_ver, reverse=True)
+    return names or None
+
+
+def _fetch_sicry_tags() -> str:
+    """Comma-separated SICRY™ tags for messages; says plainly when the list is unavailable."""
+    names = _sicry_tag_names()
+    return ", ".join(names) if names else "unavailable (could not reach the GitHub API)"
+
+
+def _content_sha(data: bytes) -> str:
+    """Hash of the file content with line endings normalised to LF.
+
+    A checkout with CRLF line endings (Git for Windows defaults to core.autocrlf=true)
+    holds the same code as upstream, so it must not be reported as drift.
+    """
+    return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()[:12]
 
 
 def main():
     parser = argparse.ArgumentParser(description="Sync bundled sicry.py from upstream SICRY™")
-    parser.add_argument("--version", action="version", version="OnionClaw sync_sicry 2.4.0")
+    parser.add_argument("--version", action="version", version=f"OnionClaw sync_sicry {ONIONCLAW_VERSION}")
     parser.add_argument("--tag",     default="main", help="git ref / tag to fetch (default: main)")
     parser.add_argument("--dry-run", action="store_true", help="print what would happen without writing")
     parser.add_argument("--force", action="store_true",
@@ -88,38 +106,48 @@ def main():
                         if _l.startswith("__version__"):
                             bundled_version = _l.split("=")[1].strip().strip('"')
                             break
-            sicry_tags = _fetch_sicry_tags()
+            names = _sicry_tag_names()
+            if not names:
+                # Comparing against invented tags reported "up-to-date" (exit 0) for a
+                # check that never ran.
+                print("ERROR: could not fetch SICRY\u2122 tags from GitHub (offline, or the API "
+                      "rate limit of 60 requests an hour was reached). Cannot check the bundled "
+                      "sicry.py; try again later.", file=sys.stderr)
+                sys.exit(1)
             # pick highest from the live tag list
             def _v(n):
                 try: return tuple(int(p) for p in n.lstrip("v").split("."))
-                except: return (0, 0, 0)
-            latest_name = max(
-                (t.strip() for t in sicry_tags.split(",")),
-                key=_v, default="unknown"
-            )
+                except ValueError: return (0, 0, 0)
+            latest_name = max(names, key=_v)
             print(f"Bundled  : v{bundled_version}")
             print(f"Upstream : {latest_name}")
             # Compare content against the SAME ref whose version we just printed. Hashing
             # main while comparing versions to the latest tag reports "drift" merely
             # because main has moved on since that tag — which is the normal state.
             try:
-                ref = latest_name if latest_name != "unknown" else "main"
+                ref = latest_name
                 up = requests.get(UPSTREAM_RAW.format(ref=ref), timeout=15)
                 if up.ok and os.path.isfile(DEST):
                     with open(DEST, "rb") as _bf:
-                        local_sha = hashlib.sha256(_bf.read()).hexdigest()[:12]
-                    up_sha = hashlib.sha256(up.content).hexdigest()[:12]
+                        local_sha = _content_sha(_bf.read())
+                    up_sha = _content_sha(up.content)
                     print(f"Content  : bundled sha256 {local_sha}  upstream@{ref} {up_sha}"
                           f"  ({'identical' if local_sha == up_sha else 'DIFFERENT'})")
                     if local_sha != up_sha and _v(bundled_version) == _v(latest_name):
                         print(f"\nNOTICE: bundled version matches {ref} but the file CONTENT "
                               f"differs — the copies have drifted.")
                         sys.exit(2)
-            except requests.RequestException:
-                pass
+            except requests.RequestException as e:
+                print(f"Content  : could not fetch upstream@{ref} ({type(e).__name__}); "
+                      f"compared versions only")
             if _v(bundled_version) < _v(latest_name):
                 print("\nNOTICE: bundled sicry.py is BEHIND upstream. Run sync_sicry.py before tagging.")
                 sys.exit(2)  # non-zero ⟶ CI / release scripts can catch this
+            elif _v(bundled_version) > _v(latest_name):
+                # The content line above necessarily says DIFFERENT here; explain why.
+                print(f"Bundled sicry.py (v{bundled_version}) is newer than the latest SICRY™ tag "
+                      f"({latest_name}). Tag the SICRY™ release so the copies can be compared "
+                      f"like for like.")
             else:
                 print("Bundled sicry.py is up-to-date.")
         except Exception as e:
@@ -129,6 +157,7 @@ def main():
 
     url = UPSTREAM_RAW.format(ref=args.tag)
 
+    print(f"Fetching {url} ...")
     try:
         r = requests.get(url, timeout=15)
     except Exception as e:
@@ -152,8 +181,9 @@ def main():
         print(f"Error: HTTP {r.status_code} fetching {url}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Fetching {url} ...")
-    new_content = r.text
+    # Decode explicitly: requests falls back to ISO-8859-1 when a server omits the
+    # charset, which would corrupt the non-ASCII characters in sicry.py.
+    new_content = r.content.decode("utf-8")
 
     # Extract upstream version
     version = "unknown"
@@ -181,11 +211,11 @@ def main():
             sys.exit(3)
 
     if args.dry_run:
-        print(f"[dry-run] Would write {len(new_content)} bytes to {DEST}")
+        print(f"[dry-run] Would write {len(r.content)} bytes to {DEST}")
         return
 
-    with open(DEST, "w", encoding="utf-8") as f:
-        f.write(new_content)
+    with open(DEST, "wb") as f:
+        f.write(r.content)
 
     print(f"Updated {DEST} to SICRY™ {version}")
     print("Remember to commit: git add sicry.py && git commit -m 'chore: sync sicry.py to SICRY {}'".format(version))

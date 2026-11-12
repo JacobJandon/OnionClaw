@@ -40,7 +40,7 @@ sys.path.insert(0, _skill_dir)
 from store import Store
 import graph
 
-__version__ = "2.4.0"
+from _version import __version__  # noqa: E402 — the toolkit version
 
 WEIGHTS = {"volume": 0.25, "critical": 0.25, "reach": 0.15, "capability": 0.20, "links": 0.15}
 CRITICAL = ("healthcare", "government", "defense", "education", "energy", "utilities",
@@ -99,9 +99,12 @@ def score_groups(store: Store, now: float | None = None) -> list[dict]:
 
     links = defaultdict(set)
     for e in graph.build_edges(store):
-        if e["confidence"] >= 0.6:
-            links[e["a"]].add(e["b"])
-            links[e["b"]].add(e["a"])
+        a, b = name(e["a"]), name(e["b"])
+        # An alias edge joins two spellings of one group; once names are canonical it
+        # linked the group to itself, inflating its score.
+        if e["confidence"] >= 0.6 and a != b:
+            links[a].add(b)
+            links[b].add(a)
 
     out = []
     for g in set(victims) | set(profiles):
@@ -166,7 +169,8 @@ def main() -> int:
 
     rows = score_groups(Store(args.db))
     if args.group:
-        rows = [r for r in rows if r["group"].lower() == args.group.lower()]
+        # Any spelling of the group: the canonical name flips as observation counts change.
+        rows = [r for r in rows if graph.norm(r["group"]) == graph.norm(args.group)]
         if not rows:
             print(f"No observations for {args.group!r}. Run swarm.py first.")
             return 1

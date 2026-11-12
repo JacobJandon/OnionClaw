@@ -13,6 +13,7 @@ import sys, os, json, argparse
 # ── bootstrap ─────────────────────────────────────────────────────
 _skill_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _skill_dir)
+from _version import __version__ as ONIONCLAW_VERSION  # noqa: E402
 
 _env = os.path.join(_skill_dir, ".env")
 if os.path.exists(_env):
@@ -35,7 +36,7 @@ except Exception as _e:
 
 parser = argparse.ArgumentParser(description="Fetch any URL via Tor")
 parser.add_argument("--version",     action="version",
-                    version=f"OnionClaw fetch {getattr(sicry, '__version__', '?')}")
+                    version=f"OnionClaw fetch {ONIONCLAW_VERSION} (SICRY\u2122 engine {getattr(sicry, '__version__', '?')})")
 parser.add_argument("--url",         required=True, help="URL or .onion address to fetch")
 parser.add_argument("--links",       action="store_true", help="Print all extracted links")
 parser.add_argument("--json",        action="store_true", help="Output raw JSON only")
@@ -44,7 +45,8 @@ args = parser.parse_args()
 
 if args.clear_cache:
     n = sicry.clear_cache()
-    print(f"Cleared {n} cached fetch result(s).")
+    # stderr, so --json output stays valid JSON
+    print(f"Cleared {n} cached fetch result(s).", file=sys.stderr)
 
 url = args.url
 if not url.startswith(("http://", "https://")):
@@ -88,14 +90,12 @@ print("─" * 60)
 print("CONTENT")
 print("─" * 60)
 content = result.get("text", "")
-print(content[:4000])
-# BUG-3: show truncation indicator from result dict (set by sicry.fetch)
+# The whole text sicry returned: a second, silent cut at 4,000 chars hid the rest of
+# pages up to SICRY_MAX_CHARS long.
+print(content)
 if result.get("truncated"):
-    overflow = len(content) - 4000
-    if overflow > 0:
-        print(f"\n... [{overflow} more chars — use --json for full output]")
-    else:
-        print("\n... [content was truncated by SICRY_MAX_CHARS limit — use --json for full text]")
+    print(f"\n... [page longer than SICRY_MAX_CHARS ({len(content):,} chars shown); "
+          f"raise SICRY_MAX_CHARS to see more]")
 
 if args.links and result.get("links"):
     print()

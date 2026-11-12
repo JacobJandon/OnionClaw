@@ -7,6 +7,63 @@ Versioning follows [Semantic Versioning](https://semver.org).
 
 ---
 
+## [2.4.1] — 2026-11-12
+
+Fixes from a full audit of OnionClaw and its engine. Every fix has an offline regression
+test that fails against 2.4.0; the suite is 274 tests.
+
+### Security and privacy
+- **Traffic could leave outside Tor.** With `HTTP_PROXY`/`HTTPS_PROXY` set, the engine sent
+  every request to that proxy instead of Tor. Update checks (on every pipeline run, in
+  setup and `--check-update`) went to GitHub directly as `OnionClaw/<version>`; they now go
+  through Tor and are skipped when it is down. `SECURITY.md` and `SKILL.md` now say exactly
+  what is direct: LLM analysis, the swarm's clearnet collectors and `sync_sicry.py`.
+- **`--resume --no-llm` sent the query to the LLM provider** anyway.
+- **`setup.py` wiped API keys** when re-run with the default answers, and copied `.env`,
+  keys included, into the parent directory (`~/.openclaw/skills/.env`) where other tools
+  load it. Re-configuring now defaults to No, keeps a backup and changes only what is
+  typed; the copy is opt-in and only for a SICRY checkout.
+- **Shared `/tmp` paths** for the fallback torrc (which setup trusted if it mentioned
+  ControlPort) and the engine-check cache moved to a private `~/.onionclaw`.
+- The crawler followed any URL mentioning the onion (Tor2web gateways, archives, trackers)
+  as the same site; URL-encoding slipped terms past the abuse filter; CSV exports ran
+  spreadsheet formulas from page titles.
+
+### Fixed
+- **Monitoring:** Discord alerts cut off at 2,000 chars were recorded as delivered; a wallet
+  shared by two victims logged a phantom change every sweep; KEV metadata edits fired HIGH
+  ransomware alerts; the sweep timeout never bounded a sweep; a 429 was retried within
+  seconds against a one-per-minute API and Retry-After was slept uncapped; concurrent
+  writers collided in the store.
+- **Intelligence:** groups named in non-Latin scripts were merged as aliases; a group was
+  "linked" to its own alias in risk scores; leak sites with a path or port were dropped
+  from the IoC view (now with an `ipv4` type) and mistyped in STIX; `--group` stopped
+  matching when the display name flipped; entity extraction in `crawl.py` and the
+  `onionsites` collector read only the first 8,000 characters; subdomain onions were missed.
+- **Pipeline:** refinement ran only on resumed runs; LLM errors were checkpointed so
+  `--resume` replayed them; the job id was printed only on success; `--resume` dropped the
+  mode; "Tor identity rotated" was printed when rotation failed; `--watch-check` ran jobs
+  with Tor down and hid job errors; failed scrapes were counted as successes.
+- **Engine (SICRY 2.3.2, bundled):** STIX bundles rejected by the OASIS parser, tool
+  schemas rejected by OpenAI and Gemini, an MCP server that could not start, Anthropic
+  responses from current models read as errors, re-crawls that emptied earlier crawl
+  exports, unbounded downloads, and more; see SICRY's changelog.
+- **`sync_sicry.py --check-bundled`** reported "up-to-date" (exit 0) when GitHub was
+  unreachable; it now exits 1. It writes the engine byte-for-byte and ignores CRLF
+  checkouts when comparing.
+- **`doctor.py`** crashed on a blank port setting, probed the wrong ControlPort host and
+  printed "every check passed" under a failed check.
+- **Examples:** the CrewAI example never called SICRY, so its report was invented by the
+  model; it now works from real search results. The LangChain example crashed on its first
+  tool call.
+- CI's syntax check only failed when the last file in its list did; it now checks every file.
+
+### Changed
+- The toolkit version is set once, in `_version.py`; every `--version` reports both the
+  toolkit and the engine.
+
+---
+
 ## [2.4.0] — 2026-10-26
 
 ### Added
@@ -22,8 +79,6 @@ Versioning follows [Semantic Versioning](https://semver.org).
 - **`entities.py`** — entity extraction with real validation: Bitcoin base58check and
   bech32/bech32m (taproot) checksums; ETH, XMR, email, `.onion`, Tox ID, PGP detection.
 - **`crawl.py`** — deep-crawl of a single hidden service (level-by-level, concurrent).
-- **Tests** — 128 tests; fixtures are real captured ransomware.live and CISA KEV responses.
-
 - **`kev` collector** — CISA Known Exploited Vulnerabilities; flags CVEs added to KEV with known
   ransomware use, and CVEs whose ransomware flag flips from Unknown to Known.
 - **`stix.py`** — STIX 2.1 export (identity, threat-actor, relationship, indicator, vulnerability) with
@@ -53,11 +108,18 @@ Versioning follows [Semantic Versioning](https://semver.org).
   with `uses` relationships from each threat actor.
 - **Cross-process rate-limit guard** for ransomware.live (1 req/min/endpoint) and a free-tier terms notice;
   PRO key support via `RANSOMWARE_LIVE_API_KEY` / `_BASE` / `_KEY_HEADER` (header name unverified).
+- **Tests** — 128 tests; fixtures are real captured ransomware.live and CISA KEV responses.
 
 ### Changed
 - **`search.py --alive`** — search only the engines the last `check_engines.py` run found
   alive. Every dead index costs the full `TOR_TIMEOUT`; measured on live Tor with 11 of 17
   engines up, `--alive` returned in 3s while the unscoped search did not finish in 280s.
+- **Bundled SICRY engine 2.3.1** (dedup + semantic ranking now in the canonical engine, Torgle fixed,
+  TorNet removed; 17 engines).
+- **`SKILL.md`** — documents the swarm, crawl, STIX and correlation commands for agents; license
+  corrected to Apache-2.0, engine count to 17, skill version to 2.4.0.
+- **CI** — `actions/checkout@v7.0.1`, `actions/setup-python@v7.0.0`; Python matrix 3.10–3.13
+  (3.9 is end-of-life); syntax check covers every new module.
 
 ### Fixed
 - **[SAFETY] Abuse filter refused legitimate victims.** The old denylist substring-matched
@@ -101,20 +163,11 @@ Versioning follows [Semantic Versioning](https://semver.org).
   `sicry.py` that defines functions upstream lacks (`--force` to override), and `--check-bundled`
   now compares file content, not just version strings.
 
-### Changed
-- **Bundled SICRY engine 2.3.1** (dedup + semantic ranking now in the canonical engine, Torgle fixed,
-  TorNet removed; 17 engines).
-- **`SKILL.md`** — documents the swarm, crawl, STIX and correlation commands for agents; license
-  corrected to Apache-2.0, engine count to 17, skill version to 2.4.0.
-- **CI** — `actions/checkout@v7.0.1`, `actions/setup-python@v7.0.0`; Python matrix 3.10–3.13
-  (3.9 is end-of-life); syntax check covers every new module.
-
 ### Website
-- **`web/`** — the OnionClaw site (Vite + three.js, pinned: three 0.186.1, lenis 1.3.26, vite 8.3.4).
-  `/` is *Peel*, a scroll journey through the three Tor layers of a glass onion; `/hybrid/` merges it
-  with a toon "onion planet" whose stations are the tools and which you can explore freely.
-  `?static` serves a readable no-WebGL version; reduced-motion users get it automatically.
-  Run with `cd web && npm install && npm run dev`.
+- **`web/`** — the OnionClaw site (Vite + three.js, pinned: three 0.186.1, lenis 1.3.26, vite 8.3.4):
+  *Peel*, a scroll journey through the three Tor layers of a glass onion. `?static` serves a readable
+  no-WebGL version, and reduced-motion users get it automatically. Run with
+  `cd web && npm install && npm run dev`; `web/DEPLOY.md` covers deploying it to any static host.
 
 ### Notes
 - Collectors are passive observers; none contacts, negotiates with, or deceives a threat actor.

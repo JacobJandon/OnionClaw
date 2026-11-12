@@ -38,15 +38,31 @@ _skill_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _skill_dir)
 
 from store import Store
+from entities import site_host
+import unicodedata
 
-__version__ = "2.4.0"
+from _version import __version__  # noqa: E402 — the toolkit version
 
 CONF = {"alias-name": 0.95, "shared-wallet": 0.85, "shared-host-2": 0.80,
         "shared-host-n": 0.50, "shared-victim": 0.30}
 
 
+def _positive(v):
+    x = float(v)
+    if x <= 0:
+        raise argparse.ArgumentTypeError("must be greater than 0")   # 0 divided by zero
+    return x
+
+
 def norm(name: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", (name or "").lower())
+    """Case-, accent- and punctuation-insensitive form of a group name.
+
+    It used to keep only a-z and 0-9, so every name written in another script ('Медуза',
+    'Кракен', '龙') became '' and those unrelated groups were linked as aliases and merged.
+    """
+    s = unicodedata.normalize("NFKD", (name or "").casefold())
+    out = "".join(ch for ch in s if ch.isalnum() and unicodedata.category(ch) != "Mn")
+    return out or (name or "").strip().casefold()
 
 
 class _UF:
@@ -115,7 +131,9 @@ def build_edges(store: Store) -> list[dict]:
     hosts = defaultdict(set)
     for key, p, _, _ in data["dls"]:
         if p.get("group"):
-            hosts[key.split("|", 1)[-1]].add(canon(p["group"]))
+            h = site_host(key.split("|", 1)[-1])   # x.onion and x.onion/leaks are one host
+            if h:
+                hosts[h].add(canon(p["group"]))
     for host, gs in hosts.items():
         if len(gs) < 2:
             continue
@@ -208,7 +226,7 @@ def main() -> int:
     ap.add_argument("--db", default=None)
     ap.add_argument("--min-confidence", type=float, default=0.6)
     ap.add_argument("--activity", action="store_true", help="show decayed group activity ranking")
-    ap.add_argument("--half-life", type=float, default=90.0, help="activity half-life in days")
+    ap.add_argument("--half-life", type=_positive, default=90.0, help="activity half-life in days")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 

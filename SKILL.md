@@ -11,7 +11,7 @@ metadata:
         "bins": ["python3", "pip3"],
         "pip": ["requests[socks]", "beautifulsoup4", "python-dotenv", "stem"]
       },
-      "version": "2.4.0",
+      "version": "2.4.1",
       "author": "JacobJandon",
       "license": "Apache-2.0",
       "repo": "https://github.com/JacobJandon/OnionClaw"
@@ -23,7 +23,7 @@ metadata:
 
 **by JacobJandon** · Apache License 2.0 · [github.com/JacobJandon/OnionClaw](https://github.com/JacobJandon/OnionClaw)
 
-OnionClaw routes all requests through the Tor network. It searches 17 dark web search engines simultaneously, fetches .onion hidden service pages, rotates Tor circuits, and produces structured OSINT reports using the Robin investigation pipeline.
+Searches, fetches, crawls and onion monitoring go through the Tor network (LLM analysis goes to the provider you configure, and the swarm's clearnet collectors connect directly; see SECURITY.md). It searches 17 dark web search engines simultaneously, fetches .onion hidden service pages, rotates Tor circuits, and produces structured OSINT reports using the Robin investigation pipeline.
 
 ## Setup (run once after install)
 
@@ -47,7 +47,7 @@ Start Tor (required before any command):
 ```bash
 # Linux:  sudo apt install tor && sudo systemctl start tor
 # macOS:  brew install tor && brew services start tor
-# Custom: tor -f /tmp/tor_data/torrc &   (setup.py creates this)
+# Custom: tor -f ~/.onionclaw/tor/torrc &   (setup.py creates this)
 ```
 
 Enable circuit rotation (ControlPort) — required for `renew.py`:
@@ -291,7 +291,7 @@ python3 {baseDir}/iocs.py --flag ransomware            # KEV CVEs tied to ransom
 python3 {baseDir}/iocs.py --format csv -o iocs.csv     # table | json | csv
 ```
 
-Types: `onion_host`, `domain`, `btc_wallet`, `cve`, `email`, `tox`. The list is derived from
+Types: `onion_host`, `domain`, `ipv4`, `btc_wallet`, `cve`, `email`, `tox`. The list is derived from
 stored observations, so it never disagrees with them. Values are **defanged** by default
 (`hxxp://`, `[.]`) for safe sharing; pass `--fanged` for machine-readable output. Attribution
 comes from what a leak site published, not analysis — present it as a lead.

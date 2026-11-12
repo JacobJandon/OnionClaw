@@ -24,6 +24,7 @@ Safety:
 """
 import sys, os, time, json, random, argparse
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urldefrag, urlsplit, urlunsplit
 
 # ── bootstrap ─────────────────────────────────────────────────────
 _skill_dir = os.path.dirname(os.path.abspath(__file__))
@@ -48,10 +49,10 @@ except Exception as _e:
         print("       Run:  pip install requests[socks] beautifulsoup4 python-dotenv stem")
     sys.exit(1)
 
-from entities import extract_entities, onion_host
+from entities import extract_entities, service_host, FULL_TEXT_CHARS, FULL_TEXT_LINKS
 from safety import is_safe
 
-__version__ = "2.4.0"
+from _version import __version__  # noqa: E402 — the toolkit version
 
 _AGG_KEYS = ("btc_wallets", "eth_wallets", "xmr_wallets", "emails", "onion_links", "tox_ids")
 
@@ -59,14 +60,15 @@ _AGG_KEYS = ("btc_wallets", "eth_wallets", "xmr_wallets", "emails", "onion_links
 def crawl(start_url: str, depth: int = 1, max_pages: int = 8, workers: int = 3,
           delay: float = 1.0, fetch=None, log=None) -> dict:
     """Crawl one hidden service. `fetch` and `log` are injectable for testing."""
-    fetch = fetch or sicry.fetch
+    fetch = fetch or _full_fetch
     log = log or (lambda *_: None)
-    host = onion_host(start_url)
+    host = service_host(start_url)
 
     visited, pages, refused, errors = set(), [], [], []
+    refused_urls = set()
     agg = {k: set() for k in _AGG_KEYS}
     agg_pgp = False
-    frontier = [start_url]
+    frontier = [_norm(start_url)]
 
     def one(url):
         if delay:
@@ -119,11 +121,14 @@ def crawl(start_url: str, depth: int = 1, max_pages: int = 8, workers: int = 3,
 
                 if level < depth:
                     for ln in page.get("links") or []:
-                        href = ln.get("href", "") if isinstance(ln, dict) else str(ln)
-                        if onion_host(href) != host or href in visited:
+                        href = _norm(ln.get("href", "") if isinstance(ln, dict) else str(ln))
+                        # Same service means the URL's hostname, not an onion mentioned
+                        # somewhere in it (a gateway, archive or tracker URL is clearnet).
+                        if service_host(href) != host or href in visited or href in refused_urls:
                             continue
                         lv = is_safe(href, ln.get("text", "") if isinstance(ln, dict) else "")
                         if not lv:
+                            refused_urls.add(href)
                             refused.append({"url": href, "reason": lv.reason})
                             continue
                         next_frontier.append(href)
@@ -134,21 +139,54 @@ def crawl(start_url: str, depth: int = 1, max_pages: int = 8, workers: int = 3,
             "refused": refused, "errors": errors, "pages": pages}
 
 
+def _full_fetch(url: str) -> dict:
+    # sicry.fetch keeps 8,000 characters by default (sized for an LLM prompt), which
+    # silently dropped wallets and PGP blocks lower down the page.
+    return sicry.fetch(url, max_chars=FULL_TEXT_CHARS, max_links=FULL_TEXT_LINKS)
+
+
+def _norm(url: str) -> str:
+    """One spelling per page: no fragment, lower-case scheme and host, "/" for an empty
+    path. /#about and /#top are the same document; fetching each one spent the page
+    budget on copies."""
+    try:
+        p = urlsplit(urldefrag(url)[0])
+    except ValueError:
+        return url
+    return urlunsplit((p.scheme.lower(), p.netloc.lower(), p.path or "/", p.query, ""))
+
+
+def _non_negative(kind):
+    def parse(v):
+        x = kind(v)
+        if x < 0:
+            raise argparse.ArgumentTypeError("must not be negative")
+        return x
+    return parse
+
+
+def _positive_int(v):
+    x = int(v)
+    if x < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return x
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Deep-crawl an .onion site via Tor")
     ap.add_argument("--version", action="version",
                     version=f"OnionClaw crawl {__version__} (sicry {getattr(sicry, '__version__', '?')})")
     ap.add_argument("--url", required=True, help="Start .onion URL")
-    ap.add_argument("--depth", type=int, default=1, help="Link-follow depth (default 1)")
-    ap.add_argument("--max-pages", type=int, default=8, help="Page budget (default 8)")
-    ap.add_argument("--workers", type=int, default=3, help="Concurrent fetches per level (default 3)")
-    ap.add_argument("--delay", type=float, default=1.0,
+    ap.add_argument("--depth", type=_non_negative(int), default=1, help="Link-follow depth (default 1)")
+    ap.add_argument("--max-pages", type=_positive_int, default=8, help="Page budget (default 8)")
+    ap.add_argument("--workers", type=_positive_int, default=3, help="Concurrent fetches per level (default 3)")
+    ap.add_argument("--delay", type=_non_negative(float), default=1.0,
                     help="Max random per-request jitter in seconds (default 1.0)")
     ap.add_argument("--json", action="store_true", help="Output raw JSON only")
     args = ap.parse_args()
 
     url = args.url if args.url.startswith(("http://", "https://")) else "http://" + args.url
-    host = onion_host(url)
+    host = service_host(url)
     if not host:
         print("ERROR: --url must be an .onion address", file=sys.stderr)
         return 1
@@ -175,9 +213,12 @@ def main() -> int:
     for r in out["refused"]:
         print(f"refused: {r['url']}  ({r['reason']})", file=sys.stderr)
 
+    # Nothing crawled is a failure, as it is for fetch.py: 1 when the pages could not
+    # be fetched, 2 when every page that was fetched was refused.
+    code = 0 if out["pages_crawled"] else (1 if out["errors"] or not out["refused"] else 2)
     if args.json:
         print(json.dumps(out, indent=2))
-        return 0
+        return code
 
     print(f"\nCrawled {out['pages_crawled']} page(s) on {host}  ·  "
           f"refused {len(out['refused'])}  ·  errors {len(out['errors'])}")
@@ -191,7 +232,7 @@ def main() -> int:
         print("  pgp           yes")
     if not shown:
         print("  (no entities harvested)")
-    return 0
+    return code
 
 
 if __name__ == "__main__":

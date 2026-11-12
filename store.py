@@ -109,6 +109,10 @@ class Store:
         h = content_hash(payload)
         body = json.dumps(payload, sort_keys=True, default=str)
         with self._conn() as c:
+            # Take the write lock before reading: two processes running the same collector
+            # (cron and a --loop instance) both saw "no row" and collided on the INSERT
+            # with UNIQUE constraint failed, or logged the same change twice.
+            c.execute("BEGIN IMMEDIATE")
             row = c.execute(
                 "SELECT content_hash FROM observations WHERE source=? AND kind=? AND key=?",
                 (source, kind, key),

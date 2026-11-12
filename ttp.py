@@ -31,7 +31,7 @@ sys.path.insert(0, _skill_dir)
 
 from store import Store
 
-__version__ = "2.4.0"
+from _version import __version__  # noqa: E402 — the toolkit version
 
 TECHNIQUE_RE = re.compile(r"\bT\d{4}(?:\.\d{3})?\b")
 TACTIC_RE = re.compile(r"^TA\d{4}$")
@@ -204,7 +204,10 @@ def main() -> int:
         print(json.dumps(rows, indent=2))
         return 0
     if not rows:
-        print("No ATT&CK data yet. Run swarm.py so groupinfra records group profiles.")
+        if args.technique and technique_usage(store):
+            print(f"No group is recorded using {args.technique}.")
+        else:
+            print("No ATT&CK data yet. Run swarm.py so groupinfra records group profiles.")
         return 0
     print(f"{'technique':<11}{'groups':>7}  name / groups")
     for r in rows[:30]:

@@ -349,10 +349,36 @@ def test_sweep_timeout_is_reported_not_raised(store):
             _t.sleep(1.0)
             return __import__("collectors").Result(items=1)
 
+    t0 = _t.time()
     rep = Swarm(store, [Slow()], timeout=0.05).sweep()
-    assert rep["slow"]["status"] == "failed" and "did not finish" in rep["slow"]["error"]
+    # The timeout bounds the sweep: it used to return only when the straggler finished.
+    assert _t.time() - t0 < 0.6
+    assert rep["slow"]["status"] == "timeout" and "still running" in rep["slow"]["error"]
     d = synthesize(store, 0, rep)
-    assert d["collectors"]["slow"]["status"] == "failed"
+    assert d["collectors"]["slow"]["status"] == "timeout"
+
+
+def test_one_deadline_covers_every_wave(store):
+    """Each wave had its own timeout, so two waves could take twice as long."""
+    import time as _t
+    from collectors import Result
+
+    def slow(name):
+        return type("C", (), {"name": name, "min_interval": 0,
+                              "collect": lambda self, st: (_t.sleep(0.4), Result(items=1))[1]})()
+
+    t0 = _t.time()
+    rep = Swarm(store, [slow("leaksites"), slow("wallets")], timeout=0.5).sweep()
+    assert _t.time() - t0 < 0.8
+    assert rep["leaksites"]["status"] == "ok" and rep["wallets"]["status"] == "timeout"
+
+
+def test_swarm_rejects_zero_workers(monkeypatch):
+    import swarm
+    monkeypatch.setattr(sys, "argv", ["swarm.py", "--workers", "0"])
+    with pytest.raises(SystemExit) as e:
+        swarm.main()
+    assert e.value.code == 2
 
 
 @pytest.mark.parametrize("text,safe", [

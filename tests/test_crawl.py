@@ -17,10 +17,19 @@ import requests
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # crawl.py imports sicry at module load; a stub keeps these tests independent of
-# the heavy dependency set.
+# the heavy dependency set. It is installed only for that import: left in
+# sys.modules, every test module collected afterwards silently got the stub
+# instead of the real engine.
 import types
-sys.modules.setdefault("sicry", types.SimpleNamespace(fetch=None, __version__="test"))
-import crawl as crawl_mod
+_real_sicry = sys.modules.get("sicry")
+sys.modules["sicry"] = types.SimpleNamespace(fetch=None, __version__="test")
+try:
+    import crawl as crawl_mod
+finally:
+    if _real_sicry is None:
+        del sys.modules["sicry"]
+    else:
+        sys.modules["sicry"] = _real_sicry
 
 HOST = "a" * 56 + ".onion"
 BASE = f"http://{HOST}"
