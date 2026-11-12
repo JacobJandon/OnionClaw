@@ -135,8 +135,8 @@ _mode_given = args.mode is not None
 args.mode = args.mode or "threat_intel"
 
 # ── BUG-4: warn if --interval used without --watch ─────────────────────────
-if args.interval != 6.0 and not args.watch and not args.watch_check:
-    print("WARN: --interval only takes effect with --watch. Ignoring.",
+if args.interval != 6.0 and not (args.watch or args.watch_check or args.watch_daemon):
+    print("WARN: --interval only takes effect with --watch or --watch-daemon. Ignoring.",
           file=sys.stderr)
 
 # ── pre-run actions ───────────────────────────────────────────────
@@ -705,8 +705,6 @@ else:
         _step(5, TOTAL, "Filter to most relevant results")
         best = sicry.filter_results(refined, raw_results)
         print(f"✓ {len(best)} most relevant results selected")
-        if len(best) == len(raw_results[:20]):
-            print("  (no LLM key — using top 20 by position)")
         _save_checkpoint("filter", best)
 
 # ─────────────────────────────────────────────────────────────────

@@ -492,14 +492,11 @@ def _verify_controlport():
     try:
         import stem
         from stem.control import Controller
-        env_password = os.environ.get("TOR_CONTROL_PASSWORD", "")
-        env_file = os.path.join(_DIR, ".env")
-        if not env_password and os.path.exists(env_file):
-            for line in open(env_file):
-                if line.strip().startswith("TOR_CONTROL_PASSWORD="):
-                    env_password = line.strip().split("=", 1)[1].strip().strip('"')
-                    break
-        with Controller.from_port(port=9051) as ctrl:
+        # Read .env the way python-dotenv (and so sicry) does: quotes, comments, export.
+        env_password = os.environ.get("TOR_CONTROL_PASSWORD", "") or _env_value("TOR_CONTROL_PASSWORD")
+        ctl_host = os.environ.get("TOR_CONTROL_HOST") or _env_value("TOR_CONTROL_HOST") or "127.0.0.1"
+        ctl_port = os.environ.get("TOR_CONTROL_PORT") or _env_value("TOR_CONTROL_PORT") or "9051"
+        with Controller.from_port(address=ctl_host, port=int(ctl_port)) as ctrl:
             if env_password:
                 ctrl.authenticate(password=env_password)
                 _p("✓ Auth OK   (password from TOR_CONTROL_PASSWORD)", GREEN)
@@ -548,6 +545,7 @@ def check_deps():
 
     required = [
         ("requests",    "requests[socks]"),
+        ("socks",       "requests[socks]"),   # PySocks: without it every Tor request fails
         ("bs4",         "beautifulsoup4"),
         ("dotenv",      "python-dotenv"),
         ("stem",        "stem"),
