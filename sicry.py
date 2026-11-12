@@ -2847,12 +2847,26 @@ def _call_llm(provider: str, system: str, prompt: str) -> str:
                 return "[SICRY: ANTHROPIC_API_KEY not set. Add it to .env or set LLM_PROVIDER=ollama for local inference.]"
             import anthropic
             c = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            # On current models thinking is on by default and its tokens count against
+            # max_tokens, so 4096 could end a response before any text was written.
             r = c.messages.create(
-                model=ANTHROPIC_MODEL, max_tokens=4096,
+                model=ANTHROPIC_MODEL, max_tokens=16000,
                 system=system,
                 messages=[{"role": "user", "content": prompt}],
             )
-            return r.content[0].text if r.content else ""
+            if r.stop_reason == "refusal":
+                # A declined request is HTTP 200 with stop_reason "refusal"; say so instead
+                # of returning empty text. stop_details exists only in recent SDK versions.
+                category = getattr(getattr(r, "stop_details", None), "category", None)
+                return (f"[SICRY: {ANTHROPIC_MODEL} declined this request"
+                        f"{f' ({category})' if category else ''}. "
+                        f"Try a different ANTHROPIC_MODEL or LLM_PROVIDER.]")
+            # Current models open the response with a thinking block, which has no .text:
+            # join the text blocks rather than reading the first block.
+            text = "".join(b.text for b in r.content if getattr(b, "type", None) == "text")
+            if r.stop_reason == "max_tokens":
+                text += "\n\n[SICRY: the response was cut off at the max_tokens limit.]"
+            return text
 
         if provider == "gemini":
             if not GEMINI_API_KEY:

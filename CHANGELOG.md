@@ -22,8 +22,6 @@ Versioning follows [Semantic Versioning](https://semver.org).
 - **`entities.py`** — entity extraction with real validation: Bitcoin base58check and
   bech32/bech32m (taproot) checksums; ETH, XMR, email, `.onion`, Tox ID, PGP detection.
 - **`crawl.py`** — deep-crawl of a single hidden service (level-by-level, concurrent).
-- **Tests** — 128 tests; fixtures are real captured ransomware.live and CISA KEV responses.
-
 - **`kev` collector** — CISA Known Exploited Vulnerabilities; flags CVEs added to KEV with known
   ransomware use, and CVEs whose ransomware flag flips from Unknown to Known.
 - **`stix.py`** — STIX 2.1 export (identity, threat-actor, relationship, indicator, vulnerability) with
@@ -53,11 +51,18 @@ Versioning follows [Semantic Versioning](https://semver.org).
   with `uses` relationships from each threat actor.
 - **Cross-process rate-limit guard** for ransomware.live (1 req/min/endpoint) and a free-tier terms notice;
   PRO key support via `RANSOMWARE_LIVE_API_KEY` / `_BASE` / `_KEY_HEADER` (header name unverified).
+- **Tests** — 128 tests; fixtures are real captured ransomware.live and CISA KEV responses.
 
 ### Changed
 - **`search.py --alive`** — search only the engines the last `check_engines.py` run found
   alive. Every dead index costs the full `TOR_TIMEOUT`; measured on live Tor with 11 of 17
   engines up, `--alive` returned in 3s while the unscoped search did not finish in 280s.
+- **Bundled SICRY engine 2.3.1** (dedup + semantic ranking now in the canonical engine, Torgle fixed,
+  TorNet removed; 17 engines).
+- **`SKILL.md`** — documents the swarm, crawl, STIX and correlation commands for agents; license
+  corrected to Apache-2.0, engine count to 17, skill version to 2.4.0.
+- **CI** — `actions/checkout@v7.0.1`, `actions/setup-python@v7.0.0`; Python matrix 3.10–3.13
+  (3.9 is end-of-life); syntax check covers every new module.
 
 ### Fixed
 - **[SAFETY] Abuse filter refused legitimate victims.** The old denylist substring-matched
@@ -101,20 +106,11 @@ Versioning follows [Semantic Versioning](https://semver.org).
   `sicry.py` that defines functions upstream lacks (`--force` to override), and `--check-bundled`
   now compares file content, not just version strings.
 
-### Changed
-- **Bundled SICRY engine 2.3.1** (dedup + semantic ranking now in the canonical engine, Torgle fixed,
-  TorNet removed; 17 engines).
-- **`SKILL.md`** — documents the swarm, crawl, STIX and correlation commands for agents; license
-  corrected to Apache-2.0, engine count to 17, skill version to 2.4.0.
-- **CI** — `actions/checkout@v7.0.1`, `actions/setup-python@v7.0.0`; Python matrix 3.10–3.13
-  (3.9 is end-of-life); syntax check covers every new module.
-
 ### Website
-- **`web/`** — the OnionClaw site (Vite + three.js, pinned: three 0.186.1, lenis 1.3.26, vite 8.3.4).
-  `/` is *Peel*, a scroll journey through the three Tor layers of a glass onion; `/hybrid/` merges it
-  with a toon "onion planet" whose stations are the tools and which you can explore freely.
-  `?static` serves a readable no-WebGL version; reduced-motion users get it automatically.
-  Run with `cd web && npm install && npm run dev`.
+- **`web/`** — the OnionClaw site (Vite + three.js, pinned: three 0.186.1, lenis 1.3.26, vite 8.3.4):
+  *Peel*, a scroll journey through the three Tor layers of a glass onion. `?static` serves a readable
+  no-WebGL version, and reduced-motion users get it automatically. Run with
+  `cd web && npm install && npm run dev`; `web/DEPLOY.md` covers deploying it to any static host.
 
 ### Notes
 - Collectors are passive observers; none contacts, negotiates with, or deceives a threat actor.
