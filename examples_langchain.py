@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-# OnionClaw v2.3.0 — LangChain Integration Example
+# OnionClaw — LangChain Integration Example
 # ================================================
 # Demonstrates using SICRY as a LangChain tool for dark web research.
 
@@ -13,7 +13,8 @@ LangChain Integrations:
   - Chain: ReAct (Reasoning + Action) loop for multi-step investigations
 
 Usage:
-  pip install langchain langchain-openai requests beautifulsoup4 python-dotenv stem
+  pip install "langchain>=0.1,<1.0" langchain-openai requests beautifulsoup4 python-dotenv stem
+  (langchain 1.0 removed initialize_agent and langchain.memory, which this example uses)
   export OPENAI_API_KEY=...
   python examples_langchain.py
 """
@@ -90,10 +91,8 @@ def analyze_results(query: str, results_json: str) -> str:
 2. Threat actors or groups mentioned\n\
 3. Recommended next steps"
     
-    prompt = f"Query: {query}\n\nResults:\n{result_text}"
-    
-    analysis = sicry._call_llm("openai", system_prompt, prompt)
-    return analysis
+    # sicry.ask uses the LLM provider configured in .env (this called OpenAI regardless).
+    return sicry.ask(f"{system_prompt}\n\nResults:\n{result_text}", query=query or "dark web results")
 
 
 def check_engine_health() -> str:
@@ -124,12 +123,13 @@ def create_dark_web_agent():
     """Create a LangChain ReAct agent for dark web investigations."""
     
     # Verify Tor is running
-    if not sicry.check_tor():
+    # check_tor() returns a dict, which is always truthy: test the field.
+    if not sicry.check_tor().get("tor_active"):
         raise RuntimeError("Tor is not running. Start Tor and try again.")
     
     # Initialize LLM
     llm = ChatOpenAI(
-        model="gpt-4",
+        model=sicry.OPENAI_MODEL,     # the model configured in .env
         temperature=0.0,  # Deterministic for OSINT
         max_tokens=2048,
     )
@@ -143,16 +143,18 @@ def create_dark_web_agent():
  Useful for finding dark web marketplaces, leaked data, threat actors, etc.\
  Input: search query (string). Example: 'stolen credit cards marketplace'",
         ),
+        # A Tool calls its function with exactly one string. analyze_results takes two
+        # arguments and check_engine_health none, so both crashed on their first call.
         Tool(
             name="analyze_results",
-            func=analyze_results,
+            func=lambda results_json: analyze_results("", results_json),
             description="Analyze dark web search results using AI.\
  Extracts IOCs, threat actors, and actionable intelligence.\
- Input: original query (string) and JSON results from search_dark_web.",
+ Input: the JSON returned by search_dark_web.",
         ),
         Tool(
             name="check_engine_health",
-            func=check_engine_health,
+            func=lambda _unused="": check_engine_health(),
             description="Check which dark web search engines are online.\
  Useful before running searches to understand coverage.",
         ),
