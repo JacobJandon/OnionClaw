@@ -19,6 +19,7 @@ Design:
 """
 from __future__ import annotations
 
+from urllib.parse import unquote_plus
 import re
 from typing import NamedTuple
 
@@ -75,8 +76,22 @@ class Verdict(NamedTuple):
         return self.safe
 
 
+def _decoded(url: str) -> str:
+    """URL-decode, a few times over so double-encoded forms are caught too.
+
+    "%20" and "+" are not spaces to the matcher, and the hex digits of an escape count
+    as word characters, so an encoded URL slipped past every multi-word term.
+    """
+    for _ in range(3):
+        nxt = unquote_plus(url)
+        if nxt == url:
+            break
+        url = nxt
+    return url
+
+
 def is_safe(url: str = "", title: str = "", text: str = "") -> Verdict:
-    blob = f"{url or ''} {title or ''} {(text or '')[:_BODY_CHARS]}".lower()
+    blob = f"{_decoded(url or '')} {title or ''} {(text or '')[:_BODY_CHARS]}".lower()
 
     m = _HARD_RE.search(blob)
     if m:

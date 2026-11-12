@@ -10,6 +10,7 @@ import sys, os, json
 # ── bootstrap ─────────────────────────────────────────────────────
 _skill_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _skill_dir)
+from _version import __version__ as ONIONCLAW_VERSION  # noqa: E402
 
 _env = os.path.join(_skill_dir, ".env")
 if os.path.exists(_env):
@@ -34,7 +35,7 @@ import argparse as _ap
 _parser = _ap.ArgumentParser(
     description="OnionClaw — rotate Tor circuit and get a new exit identity")
 _parser.add_argument("--version", action="version",
-                     version=f"OnionClaw renew {getattr(sicry, '__version__', '?')}")
+                     version=f"OnionClaw renew {ONIONCLAW_VERSION} (SICRY\u2122 engine {getattr(sicry, '__version__', '?')})")
 _parser.add_argument("--json", action="store_true",
                      help="Print only the JSON result, no human-readable output")
 _args = _parser.parse_args()
@@ -57,7 +58,7 @@ else:
     print("  1. ControlPort 9051 not enabled in torrc")
     print("     → Add: ControlPort 9051  and  CookieAuthentication 1")
     print("  2. TOR_DATA_DIR not set in .env")
-    print("     → Set TOR_DATA_DIR=/tmp/tor_data  (your Tor DataDirectory)")
+    print("     → Set TOR_DATA_DIR=~/.onionclaw/tor  (your Tor DataDirectory)")
     print("  3. TOR_CONTROL_PASSWORD wrong (if HashedControlPassword is set)")
     sys.exit(1)
 

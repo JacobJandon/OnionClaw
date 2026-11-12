@@ -262,7 +262,10 @@ def main() -> int:
         fields = ["type", "value", "first_seen", "last_seen", "groups", "sources", "flags", "context"]
         wtr = csv.DictWriter(buf, fieldnames=fields, lineterminator="\n")
         wtr.writeheader()
-        wtr.writerows(flat)
+        # Victim names, group names and context come from leak sites: a cell starting
+        # with = + - @ would run as a formula when the export is opened (OWASP).
+        wtr.writerows({k: ("'" + v if isinstance(v, str) and v.startswith(("=", "+", "-", "@", "\t", "\r"))
+                           else v) for k, v in row.items()} for row in flat)
         text = buf.getvalue()
     else:
         text = render(rows, args.fanged, args.limit)

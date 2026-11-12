@@ -16,6 +16,7 @@ import sys, os, json, time, argparse
 # ── bootstrap ─────────────────────────────────────────────────────
 _skill_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _skill_dir)
+from _version import __version__ as ONIONCLAW_VERSION  # noqa: E402
 
 _env = os.path.join(_skill_dir, ".env")
 if os.path.exists(_env):
@@ -36,11 +37,14 @@ except Exception as _e:
         print("       Run:  pip install requests[socks] beautifulsoup4 python-dotenv stem")
     sys.exit(1)
 
-_ENGINES_CACHE_FILE = "/tmp/onionclaw_engines_cache.json"
+# Per user and private. The old fixed /tmp file could be created first by another local
+# user and filled with fake engine results (or be a symlink to one of your files).
+_ENGINES_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".onionclaw")
+_ENGINES_CACHE_FILE = os.path.join(_ENGINES_CACHE_DIR, "engines_cache.json")
 
 parser = argparse.ArgumentParser(description="Ping all dark web search engines via Tor")
 parser.add_argument("--version", action="version",
-                    version=f"OnionClaw check_engines {getattr(sicry, '__version__', '?')}")
+                    version=f"OnionClaw check_engines {ONIONCLAW_VERSION} (SICRY\u2122 engine {getattr(sicry, '__version__', '?')})")
 parser.add_argument("--cached", type=int, default=0, metavar="MINUTES",
                     help="Reuse last engine-check result if it is less than MINUTES old "
                          "(skips the 15-30 s live ping). 0 = always run live (default).")
@@ -80,7 +84,10 @@ if results is None:
     results = sicry.check_search_engines()
     # Persist for future --cached calls
     try:
-        with open(_ENGINES_CACHE_FILE, "w", encoding="utf-8") as f:
+        os.makedirs(_ENGINES_CACHE_DIR, mode=0o700, exist_ok=True)
+        fd = os.open(_ENGINES_CACHE_FILE,
+                     os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump({"_timestamp": time.time(), "results": results}, f)
     except Exception:
         pass

@@ -13,6 +13,8 @@ Usage:
 """
 import os
 import sys
+import stat
+import time
 import shutil
 import subprocess
 import json
@@ -31,7 +33,7 @@ ControlPort 9051
 CookieAuthentication 1
 # CookieAuthFileGroupReadable 1  ← uncomment + add user to debian-tor group
 #                                   for permanent cookie auth across restarts
-# DataDirectory /tmp/tor_data   # uncomment to use a custom data dir
+# DataDirectory ~/.onionclaw/tor   # uncomment to use a custom data dir
 # ─────────────────────────────────────────────────────────────────
 """
 
@@ -58,8 +60,11 @@ TORRC_CANDIDATE_PATHS = [
     os.path.expanduser("~/.torrc"),
 ]
 
-# Custom torrc written to /tmp/tor_data/torrc when system torrc is unwritable
-CUSTOM_TORRC_DIR  = "/tmp/tor_data"
+# Custom torrc written when the system torrc is unwritable. It lives in a private
+# per-user directory: the old /tmp/tor_data was a fixed path in a shared directory, so
+# another local user could prepare it (an unauthenticated ControlPort, their own proxy)
+# or point it at one of your files.
+CUSTOM_TORRC_DIR  = os.path.join(os.path.expanduser("~"), ".onionclaw", "tor")
 CUSTOM_TORRC_PATH = os.path.join(CUSTOM_TORRC_DIR, "torrc")
 
 BOLD  = "\033[1m"
@@ -74,22 +79,72 @@ def _p(msg, color=""):
     print(f"{color}{msg}{RESET}" if color else msg)
 
 
+def _input(prompt):
+    # An interrupted or non-interactive run is not a successful setup (it exited 0).
+    try:
+        return input(prompt)
+    except KeyboardInterrupt:
+        print()
+        sys.exit(130)
+    except EOFError:
+        print()
+        sys.exit(1)
+
+
 def _ask(prompt, default=""):
-    try:
-        val = input(f"{CYAN}{prompt}{RESET} [{default}]: ").strip()
-        return val if val else default
-    except (KeyboardInterrupt, EOFError):
-        print()
-        sys.exit(0)
+    val = _input(f"{CYAN}{prompt}{RESET} [{default}]: ").strip()
+    return val if val else default
 
 
-def _yes(prompt):
+def _keep_hint(key_var: str) -> str:
+    v = _env_value(key_var)
+    return " — Enter keeps the current key" if v and not v.endswith("...") else ""
+
+
+def _yes(prompt, default=True):
+    ans = _input(f"{CYAN}{prompt}{RESET} {'[Y/n]' if default else '[y/N]'}: ").strip().lower()
+    return default if ans == "" else ans in ("y", "yes")
+
+
+def _env_value(key: str, path: str = None) -> str:
+    """A value from .env, read the way python-dotenv reads it (quotes, comments, export)."""
+    path = path or _ENV
     try:
-        ans = input(f"{CYAN}{prompt}{RESET} [Y/n]: ").strip().lower()
-        return ans in ("", "y", "yes")
-    except (KeyboardInterrupt, EOFError):
-        print()
-        sys.exit(0)
+        from dotenv import dotenv_values
+        return (dotenv_values(path).get(key) or "").strip()
+    except ImportError:
+        pass
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("export "):
+                    line = line[7:].lstrip()
+                if line.startswith(f"{key}="):
+                    val = line.split("=", 1)[1].strip()
+                    if val[:1] in ("'", '"') and val.endswith(val[:1]) and len(val) > 1:
+                        return val[1:-1]
+                    return val.split(" #", 1)[0].strip()
+    except OSError:
+        pass
+    return ""
+
+
+def _private_dir(path: str) -> None:
+    """Create `path` for this user only, refusing what another user could have prepared:
+    a symlink, a non-directory, or a directory owned by someone else."""
+    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+    try:
+        os.mkdir(path, 0o700)
+    except FileExistsError:
+        pass
+    st = os.lstat(path)
+    if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
+        raise RuntimeError(f"{path} is not a plain directory; refusing to use it")
+    if hasattr(os, "getuid") and st.st_uid != os.getuid():
+        raise RuntimeError(f"{path} belongs to another user; refusing to use it")
+    if st.st_mode & 0o077:
+        os.chmod(path, 0o700)   # ours, but readable by others: Tor requires 0700 anyway
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -110,25 +165,34 @@ def setup_env():
             _p(f"✓ .env permissions set to 600 (owner read/write only)", GREEN)
         except OSError as e:
             _p(f"⚠  Could not set .env permissions: {e}", YELLOW)
-        if not _yes("  Re-configure anyway?"):
+        # Re-configuring copied .env.example over the existing file, replacing every key
+        # with its placeholder. Now it defaults to No, keeps the file, takes a backup,
+        # and changes only what is typed below.
+        if not _yes("  Re-configure anyway?", default=False):
             return
-
-    # Find the best .env.example
-    example = _EXAMPLE if os.path.exists(_EXAMPLE) else (
-              _EXAMPLE_PARENT if os.path.exists(_EXAMPLE_PARENT) else None)
-
-    if example:
-        shutil.copy2(example, _ENV)
-        _p(f"\n✓ Copied {os.path.relpath(example, _DIR)} → {os.path.relpath(_ENV, _DIR)}", GREEN)
+        backup = f"{_ENV}.bak-{time.strftime('%Y%m%d-%H%M%S')}"
+        shutil.copy2(_ENV, backup)
+        os.chmod(backup, 0o600)
+        _p(f"✓ Backed up the current .env to {os.path.basename(backup)}", GREEN)
+        example = None
     else:
-        # Write a minimal .env if no example found
-        with open(_ENV, "w") as f:
-            f.write("# OnionClaw .env — generated by setup.py\n")
-            f.write("LLM_PROVIDER=openai\n")
-            f.write("TOR_SOCKS_HOST=127.0.0.1\nTOR_SOCKS_PORT=9050\n")
-            f.write("TOR_CONTROL_HOST=127.0.0.1\nTOR_CONTROL_PORT=9051\n")
-            f.write("SICRY_MAX_CHARS=8000\nSICRY_CACHE_TTL=600\n")
-        _p(f"\n✓ Created minimal .env at {_ENV}", GREEN)
+        # Find the best .env.example
+        example = _EXAMPLE if os.path.exists(_EXAMPLE) else (
+                  _EXAMPLE_PARENT if os.path.exists(_EXAMPLE_PARENT) else None)
+
+    if not os.path.exists(_ENV):          # a first run: start from the template
+        if example:
+            shutil.copy2(example, _ENV)
+            _p(f"\n✓ Copied {os.path.relpath(example, _DIR)} → {os.path.relpath(_ENV, _DIR)}", GREEN)
+        else:
+            # Write a minimal .env if no example found
+            with open(_ENV, "w") as f:
+                f.write("# OnionClaw .env — generated by setup.py\n")
+                f.write("LLM_PROVIDER=openai\n")
+                f.write("TOR_SOCKS_HOST=127.0.0.1\nTOR_SOCKS_PORT=9050\n")
+                f.write("TOR_CONTROL_HOST=127.0.0.1\nTOR_CONTROL_PORT=9051\n")
+                f.write("SICRY_MAX_CHARS=8000\nSICRY_CACHE_TTL=600\n")
+            _p(f"\n✓ Created minimal .env at {_ENV}", GREEN)
 
     # Interactive prompts ──────────────────────────────────────────
     _p("\nChoose your LLM provider:")
@@ -137,22 +201,24 @@ def setup_env():
     _p("  3) gemini      (GEMINI_API_KEY required)")
     _p("  4) ollama      (local — no key needed)")
     _p("  5) llamacpp    (local — no key needed)")
-    choice = _ask("Enter number", "1")
     provider_map = {"1": "openai", "2": "anthropic", "3": "gemini",
                     "4": "ollama",  "5": "llamacpp"}
-    provider = provider_map.get(choice, "openai")
+    current = _env_value("LLM_PROVIDER").lower() or "openai"
+    default = {v: k for k, v in provider_map.items()}.get(current, current)
+    choice = _ask("Enter number (Enter keeps the current provider)", default)
+    provider = provider_map.get(choice) or (current if choice == current else "openai")
 
     api_key = ""
     key_var = ""
     if provider == "openai":
         key_var = "OPENAI_API_KEY"
-        api_key = _ask("OpenAI API key (sk-...)", "")
+        api_key = _ask("OpenAI API key (sk-...)" + _keep_hint(key_var), "")
     elif provider == "anthropic":
         key_var = "ANTHROPIC_API_KEY"
-        api_key = _ask("Anthropic API key (sk-ant-...)", "")
+        api_key = _ask("Anthropic API key (sk-ant-...)" + _keep_hint(key_var), "")
     elif provider == "gemini":
         key_var = "GEMINI_API_KEY"
-        api_key = _ask("Gemini API key (AIza...)", "")
+        api_key = _ask("Gemini API key (AIza...)" + _keep_hint(key_var), "")
     elif provider in ("ollama", "llamacpp"):
         _p(f"  → {provider} uses a local server — no API key needed.", GREEN)
 
@@ -160,7 +226,8 @@ def setup_env():
     _patch_env("LLM_PROVIDER", provider)
     if key_var and api_key:
         _patch_env(key_var, api_key)
-    _patch_env("SICRY_CACHE_TTL", "600")  # ensure cache TTL is set
+    if not _env_value("SICRY_CACHE_TTL"):
+        _patch_env("SICRY_CACHE_TTL", "600")  # only when unset: keep a value you chose
 
     _p(f"\n✓ .env configured with provider={provider}", GREEN)
 
@@ -171,9 +238,14 @@ def setup_env():
     except OSError as e:
         _p(f"⚠  Could not set .env permissions: {e}", YELLOW)
 
-    # Copy to parent Sicry repo as well
-    parent_env = os.path.join(_DIR, "..", ".env")
-    if not os.path.exists(parent_env):
+    # A development checkout nested in the SICRY repo can share the .env, but only on
+    # request. Copying it unasked into any parent directory put the keys where other
+    # tools load them: ~/.openclaw/skills/.env, or ~/.env for a clone in $HOME.
+    parent = os.path.dirname(_DIR)
+    parent_env = os.path.join(parent, ".env")
+    if (os.path.isfile(os.path.join(parent, "sicry.py")) and not os.path.exists(parent_env)
+            and _yes(f"  Also copy .env, keys included, to the SICRY repo at {parent}?",
+                     default=False)):
         try:
             shutil.copy2(_ENV, parent_env)
             try:
@@ -265,7 +337,7 @@ Required torrc lines:
     sudo systemctl restart tor        # systemd (Debian/Ubuntu)
     sudo service tor restart          # SysV init
     brew services restart tor         # macOS Homebrew
-    tor -f /tmp/tor_data/torrc &      # custom torrc (no root needed)
+    tor -f ~/.onionclaw/tor/torrc &   # custom torrc (no root needed)
 
 ─────────────────────────────────────────────────────────
 """, CYAN)
@@ -290,7 +362,7 @@ def _already_has_controlport(path: str) -> bool:
 def _write_custom_torrc():
     _p(f"\nWriting custom torrc → {CUSTOM_TORRC_PATH}", CYAN)
     try:
-        os.makedirs(CUSTOM_TORRC_DIR, exist_ok=True)
+        _private_dir(CUSTOM_TORRC_DIR)
         if os.path.exists(CUSTOM_TORRC_PATH) and _already_has_controlport(CUSTOM_TORRC_PATH):
             _p(f"✓ ControlPort already in {CUSTOM_TORRC_PATH}", GREEN)
         else:
@@ -299,7 +371,9 @@ def _write_custom_torrc():
                 f"DataDirectory {CUSTOM_TORRC_DIR}\n"
                 + TORRC_SNIPPET
             )
-            with open(CUSTOM_TORRC_PATH, "w") as f:
+            fd = os.open(CUSTOM_TORRC_PATH,
+                         os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o600)
+            with os.fdopen(fd, "w") as f:
                 f.write(full_torrc)
             _p(f"✓ Written: {CUSTOM_TORRC_PATH}", GREEN)
             _p(f"\n  Also set in .env:")
@@ -367,7 +441,8 @@ def _fix_cookie_auth():
         try:
             with open(torrc_path, "r") as f:
                 content = f.read()
-            if "CookieAuthFileGroupReadable" in content:
+            if any(ln.strip().startswith("CookieAuthFileGroupReadable")
+                   for ln in content.splitlines()):
                 _p(f"✓ CookieAuthFileGroupReadable already in {torrc_path}", GREEN)
             else:
                 with open(torrc_path, "a") as f:
@@ -531,7 +606,7 @@ Quick-start commands:
        tor -f {CUSTOM_TORRC_PATH} &
 
   2. Verify everything works:
-       python3 sicry.py check_tor
+       python3 sicry.py check
 
   3. Run a full pipeline search:
        python3 pipeline.py --query "your topic"

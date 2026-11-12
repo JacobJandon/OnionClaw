@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import re
 from typing import Iterable, Optional
+from urllib.parse import urlsplit
 
 _B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 _B58_IDX = {c: i for i, c in enumerate(_B58)}
@@ -21,7 +22,14 @@ _B58_IDX = {c: i for i, c in enumerate(_B58)}
 _BECH32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 _BECH32_IDX = {c: i for i, c in enumerate(_BECH32)}
 
-ONION_RE = re.compile(r"(?<![a-z0-9.-])([a-z2-7]{56}|[a-z2-7]{16})\.onion\b", re.I)
+# A "." may precede the address: www.<56>.onion is the same hidden service as <56>.onion,
+# and excluding it meant subdomain onions never matched at all.
+ONION_RE = re.compile(r"(?<![a-z0-9-])([a-z2-7]{56}|[a-z2-7]{16})\.onion\b", re.I)
+
+# Fetch limits for entity extraction. sicry.fetch keeps 8,000 characters and 80 links by
+# default, sized for an LLM prompt; wallets and PGP blocks often sit below that.
+FULL_TEXT_CHARS = 2_000_000
+FULL_TEXT_LINKS = 1000
 
 _BTC_LEGACY_RE = re.compile(r"(?<![A-Za-z0-9])[13][1-9A-HJ-NP-Za-km-z]{25,34}(?![A-Za-z0-9])")
 _BTC_BECH_RE = re.compile(r"(?<![A-Za-z0-9])bc1[02-9ac-hj-np-z]{11,87}(?![A-Za-z0-9])", re.I)
@@ -86,8 +94,27 @@ def valid_btc(addr: str) -> bool:
 
 
 def onion_host(url: str) -> str:
+    """The first onion address mentioned anywhere in `url` (or any text), or ''."""
     m = ONION_RE.search(url or "")
     return (m.group(0).lower() if m else "")
+
+
+def service_host(url: str) -> str:
+    """The hidden service a URL actually points to: the onion in its hostname, or ''.
+
+    onion_host() finds an onion address mentioned anywhere, which is right for
+    harvesting. Deciding where a request goes needs the hostname: x.onion.ly (a Tor2web
+    gateway), web.archive.org/.../x.onion, x.onion@collector.example and
+    stats.example/?site=x.onion are all clearnet hosts.
+    """
+    try:
+        h = (urlsplit(url if "://" in (url or "") else "http://" + (url or "")).hostname or "").lower()
+    except ValueError:
+        return ""
+    if not h.endswith(".onion"):
+        return ""
+    m = ONION_RE.search(h)
+    return m.group(0).lower() if m and h.endswith(m.group(0).lower()) else ""
 
 
 def extract_entities(text: str, links: Optional[Iterable] = None,

@@ -23,7 +23,7 @@ metadata:
 
 **by JacobJandon** · Apache License 2.0 · [github.com/JacobJandon/OnionClaw](https://github.com/JacobJandon/OnionClaw)
 
-OnionClaw routes all requests through the Tor network. It searches 17 dark web search engines simultaneously, fetches .onion hidden service pages, rotates Tor circuits, and produces structured OSINT reports using the Robin investigation pipeline.
+Searches, fetches, crawls and onion monitoring go through the Tor network (LLM analysis goes to the provider you configure, and the swarm's clearnet collectors connect directly; see SECURITY.md). It searches 17 dark web search engines simultaneously, fetches .onion hidden service pages, rotates Tor circuits, and produces structured OSINT reports using the Robin investigation pipeline.
 
 ## Setup (run once after install)
 
@@ -47,7 +47,7 @@ Start Tor (required before any command):
 ```bash
 # Linux:  sudo apt install tor && sudo systemctl start tor
 # macOS:  brew install tor && brew services start tor
-# Custom: tor -f /tmp/tor_data/torrc &   (setup.py creates this)
+# Custom: tor -f ~/.onionclaw/tor/torrc &   (setup.py creates this)
 ```
 
 Enable circuit rotation (ControlPort) — required for `renew.py`:

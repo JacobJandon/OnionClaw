@@ -349,7 +349,10 @@ class OnionSiteCollector(Collector):
         if not sicry._tor_port_open():
             raise CollectorUnavailable(
                 f"Tor SOCKS {sicry.TOR_SOCKS_HOST}:{sicry.TOR_SOCKS_PORT} not reachable")
-        return sicry.fetch
+        from entities import FULL_TEXT_CHARS, FULL_TEXT_LINKS
+        # The default 8,000-character cut meant changes, wallets and emails lower down a
+        # monitored page were never seen.
+        return lambda url: sicry.fetch(url, max_chars=FULL_TEXT_CHARS, max_links=FULL_TEXT_LINKS)
 
     def collect(self, store: Store) -> Result:
         res = Result()

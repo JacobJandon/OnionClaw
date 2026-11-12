@@ -10,6 +10,7 @@ import sys, os, json
 # ── bootstrap ─────────────────────────────────────────────────────
 _skill_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _skill_dir)
+from _version import __version__ as ONIONCLAW_VERSION  # noqa: E402
 
 _env = os.path.join(_skill_dir, ".env")
 if os.path.exists(_env):
@@ -36,7 +37,7 @@ import argparse as _ap
 _parser = _ap.ArgumentParser(
     description="OnionClaw — verify Tor is running and show exit IP")
 _parser.add_argument("--version", action="version",
-                     version=f"OnionClaw check_tor {getattr(sicry, '__version__', '?')}")
+                     version=f"OnionClaw check_tor {ONIONCLAW_VERSION} (SICRY\u2122 engine {getattr(sicry, '__version__', '?')})")
 _parser.add_argument("--json", action="store_true",
                      help="Print only the JSON result, no human-readable output")
 _args = _parser.parse_args()

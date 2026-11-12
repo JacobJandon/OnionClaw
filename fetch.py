@@ -13,6 +13,7 @@ import sys, os, json, argparse
 # ── bootstrap ─────────────────────────────────────────────────────
 _skill_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _skill_dir)
+from _version import __version__ as ONIONCLAW_VERSION  # noqa: E402
 
 _env = os.path.join(_skill_dir, ".env")
 if os.path.exists(_env):
@@ -35,7 +36,7 @@ except Exception as _e:
 
 parser = argparse.ArgumentParser(description="Fetch any URL via Tor")
 parser.add_argument("--version",     action="version",
-                    version=f"OnionClaw fetch {getattr(sicry, '__version__', '?')}")
+                    version=f"OnionClaw fetch {ONIONCLAW_VERSION} (SICRY\u2122 engine {getattr(sicry, '__version__', '?')})")
 parser.add_argument("--url",         required=True, help="URL or .onion address to fetch")
 parser.add_argument("--links",       action="store_true", help="Print all extracted links")
 parser.add_argument("--json",        action="store_true", help="Output raw JSON only")
